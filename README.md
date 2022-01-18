@@ -25,7 +25,7 @@ pyenv activate gly.fish
 MAC OS
 
 ```
-cat packages-macos.txt | xargs pip install
+cat packages.txt | xargs pip install
 ```
 or
 
@@ -36,7 +36,7 @@ pip install -r requirements-macos.txt
 Ubuntu
 
 ```
-cat packages-ubuntu.txt | xargs pip install
+cat packages.txt | xargs pip install
 ```
 
 ```
