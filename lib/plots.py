@@ -2,14 +2,14 @@ import numpy
 from matplotlib import pyplot
 from lib import config
 
-def timeseries(samples, time, title):
+def time_series(samples, time, title):
     nplot = len(samples)
     figure, axis = pyplot.subplots(figsize=(12, 8))
     axis.set_xlabel("Time")
     axis.set_title(title)
     axis.plot(time, samples, lw=1)
 
-def timeseries_comparison(samples, time, labels, lengend_location, title):
+def time_series_comparison(samples, time, labels, lengend_location, title):
     nplot = len(samples)
     figure, axis = pyplot.subplots(figsize=(12, 8))
     axis.set_xlabel("Time")

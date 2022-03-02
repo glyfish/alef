@@ -47,7 +47,7 @@ def cholesky_decompose(H, n):
                 l[i,j] = (autocorrelation(H, i - j) - numpy.sum(l[i,0:j]*l[j,0:j].T)) / l[j,j]
     return l
 
-def cholesky_noise(H, Δt, n, dB=None, L=None):
+def cholesky_noise(H, n, Δt=1, dB=None, L=None):
     if dB is None:
         dB = brownian_noise(n+1)
     if len(dB) != n + 1:
@@ -60,7 +60,7 @@ def cholesky_noise(H, Δt, n, dB=None, L=None):
         raise Exception(f"L should have length {n+1}")
     return numpy.squeeze(numpy.asarray(L*dB.T))
 
-def cholesky(H, Δt, n, dB=None, L=None):
+def cholesky(H, n, Δt=1, dB=None, L=None):
     if dB is None:
         dB = brownian_noise(n+1)
     if L is None:
@@ -68,14 +68,14 @@ def cholesky(H, Δt, n, dB=None, L=None):
         L = numpy.linalg.cholesky(R)
     if len(dB) != n + 1:
         raise Exception(f"dB should have length {n+1}")
-    dZ = cholesky_noise(H, Δt, n, dB, L)
+    dZ = cholesky_noise(H, n, Δt, dB, L)
     Z = numpy.zeros(len(dB))
     for i in range(1, len(dB)):
         Z[i] = Z[i - 1] + dZ[i]
     return Z
 
 # FFT Method for FBM generation
-def fft_noise(H, Δt, n, dB=None):
+def fft_noise(H, n, Δt=1, dB=None):
 
     if dB is None:
         dB = brownian_noise(2*n)
@@ -112,12 +112,12 @@ def fft_noise(H, Δt, n, dB=None):
 
     return Z[:n].real
 
-def fft(H, Δt, n, dB=None):
+def fft(H, n, Δt=1, dB=None):
     if dB is None:
         dB = brownian_noise(2*n)
     if len(dB) != 2*n:
         raise Exception(f"dB should have length {2*n}")
-    dZ = fft_noise(H, Δt, n, dB=dB)
+    dZ = fft_noise(H, n, Δt, dB=dB)
     Z = numpy.zeros(n)
     for i in range(1, n):
         Z[i] = Z[i - 1] + dZ[i]
@@ -130,7 +130,7 @@ def brownian_motion_from_noise(dB):
         B[i] = B[i - 1] + dB[i]
     return B
 
-def brownian_motion(Δt, n):
+def brownian_motion(n, Δt=1):
     σ = numpy.sqrt(Δt)
     samples = numpy.zeros(n)
     for i in range(1, n):
@@ -138,15 +138,15 @@ def brownian_motion(Δt, n):
         samples[i] = samples[i-1] + σ * Δ
     return samples
 
-def brownian_motion_with_drift(μ, σ, Δt, n):
+def brownian_motion_with_drift(μ, σ, n, Δt=1):
     samples = numpy.zeros(n)
     for i in range(1, n):
         Δ = numpy.random.normal()
         samples[i] = samples[i-1] + (σ * Δ * numpy.sqrt(Δt)) + (μ * Δt)
     return samples
 
-def geometric_brownian_motion(μ, σ, s0, Δt, n):
-    samples = brownian_motion_with_drift(μ, σ, Δt, n)
+def geometric_brownian_motion(μ, σ, s0, n, Δt=1):
+    samples = brownian_motion_with_drift(μ, σ, n, Δt=1)
     return to_geometric(s0, samples)
 
 def to_geometric(s0, samples):
