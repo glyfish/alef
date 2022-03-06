@@ -114,3 +114,14 @@ def generate_fft(H, n, Δt=1, dB=None):
 
 def to_geometric(s0, samples):
     return s0*numpy.exp(samples)
+
+def from_geometric(s0, samples):
+    return numpy.log(samples/s0)
+
+def to_noise(samples):
+    nsim, npts = samples.shape
+    noise = numpy.zeros((nsim, npts-1))
+    for i in range(nsim):
+        for j in range(npts-1):
+            noise[i,j] = samples[i,j+1] - samples[i,j]
+    return noise

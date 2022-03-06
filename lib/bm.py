@@ -33,5 +33,6 @@ def generate_with_drift(μ, σ, n, Δt=1):
     return samples
 
 def generate_geometric(μ, σ, s0, n, Δt=1):
-    samples = motion_with_drift(μ, σ, n, Δt=1)
-    return to_geometric(s0, samples)
+    gbm_drift = μ - 0.5*σ**2
+    samples = generate_with_drift(gbm_drift, σ, n, Δt)
+    return s0*numpy.exp(samples)
