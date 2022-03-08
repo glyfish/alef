@@ -61,6 +61,16 @@ def cumsigma(samples):
         var[i] = (float(i) * var[i - 1] + samples[i]**2)/float(i + 1)
     return numpy.sqrt(var-mean**2)
 
+def cumcovariance(x, y):
+    nsample = min(len(x), len(y))
+    cov = numpy.zeros(nsample)
+    meanx = cummean(x)
+    meany = cummean(y)
+    cov[0] = x[0]*y[0]
+    for i in range(1, nsample):
+        cov[i] = (float(i) * cov[i - 1] + x[i] * y[i])/float(i + 1)
+    return cov - meanx * meany
+
 def covariance(x, y):
     nsample = len(x)
     meanx = numpy.mean(x)
@@ -73,16 +83,6 @@ def covariance(x, y):
 def correletion_coefficient(x, y):
     cov = covariance(x, y)
     return cov/numpy.sqrt((numpy.var(x)*numpy.var(y)))
-
-def cum_covariance(x, y):
-    nsample = min(len(x), len(y))
-    cov = numpy.zeros(nsample)
-    meanx = cummean(x)
-    meany = cummean(y)
-    cov[0] = x[0]*y[0]
-    for i in range(1, nsample):
-        cov[i] = (float(i) * cov[i - 1] + x[i] * y[i])/float(i + 1)
-    return cov - meanx * meany
 
 def power_spectrum(x):
     n = len(x)

@@ -34,36 +34,16 @@ def time_series_stack(series, labels, ylim, title):
         axis[i].text(time[int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
         axis[i].plot(time, series[i], lw=1.0)
 
-def cumulative_mean(acum, μ, title, ylim=None, legend_pos = None):
-    nsample = len(acum)
+def cumulative(accum, target, ylim, title, label):
+    legend_pos=[0.85, 0.95]
+    nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
-    figure, axis = pyplot.subplots(figsize=(12, 8))
-    if ylim is not None:
-        axis.set_ylim(ylim)
+    figure, axis = pyplot.subplots(figsize=(15, 12))
+    axis.set_ylim(ylim)
     axis.set_xlabel("Time")
-    axis.set_ylabel(r"$μ$")
+    axis.set_ylabel(label)
     axis.set_title(title)
     axis.set_xlim([10.0, nsample])
-    axis.semilogx(time, numpy.full((len(time)), μ), label="Target μ", color="#000000")
-    axis.semilogx(time, acum, label=f"Cumulative μ")
-    if legend_pos is None:
-        axis.legend()
-    else:
-        axis.legend(bbox_to_anchor=legend_pos)
-
-def cumulative_std(acum, σ, title, ylim=None, legend_pos = None):
-    nsample = len(acum)
-    time = numpy.linspace(1.0, nsample, nsample)
-    figure, axis = pyplot.subplots(figsize=(12, 8))
-    if ylim is not None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel("Time")
-    axis.set_ylabel(r"$σ$")
-    axis.set_title(title)
-    axis.set_xlim([10.0, nsample])
-    axis.semilogx(time, numpy.full((len(time)), σ), label="Target σ", color="#000000")
-    axis.semilogx(time, acum, label=f"Cumulative σ")
-    if legend_pos is None:
-        axis.legend()
-    else:
-        axis.legend(bbox_to_anchor=legend_pos)
+    axis.semilogx(time, accum, label=f"Cumulative "+label)
+    axis.semilogx(time, numpy.full((len(time)), target), label="Target "+label)
+    axis.legend(bbox_to_anchor=legend_pos)
