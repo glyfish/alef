@@ -36,11 +36,12 @@ def time_series_stack(series, labels, ylim, title):
         axis[i].plot(time, series[i], lw=1.0)
 
 def cumulative(accum, target, title, label):
+    range = max(accum) - min(accum)
     legend_pos=[0.85, 0.95]
     nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
     figure, axis = pyplot.subplots(figsize=(15, 12))
-    axis.set_ylim([1.1*(min(accum)-0.1), 1.1*(max(accum)+0.1)])
+    axis.set_ylim([min(accum)-0.1*range, max(accum)+0.1*range])
     axis.set_xlabel("Time")
     axis.set_ylabel(label)
     axis.set_title(title)
