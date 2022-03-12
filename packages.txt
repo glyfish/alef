@@ -1,1 +1,3 @@
 jupyterlab
+jupyterlab-snippets
+jupyterlab-spellchecker

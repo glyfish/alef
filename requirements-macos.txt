@@ -47,6 +47,8 @@ jupyter-server==1.13.3
 jupyterlab==3.2.8
 jupyterlab-pygments==0.1.2
 jupyterlab-server==2.10.3
+jupyterlab-snippets==0.4.1
+jupyterlab-spellchecker==0.7.2
 jupyterlab-widgets==1.0.0
 kiwisolver==1.3.1
 lazy-object-proxy==1.6.0
