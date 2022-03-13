@@ -1,5 +1,6 @@
 import numpy
 import statsmodels.api as sm
+import statsmodels.tsa as tsa
 
 from lib import bm
 
@@ -13,10 +14,10 @@ def ar(φ, n, σ):
             samples[i] += φ[j] * samples[i-(j+1)]
     return samples
 
-def ar1(φ, n, σ):
+def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)
 
-def arp(φ, n, σ=1):
+def arp(φ, n, σ=1.0):
     φ = numpy.r_[1, -φ]
     δ = numpy.array([1.0])
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
@@ -40,3 +41,6 @@ def acf(samples, nlags):
 
 def pacf(samples, nlags):
     return sm.tsa.stattools.pacf(samples, nlags=nlags, method="ywunbiased")
+
+def arma_estimate(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0)).fit()
