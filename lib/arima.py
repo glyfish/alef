@@ -23,7 +23,7 @@ def arp(φ, n, σ=1.0):
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
 
 def maq(δ, n, σ=1.0):
-    φ = numpy.array(1.0)
+    φ = numpy.array([1.0])
     δ = numpy.r_[1, δ]
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
 
@@ -35,9 +35,6 @@ def generate(φ, δ, n, σ=1):
 def yw_acf(x, max_lag):
     pacf, _ = sm.regression.yule_walker(x, order=max_lag, method='mle')
     return pacf
-
-def acf(samples, nlags):
-    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
 
 def pacf(samples, nlags):
     return sm.tsa.stattools.pacf(samples, nlags=nlags, method="ywunbiased")

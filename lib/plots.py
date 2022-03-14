@@ -41,7 +41,7 @@ def cumulative(accum, target, title, label):
     nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
     figure, axis = pyplot.subplots(figsize=(15, 12))
-    axis.set_ylim([min(accum)-0.1*range, max(accum)+0.1*range])
+    axis.set_ylim([min(accum)-0.25*range, max(accum)+0.25*range])
     axis.set_xlabel("Time")
     axis.set_ylabel(label)
     axis.set_title(title)

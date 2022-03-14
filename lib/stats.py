@@ -1,4 +1,5 @@
 import numpy
+import statsmodels.api as sm
 
 def ensemble_mean(samples):
     nsim, npts = samples.shape
@@ -17,32 +18,16 @@ def ensemble_std(samples):
             std[i] += (samples[j,i] - mean[i])**2 / float(nsim)
     return numpy.sqrt(std)
 
-def ensemble_autocorrelation(samples):
+def ensemble_acf(samples, nlags=None):
     nsim, npts = samples.shape
+    if nlags is None:
+        nlags = npts
     ac_avg = numpy.zeros(npts)
     for j in range(nsim):
-        ac = autocorrelate(samples[j]).real
+        ac = acf(samples[j], nlags).real
         for i in range(npts):
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
-
-def ensemble_covariance(x, y):
-    nsim, npts = x.shape
-    cov = numpy.zeros(npts)
-    mean_x = ensemble_mean(x)
-    mean_y = ensemble_mean(y)
-    for i in range(npts):
-        for j in range(nsim):
-            cov[i] += (x[j,i] - mean_x[i])*(y[j,i] - mean_y[i])
-    return cov / float(nsim)
-
-def ensemble_correlation_coefficient(x, y):
-    cov = ensemble_covariance(x, y)
-    std_x = ensemble_std(x)
-    std_y = ensemble_std(y)
-    for i in range(1,len(cov)):
-        cov[i] = cov[i] / (std_x[i]*std_y[i])
-    return cov
 
 def cummean(samples):
     nsample = len(samples)
@@ -80,10 +65,6 @@ def covariance(x, y):
         cov += x[i] * y[i]
     return cov/nsample - meanx * meany
 
-def correletion_coefficient(x, y):
-    cov = covariance(x, y)
-    return cov/numpy.sqrt((numpy.var(x)*numpy.var(y)))
-
 def power_spectrum(x):
     n = len(x)
     μ = x.mean()
@@ -94,20 +75,5 @@ def power_spectrum(x):
     power = numpy.conj(x_fft) * x_fft
     return power[1:n].real / (n * energy)
 
-def autocorrelate(x):
-    n = len(x)
-    x_shifted = x - x.mean()
-    x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
-    x_fft = numpy.fft.fft(x_padded)
-    h_fft = numpy.conj(x_fft) * x_fft
-    ac = numpy.fft.ifft(h_fft)
-    return ac[0:n]/ac[0]
-
-def autocorrelate_sum(x, max_lag):
-    n = len(x)
-    x_shifted = x - x.mean()
-    ac = numpy.zeros(n)
-    for t in range(max_lag):
-        for k in range(0, n - t):
-            ac[t] += x_shifted[k] * x_shifted[k + t]
-    return ac/ac[0]
+def acf(samples, nlags):
+    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)

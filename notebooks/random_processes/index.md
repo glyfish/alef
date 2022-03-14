@@ -2,7 +2,7 @@
 
 1. **ar1.ipynb** Test `AR(p)` simulators by comparing first and second order moments of `AR(1)` computed from simulations with analytic results obtained by assuming stationarity.
 
-2. **arma.ipynb** Test `ARMA(p,q)` simulations and parameter estimation using autocorrelation function analysis and partial autocorrelation function analysis.
+2. **arma_order_determination.ipynb** Test `ARMA(p,q)` simulations and order determination using autocorrelation function analysis and partial autocorrelation function analysis.
 
 3. **arq_parameter_esimation.ipynb** Test `AR(p)` parameter estimation using the Yule-Walker equations.
 
