@@ -1,6 +1,6 @@
 # Random Processes
 
-1. **ar1.ipynb** Test `AR(p)` simulators by comparing first and second order moments with analytic results.
+1. **ar1.ipynb** Test `AR(p)` simulators by comparing first and second order moments of `AR(1)` computed from simulations with analytic results obtained by assuming stationarity.
 
 2. **arma.ipynb** Test `ARMA(p,q)` simulations and parameter estimation using autocorrelation function analysis and partial autocorrelation function analysis.
 
@@ -15,3 +15,5 @@
 6. **fbm_parameter_estimation.ipynb** Test software implementing implementing Hurst parameter, `H`, estimation using the variance aggregation method and the periodigram method. Also, test implementation of the variance ratio test in determining if a time series has `H < 0.5` which indicates the series is anti-correlated.
 
 7. **fbm.ipynb** Examples of simulations using the Cholesky and FFT methods as the Hurst parameter, `H`, is varied.
+
+8. **maq.ipynb** Test `MA(q)` simulator by comparing first and second order moments computed from simulations with analytic results.
