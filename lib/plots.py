@@ -50,26 +50,12 @@ def cumulative(accum, target, title, label):
     axis.semilogx(time, numpy.full((len(time)), target), label="Target "+label)
     axis.legend(bbox_to_anchor=legend_pos)
 
-def auto_regression(series, result, legend_anchor, title, plot_name, lim=None):
-    nsample = len(series)
-    figure, axis = pyplot.subplots(figsize=(12, 8))
-    axis.set_ylabel(r"$x_{t}$")
-    axis.set_xlabel(r"$x_{t-1}$")
-    if lim is not None:
-        axis.set_xlim(lim)
-        axis.set_ylim(lim)
-        x = numpy.linspace(lim[0], lim[1], 100)
-    else:
-        x = numpy.linspace(numpy.min(series), numpy.max(series), 100)
-    y_hat = x * φ_hat
+def acf_pacf(title, acf, pacf, max_lag):
+    figure, axis = pyplot.subplots(figsize=(15, 12))
     axis.set_title(title)
-    axis.plot(series[1:], series[0:-1], marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Simulation")
-    axis.plot(x, y_hat, lw=3.0, color="#000000", zorder=6, label=r"$x_{t}=\hat{\phi}x_{t-1}$")
-    bbox = dict(boxstyle='square,pad=1', facecolor="#f7f6e8", edgecolor="#f7f6e8")
-    axis.text(x[80], x[0],
-              r"$\hat{\phi}=$" + f"{format(φ_hat, '2.3f')}\n" +
-              r"$\sigma_{\hat{\phi}}=$" + f"{format(numpy.sqrt(φ_hat_var), '2.3f')}\n"
-              r"$R^2=$"+f"{format(φ_r_squared, '2.3f')}\n",
-              bbox=bbox, fontsize=14.0, zorder=7)
-    axis.legend(bbox_to_anchor=legend_anchor).set_zorder(7)
-    config.save_post_asset(figure, "regression", plot_name)
+    axis.set_xlabel("Time Lag (τ)")
+    axis.set_xlim([-0.1, max_lag])
+    axis.set_ylim([-1.1, 1.1])
+    axis.plot(range(max_lag+1), acf, label="ACF")
+    axis.plot(range(1, max_lag+1), pacf, label="PACF")
+    axis.legend(fontsize=16)

@@ -32,7 +32,7 @@ def generate(φ, δ, n, σ=1):
     δ = numpy.r_[1, δ]
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
 
-def yw_acf(x, max_lag):
+def yw(x, max_lag):
     pacf, _ = sm.regression.yule_walker(x, order=max_lag, method='mle')
     return pacf
 
