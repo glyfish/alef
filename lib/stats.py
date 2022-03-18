@@ -1,5 +1,12 @@
 import numpy
 import statsmodels.api as sm
+from enum import Enum
+
+class RegressionType(Enum):
+    LINEAR = 1
+    LOG = 2
+    XLOG = 3
+    YLOG = 4
 
 def ensemble_mean(samples):
     nsim, npts = samples.shape
@@ -77,3 +84,13 @@ def power_spectrum(x):
 
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
+
+def OLS(y, x, type=RegressionType.LINEAR):
+    if type == RegressionType.LOG:
+        x = numpy.log10(x)
+        y = numpy.log10(y)
+    x = sm.add_constant(x)
+    model = sm.OLS(y, x)
+    results = model.fit()
+    results.summary()
+    return results

@@ -39,5 +39,8 @@ def yw(x, max_lag):
 def pacf(samples, nlags):
     return sm.tsa.stattools.pacf(samples, nlags=nlags, method="ywunbiased")
 
-def arma_estimate(samples, order):
+def ar_estimate(samples, order):
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0)).fit()
+
+def ma_estimate(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(0, order, 0)).fit()
