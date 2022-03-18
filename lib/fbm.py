@@ -161,3 +161,17 @@ def agg_var_H(agg_var, m_vals):
     model = sm.OLS(y, x)
     results = model.fit()
     return results
+
+def agg_series(samples,m):
+    series = []
+    for i in range(len(m)):
+        series.append(agg(samples, m[i]))
+    return series
+
+def agg_time(samples, m):
+    n = len(samples)
+    times = []
+    for i in range(len(m)):
+        d = int(n/m[i])
+        times.append(numpy.linspace(0, n-1, d))
+    return times

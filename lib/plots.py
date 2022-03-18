@@ -20,20 +20,22 @@ def time_series_comparison(samples, time, labels, lengend_location, title):
         axis.plot(time, samples[i], lw=1, label=labels[i])
     axis.legend(ncol=2, bbox_to_anchor=lengend_location)
 
-def time_series_stack(series, labels, ylim, title):
+def time_series_stack(series, ylim, labels, title, time=None):
     nplot = len(series)
-    nsample = len(series[0])
+    if time is None:
+        nsample = len(series[0])
+        time = numpy.tile(numpy.linspace(0, nsample-1, nsample), (nplot,1))
     figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(15, 12))
     axis[0].set_title(title)
     axis[nplot-1].set_xlabel(r"$t$")
-    time = numpy.linspace(0, nsample-1, nsample)
     for i in range(nplot):
+        nsample = len(series[i])
         axis[i].set_ylabel(r"$X_t$")
         axis[i].set_ylim(ylim)
-        axis[i].set_xlim([0.0, nsample])
-        text = axis[i].text(time[int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
+        axis[i].set_xlim([0.0, time[i][-1]])
+        text = axis[i].text(time[i][int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
         text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
-        axis[i].plot(time, series[i], lw=1.0)
+        axis[i].plot(time[i], series[i], lw=1.0)
 
 def cumulative(accum, target, title, label):
     range = max(accum) - min(accum)
