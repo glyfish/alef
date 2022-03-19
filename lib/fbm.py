@@ -129,40 +129,28 @@ def to_noise(samples):
 # Variance aggregation
 def agg(samples, m):
     n = len(samples)
-    d = int(n / m)
+    d = int(n/m)
     agg = numpy.zeros(d)
     for k in range(d):
         for i in range(m):
             j = k*m+i
             agg[k] += samples[j]
-        agg[k] = agg[k] / m
+        agg[k] = agg[k]/m
     return agg
 
-def agg_var(samples, npts, m_min):
-    n = len(samples)
-    m_vals = numpy.logspace(numpy.log10(m_min), numpy.log10(n/10.0), npts)
+def agg_var(samples, m_vals):
+    npts = len(m_vals)
     agg_var = numpy.zeros(npts)
     for i in range(npts):
         m = int(m_vals[i])
-        agg = aggregated_process(samples, m)
-        agg_mean = numpy.mean(agg)
-        d = len(agg)
+        agg_vals = agg(samples, m)
+        agg_mean = numpy.mean(agg_vals)
+        d = len(agg_vals)
         for k in range(d):
-            agg_var[i] += (agg[k] - agg_mean)**2/(d - 1)
+            agg_var[i] += (agg_vals[k] - agg_mean)**2/(d - 1)
     return agg_var
 
-def m_logspace(nagg, m_min, npts):
-    return numpy.logspace(numpy.log10(m_min), numpy.log10(npts/10.0), nagg)
-
-def agg_var_H(agg_var, m_vals):
-    x = numpy.log10(m_vals)
-    y = numpy.log10(agg_var)
-    x = sm.add_constant(x)
-    model = sm.OLS(y, x)
-    results = model.fit()
-    return results
-
-def agg_series(samples,m):
+def agg_series(samples, m):
     series = []
     for i in range(len(m)):
         series.append(agg(samples, m[i]))

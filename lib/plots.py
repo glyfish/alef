@@ -2,10 +2,17 @@ import numpy
 from matplotlib import pyplot
 from lib import config
 from enum import Enum
+from matplotlib.ticker import (MaxNLocator, MultipleLocator, FormatStrFormatter, AutoMinorLocator, LogFormatterMathtext)
 
 class RegressionPlotType(Enum):
     LINEAR = 1
-    AGG_VAR = 2
+    FBM_AGG_VAR = 2
+
+class PlotType(Enum):
+    LINEAR = 1
+    LOG = 2
+    XLOG = 3
+    YLOG = 4
 
 def time_series(samples, time, title):
     nplot = len(samples)
@@ -67,52 +74,66 @@ def acf_pacf(title, acf, pacf, max_lag):
     axis.plot(range(1, max_lag+1), pacf, label="PACF")
     axis.legend(fontsize=16)
 
-def regression(y, x, result, title, type=RegressionPlotType.LINEAR):
+def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
     β = results.params
-    σ = results.bse
+    σ = results.bse[1] / 2
     r2 = results.rsquared
 
-    x_text = int(0.8*len(x))
-    y_text = int(0.4*len(y))
-    σ = σ[1] / 2.0
 
-    figure, axis = pyplot.subplots(figsize=(12, 8))
-    axis.set_title(title)
-    bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+    if β[1] < 0:
+        x_text = int(0.8*len(x))
+        y_text = int(0.4*len(y))
+        legend_loc = [0.4, 0.3]
+    else:
+        x_text = int(0.2*len(x))
+        y_text = int(0.4*len(y))
+        legend_loc = [0.8, 0.5]
 
-    if type == RegressionPlotType.AGG_VAR:
+    if type == RegressionPlotType.FBM_AGG_VAR:
+        plot_type = PlotType.LOG
         y_fit = 10**β[0]*x**(β[1])
         h = float(1.0 + β[1]/2.0)
         ylabel = r"$Var(X^{m})$"
         xlabel = r"$m$"
-        results_text = r"$\hat{Η}=$" + f"{format(h, '2.3f')}\n" + \
-                       r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.3f')}\n" + \
-                       r"$R^2=$" + f"{format(r2, '2.3f')}"
-        label = r"$Var(X^{m})=/beta *m^{2H-2}$"
+        results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
+                       r"$\hat{\sigma}^2=$" + f"{format(10**β[0], '2.2f')}\n" + \
+                       r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
+                       r"$R^2=$" + f"{format(r2, '2.2f')}"
+        label = r"$Var(X^{m})=\sigma^2 m^{2H-2}$"
     else:
+        y_fit = β[0] + x*β[1]
         ylabel = "y"
         xlabel = "x"
-        axis.set_ylabel("y")
-        axis.set_xlabel("x")
-        y_fit = β[0] + x*β[1]
-        results_text = r"$\alpha=$" + f"{format(β[1], '2.3f')}\n" + \
-                       r"$\beta=$" + f"{format(β[0], '2.3f')}\n" + \
-                       r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.3f')}\n" + \
-                       r"$R^2=$" + f"{format(r2, '2.3f')}"
-        label = r"$y=\beta +\alpha x$"
+        results_text = r"$\alpha=$" + f"{format(β[1], '2.2f')}\n" + \
+                       r"$\beta=$" + f"{format(β[0], '2.2f')}\n" + \
+                       r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
+                       r"$R^2=$" + f"{format(r2, '2.2f')}"
+        label = r"$y=\beta + \alpha x$"
 
+    figure, axis = pyplot.subplots(figsize=(15, 12))
+
+    axis.set_title(title)
     axis.set_ylabel(ylabel)
     axis.set_xlabel(xlabel)
-    axis.text(x[x_text], y[y_text], results_text, bbox=bbox, fontsize=14.0, zorder=7)
 
-    if type == RegressionPlotType.AGG_VAR:
-        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Simulation")
+    bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+    axis.text(x[x_text], y[y_text], results_text, bbox=bbox, fontsize=16.0, zorder=7)
+
+    if plot_type == PlotType.LOG:
+        if numpy.log10(max(x)/min(x)) < 3:
+            axis.tick_params(axis='both', which='minor', length=8, color="#c0c0c0", direction="in")
+            axis.tick_params(axis='both', which='major', length=15, color="#c0c0c0", direction="in", pad=10)
+            axis.spines['bottom'].set_color("#c0c0c0")
+            axis.spines['left'].set_color("#c0c0c0")
+            axis.set_xlim([min(x), max(x)])
+
+        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Data")
         axis.loglog(x, y_fit, zorder=5, label=label)
     else:
-        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Simulation")
+        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Data")
         axis.plot(x, y_fit, zorder=5, label=label)
 
-    axis.legend(bbox_to_anchor=[0.4, 0.4])
+    axis.legend(bbox_to_anchor=legend_loc)
 
 def logspace(npts, max, min=10.0):
     return numpy.logspace(numpy.log10(min), numpy.log10(max/min), npts)

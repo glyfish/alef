@@ -94,3 +94,12 @@ def OLS(y, x, type=RegressionType.LINEAR):
     results = model.fit()
     results.summary()
     return results
+
+def agg_var_H_estimate(agg_var, m_vals):
+    x = numpy.log10(m_vals)
+    y = numpy.log10(agg_var)
+    x = sm.add_constant(x)
+    model = sm.OLS(y, x)
+    results = model.fit()
+    results.summary()
+    return results
