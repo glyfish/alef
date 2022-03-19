@@ -43,4 +43,4 @@ def ar_estimate(samples, order):
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0)).fit()
 
 def ma_estimate(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(0, order, 0)).fit()
+    return tsa.arima.model.ARIMA(samples, order=(0, 0, order)).fit()

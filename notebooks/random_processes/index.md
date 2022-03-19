@@ -18,4 +18,6 @@
 
 * **[fbm.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm.ipynb)** Examples of simulations using the Cholesky and FFT methods as the Hurst parameter, `H`, is varied.
 
+* **[maq_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq_parameter_estimation.ipynb)** Test `MA(q)` parameter estimation.
+
 * **[maq.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq.ipynb)** Test `MA(q)` simulator by comparing first and second order moments computed from simulations with analytic results.
