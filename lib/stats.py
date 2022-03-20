@@ -53,7 +53,7 @@ def cumsigma(samples):
         var[i] = (float(i) * var[i - 1] + samples[i]**2)/float(i + 1)
     return numpy.sqrt(var-mean**2)
 
-def cumcovariance(x, y):
+def cumcov(x, y):
     nsample = min(len(x), len(y))
     cov = numpy.zeros(nsample)
     meanx = cummean(x)
@@ -72,7 +72,7 @@ def covariance(x, y):
         cov += x[i] * y[i]
     return cov/nsample - meanx * meany
 
-def power_spectrum(x):
+def pspec(x):
     n = len(x)
     μ = x.mean()
     x_shifted = x - μ

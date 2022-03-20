@@ -7,6 +7,7 @@ from matplotlib.ticker import (MaxNLocator, MultipleLocator, FormatStrFormatter,
 class RegressionPlotType(Enum):
     LINEAR = 1
     FBM_AGG_VAR = 2
+    FBM_PSPEC = 3
 
 class PlotType(Enum):
     LINEAR = 1
@@ -15,12 +16,19 @@ class PlotType(Enum):
     YLOG = 4
 
 def time_series(samples, time, title):
-    nplot = len(samples)
     figure, axis = pyplot.subplots(figsize=(15, 12))
     axis.set_xlabel(r"$t$")
     axis.set_ylabel(r"$X_t$")
     axis.set_title(title)
     axis.plot(time, samples, lw=1)
+
+def pspec(ps, time, title):
+    figure, axis = pyplot.subplots(figsize=(15, 12))
+    axis.set_xlabel(r"$\omega$")
+    axis.set_ylabel(r"$\rho_\omega$")
+    axis.set_title(title)
+    logStyle(axis, ps)
+    axis.loglog(time, ps, lw=1)
 
 def time_series_comparison(samples, time, labels, lengend_location, title):
     nplot = len(samples)
@@ -100,6 +108,17 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
                        r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
                        r"$R^2=$" + f"{format(r2, '2.2f')}"
         label = r"$Var(X^{m})=\sigma^2 m^{2H-2}$"
+    if type == RegressionPlotType.FBM_PSPEC:
+        plot_type = PlotType.LOG
+        y_fit = 10**β[0]*x**(β[1])
+        h = float(1.0 - β[1])/2.0
+        ylabel = r"$\hat{\rho}^H_\omega$"
+        xlabel = r"$\omega$"
+        results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
+                       r"$\hat{\sigma}^2=$" + f"{format(10**β[0], '2.2f')}\n" + \
+                       r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
+                       r"$R^2=$" + f"{format(r2, '2.2f')}"
+        label = r"$\hat{\rho}^H_\omega = C\lvert \omega \rvert^{1 - 2H}$"
     else:
         y_fit = β[0] + x*β[1]
         ylabel = "y"
@@ -120,13 +139,7 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
     axis.text(x[x_text], y[y_text], results_text, bbox=bbox, fontsize=16.0, zorder=7)
 
     if plot_type == PlotType.LOG:
-        if numpy.log10(max(x)/min(x)) < 3:
-            axis.tick_params(axis='both', which='minor', length=8, color="#c0c0c0", direction="in")
-            axis.tick_params(axis='both', which='major', length=15, color="#c0c0c0", direction="in", pad=10)
-            axis.spines['bottom'].set_color("#c0c0c0")
-            axis.spines['left'].set_color("#c0c0c0")
-            axis.set_xlim([min(x), max(x)])
-
+        logStyle(axis, x)
         axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Data")
         axis.loglog(x, y_fit, zorder=5, label=label)
     else:
@@ -137,3 +150,11 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
 
 def logspace(npts, max, min=10.0):
     return numpy.logspace(numpy.log10(min), numpy.log10(max/min), npts)
+
+def logStyle(axis, x):
+    if numpy.log10(max(x)/min(x)) < 3:
+        axis.tick_params(axis='both', which='minor', length=8, color="#c0c0c0", direction="in")
+        axis.tick_params(axis='both', which='major', length=15, color="#c0c0c0", direction="in", pad=10)
+        axis.spines['bottom'].set_color("#c0c0c0")
+        axis.spines['left'].set_color("#c0c0c0")
+        axis.set_xlim([min(x), max(x)])
