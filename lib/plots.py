@@ -87,15 +87,14 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
     σ = results.bse[1] / 2
     r2 = results.rsquared
 
-
     if β[1] < 0:
-        x_text = int(0.8*len(x))
-        y_text = int(0.4*len(y))
+        x_text = 0.8
+        y_text = 0.825
         legend_loc = [0.4, 0.3]
     else:
-        x_text = int(0.2*len(x))
-        y_text = int(0.4*len(y))
-        legend_loc = [0.8, 0.5]
+        x_text = 0.2
+        y_text = 0.8
+        legend_loc = [0.8, 0.3]
 
     if type == RegressionPlotType.FBM_AGG_VAR:
         plot_type = PlotType.LOG
@@ -108,17 +107,17 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
                        r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
                        r"$R^2=$" + f"{format(r2, '2.2f')}"
         label = r"$Var(X^{m})=\sigma^2 m^{2H-2}$"
-    if type == RegressionPlotType.FBM_PSPEC:
+    elif type == RegressionPlotType.FBM_PSPEC:
         plot_type = PlotType.LOG
         y_fit = 10**β[0]*x**(β[1])
         h = float(1.0 - β[1])/2.0
         ylabel = r"$\hat{\rho}^H_\omega$"
         xlabel = r"$\omega$"
         results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
-                       r"$\hat{\sigma}^2=$" + f"{format(10**β[0], '2.2f')}\n" + \
+                       r"$\hat{C}=$" + f"{format(10**β[0], '2.2f')}\n" + \
                        r"$\sigma_{\hat{H}}=$" + f"{format(σ, '2.2f')}\n" + \
                        r"$R^2=$" + f"{format(r2, '2.2f')}"
-        label = r"$\hat{\rho}^H_\omega = C\lvert \omega \rvert^{1 - 2H}$"
+        label = r"$\hat{\rho}^H_\omega = C | \omega |^{1 - 2H}$"
     else:
         y_fit = β[0] + x*β[1]
         ylabel = "y"
@@ -136,15 +135,15 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
     axis.set_xlabel(xlabel)
 
     bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
-    axis.text(x[x_text], y[y_text], results_text, bbox=bbox, fontsize=16.0, zorder=7)
+    axis.text(x_text, y_text, results_text, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
 
     if plot_type == PlotType.LOG:
         logStyle(axis, x)
-        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Data")
-        axis.loglog(x, y_fit, zorder=5, label=label)
+        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
+        axis.loglog(x, y_fit, zorder=10, label=label)
     else:
-        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=10, label="Data")
-        axis.plot(x, y_fit, zorder=5, label=label)
+        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
+        axis.plot(x, y_fit, zorder=10, label=label)
 
     axis.legend(bbox_to_anchor=legend_loc)
 
