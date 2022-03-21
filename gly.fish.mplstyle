@@ -12,10 +12,12 @@ axes.prop_cycle: cycler('color', ['0067C4', 'FF9500', '5600C9', 'AC9C00', '329EF
 xtick.labelsize : 18
 xtick.major.size: 0
 xtick.minor.size: 0
+xtick.major.pad: 10
 
 ytick.labelsize : 18
 ytick.major.size: 0
 ytick.minor.size: 0
+ytick.major.pad: 10
 
 grid.color: e0e0e0
 grid.linestyle: -

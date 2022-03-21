@@ -1,8 +1,8 @@
 import numpy
 from matplotlib import pyplot
 from lib import config
+from lib import fbm
 from enum import Enum
-from matplotlib.ticker import (MaxNLocator, MultipleLocator, FormatStrFormatter, AutoMinorLocator, LogFormatterMathtext)
 
 # Specify PlotConfig for regression plot
 class RegressionPlotType(Enum):
@@ -21,9 +21,9 @@ class PlotType(Enum):
 class PlotDataType(Enum):
     TIME_SERIES = 1     # Time Series
     PSPEC = 2           # Power spectrum
-    FBM_MEAN = 3        # FBM mean
-    FBM_STD = 4         # FBM standard deviation
-    FBM_AUTO_COR = 5    # FBM autocorrelation
+    MEAN = 3            # Compare model mean with data
+    STD = 4             # Compare model standard deviation with data
+    AUTO_COR = 5        # Compare model autocorrelation
     ENSEMBLE = 6        # Data ensemble
 
 # Plot a single curve as a function of the dependent variable
@@ -53,8 +53,9 @@ def comparison(x, y, labels, title, lengend_location="upper left", data_type=Plo
 
     axis.legend(ncol=ncol, loc=lengend_location)
 
-def fcompare(y, x, title, label, npts=10, lengend_location="upper left", data_type=PlotDataType.TIME_SERIES):
-    plot_config = _create_plot_data_type(data_type)
+# Compare data to the value of a function
+def fcompare(y, x, title, params=[], npts=10, lengend_location="upper left", data_type=PlotDataType.TIME_SERIES):
+    plot_config = _create_plot_data_type(data_type, params)
     step = int(len(x)/npts)
 
     figure, axis = pyplot.subplots(figsize=(15, 12))
@@ -64,19 +65,19 @@ def fcompare(y, x, title, label, npts=10, lengend_location="upper left", data_ty
 
     if plot_config.plot_type == PlotType.LOG:
         _logStyle(axis, x)
-        axis.loglog(x, y, label=label)
-        axis.loglog(x[::step], plot_config.f(x[::step]), label=plot_config.label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
-    elif plot_type == PlotType.XLOG:
+        axis.loglog(x, y, label=plot_config.legend_labels[0])
+        axis.loglog(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
+    elif plot_config.plot_type == PlotType.XLOG:
         _logXStyle(axis, ps)
-        axis.semilogx(x, y, label=label)
-        axis.semilogx(x[::step], plot_config.f(x[::step]), label=plot_config.label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
-    elif plot_type == PlotType.YLOG:
+        axis.semilogx(x, y, label=plot_config.legend_labels[0])
+        axis.semilogx(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
+    elif plot_config.plot_type == PlotType.YLOG:
         _logYStyle(axis, ps)
-        axis.semilogy(x, y, label=label)
-        axis.semilogy(x[::step], plot_config.f(x[::step]), label=plot_config.label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
+        axis.semilogy(x, y, label=plot_config.legend_labels[0])
+        axis.semilogy(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
     else:
-        axis.plot(x, y, label=label)
-        axis.plot(x[::step], plot_config.f(x[::step]), label=plot_config.label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
+        axis.plot(x, y, label=plot_config.legend_labels[0])
+        axis.plot(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
 
     axis.legend(loc=lengend_location)
 
@@ -154,19 +155,19 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
 
     if plot_config.plot_type == PlotType.LOG:
         _logStyle(axis, x)
-        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
-        axis.loglog(x, plot_config.y_fit, zorder=10, label=plot_config.legend_label)
+        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.loglog(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     elif plot_type == PlotType.XLOG:
         _logXStyle(axis, ps)
-        axis.semilogx(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
-        axis.semilogx(x, plot_config.y_fit, zorder=10, label=plot_config.legend_label)
+        axis.semilogx(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.semilogx(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     elif plot_type == PlotType.YLOG:
         _logYStyle(axis, ps)
-        axis.semilogy(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
-        axis.semilogy(x, plot_config.y_fit, zorder=10, label=plot_config.legend_label)
+        axis.semilogy(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     else:
-        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label="Data")
-        axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_label)
+        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
 
     axis.legend(loc=legend_loc)
 
@@ -175,20 +176,21 @@ def logspace(npts, max, min=10.0):
     return numpy.logspace(numpy.log10(min), numpy.log10(max/min), npts)
 
 ### -- Private ---
-# Plot config used in plots
+# Config used in plots
 class _PlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_label=None, y_fit=None, f=None):
+    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_labels=None, y_fit=None, f=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.plot_type = plot_type
         self.results_text = results_text
-        self.legend_label = legend_label
+        self.legend_labels = legend_labels
         self.y_fit = y_fit
         self.f = f
 
+# Regression plot configuartion
 def _create_regression_plot_type(type, results, x):
     β = results.params
-    σ = results.bse[1] / 2
+    σ = results.bse[1]/2
     r2 = results.rsquared
 
     if type == RegressionPlotType.FBM_AGG_VAR:
@@ -201,7 +203,7 @@ def _create_regression_plot_type(type, results, x):
                            ylabel=r"$Var(X^{m})$",
                            plot_type=PlotType.LOG,
                            results_text=results_text,
-                           legend_label=r"$Var(X^{m})=\sigma^2 m^{2H-2}$",
+                           legend_labels=["Data", r"$Var(X^{m})=\sigma^2 m^{2H-2}$"],
                            y_fit=10**β[0]*x**β[1])
     elif type == RegressionPlotType.FBM_PSPEC:
         h = float(1.0 - β[1])/2.0
@@ -213,7 +215,7 @@ def _create_regression_plot_type(type, results, x):
                            ylabel=r"$\hat{\rho}^H_\omega$",
                            plot_type=PlotType.LOG,
                            results_text=results_text,
-                           legend_label=r"$\hat{\rho}^H_\omega = C | \omega |^{1 - 2H}$",
+                           legend_labels=["Data", r"$\hat{\rho}^H_\omega = C | \omega |^{1 - 2H}$"],
                            y_fit=10**β[0]*x**β[1])
     else:
         results_text = r"$\alpha=$" + f"{format(β[1], '2.2f')}\n" + \
@@ -224,21 +226,53 @@ def _create_regression_plot_type(type, results, x):
                            ylabel="y",
                            plot_type=PlotType.LINEAR,
                            results_text=results_text,
-                           legend_label=r"$y=\beta + \alpha x$",
+                           legend_labels=["Data", r"$y=\beta + \alpha x$"],
                            y_fit=β[0]+x*β[1])
 
-def _create_plot_data_type(data_type):
+## plot data type
+def _create_plot_data_type(data_type, params=[]):
     if data_type == PlotDataType.TIME_SERIES:
-        return _PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
+        return _PlotConfig(xlabel=r"$t$",
+                           ylabel=r"$X_t$",
+                           plot_type=PlotType.LINEAR)
     elif data_type == PlotDataType.PSPEC:
         plot_type = PlotType.LOG
-        return _PlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", plot_type=PlotType.LOG)
+        return _PlotConfig(xlabel=r"$\omega$",
+                           ylabel=r"$\rho_\omega$",
+                           plot_type=PlotType.LOG)
+    elif data_type == PlotDataType.MEAN:
+        f = lambda t : numpy.full(len(t), 0.0)
+        return _PlotConfig(xlabel=r"$t$",
+                         ylabel=r"$\mu_t$",
+                         plot_type=PlotType.LINEAR,
+                         legend_labels=["Ensemble Average", r"$\mu=0$"],
+                         f=f)
+    elif data_type == PlotDataType.STD:
+        H = params[0]
+        f = lambda t : t**H
+        return _PlotConfig(xlabel=r"$t$",
+                           ylabel=r"$\sigma_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$t^H$"],
+                           f=f)
+    elif data_type == PlotDataType.AUTO_COR:
+        H = params[0]
+        f= lambda t : fbm.autocorrelation(H, t)
+        return _PlotConfig(xlabel=r"$t$",
+                           ylabel=r"$\rho_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(t-1)^{2H} + (t+1)^{2H} - 2t^{2H})]$"],
+                           f=f)
+    elif data_type == PlotDataType.ENSEMBLE:
+        return _PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
+
     else:
         plot_type = PlotType.LINEAR
         xlabel = "y"
         ylabel = "x"
         return _PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
 
+# plot using PlotType
 def _plot(plot_type, logStyle=True, lw=1):
     if plot_type == PlotType.LOG:
         if logStyle:
