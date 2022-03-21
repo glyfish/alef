@@ -14,6 +14,8 @@
 
 * **[fbm_estimation_variance_aggregation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_estimation_variance_aggregation.ipynb)** Test software implementing Hurst parameter, `H`, estimation using the variance aggregation method.
 
+* **[fbm_expectations.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_expectations.ipynb)** Plots of variance, correlation and autocorrelation for fractional brownian motion.
+
 * **[fbm_variance_ratio_test.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_variance_ratio_test.ipynb)** Test implementation of the variance ratio test in determining if a time series has `H < 0.5` which indicates the series is anti-correlated.
 
 * **[fbm.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm.ipynb)** Examples of simulations using the Cholesky and FFT methods as the Hurst parameter, `H`, is varied.
