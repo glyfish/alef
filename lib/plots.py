@@ -21,10 +21,15 @@ class PlotType(Enum):
 class PlotDataType(Enum):
     TIME_SERIES = 1     # Time Series
     PSPEC = 2           # Power spectrum
-    MEAN = 3            # Compare model mean with data
-    STD = 4             # Compare model standard deviation with data
-    AUTO_COR = 5        # Compare model autocorrelation
+    FBM_MEAN = 3        # Compare FBM model mean with data
+    FBM_STD = 4         # Compare FBM model standard deviation with data
+    FBM_ACF = 5         # Compare FBM model autocorrelation with data
     ENSEMBLE = 6        # Data ensemble
+    BM_MEAN = 7         # Compare BM model mean with data
+    BM_DRIFT_MEAN = 8   # Compare BM model mean with data
+    BM_STD = 9          # Compare BM model standard deviation with data
+    GBM_MEAN = 10        # Compare GBM model mean with data
+    GBM_STD = 11        # Compare GBM model standard deviation with data
 
 # Plot a single curve as a function of the dependent variable
 def curve(x, y, title, data_type=PlotDataType.TIME_SERIES):
@@ -35,13 +40,23 @@ def curve(x, y, title, data_type=PlotDataType.TIME_SERIES):
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
 
-    _plot(lot_config.plot_type)
+    if plot_config.plot_type == PlotType.LOG:
+        _logStyle(axis, x)
+        axis.loglog(x, y, lw=1)
+    elif plot_config.plot_type == PlotType.XLOG:
+        _logXStyle(axis, x)
+        axis.semilogx(x, y, lw=1)
+    elif plot_config.plot_type == PlotType.YLOG:
+        _logYStyle(axis, x)
+        axis.semilogy(x, y, lw=1)
+    else:
+        axis.plot(x, y, lw=1)
 
 # Plot multiple curves using the same axes
-def comparison(x, y, labels, title, lengend_location="upper left", data_type=PlotDataType.TIME_SERIES):
+def comparison(x, y, title, labels=None, lengend_location=[0.95, 0.95], data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type)
     nplot = len(y)
-    ncol = len(labels)/6
+    ncol = int(nplot/6) + 1
 
     figure, axis = pyplot.subplots(figsize=(15, 12))
     axis.set_xlabel(plot_config.xlabel)
@@ -49,12 +64,27 @@ def comparison(x, y, labels, title, lengend_location="upper left", data_type=Plo
     axis.set_title(title)
 
     for i in range(nplot):
-        _plot(lot_config.plot_type)
+        if labels is None:
+            label = ""
+        else:
+            label = labels[i]
+        if plot_config.plot_type == PlotType.LOG:
+            _logStyle(axis, x)
+            axis.loglog(x, y[i], lw=1, label=label)
+        elif plot_config.plot_type == PlotType.XLOG:
+            _logXStyle(axis, x)
+            axis.semilogx(x, y[i], lw=1, label=label)
+        elif plot_config.plot_type == PlotType.YLOG:
+            _logYStyle(axis, x)
+            axis.semilogy(x, y[i], lw=1, label=label)
+        else:
+            axis.plot(x, y[i], lw=1, label=label)
 
-    axis.legend(ncol=ncol, loc=lengend_location)
+    if nplot <= 12:
+        axis.legend(ncol=ncol, bbox_to_anchor=lengend_location)
 
 # Compare data to the value of a function
-def fcompare(y, x, title, params=[], npts=10, lengend_location="upper left", data_type=PlotDataType.TIME_SERIES):
+def fcompare(y, x, title, params=[], npts=10, lengend_location=[0.95, 0.95], data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type, params)
     step = int(len(x)/npts)
 
@@ -79,10 +109,10 @@ def fcompare(y, x, title, params=[], npts=10, lengend_location="upper left", dat
         axis.plot(x, y, label=plot_config.legend_labels[0])
         axis.plot(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
 
-    axis.legend(loc=lengend_location)
+    axis.legend(bbox_to_anchor=lengend_location)
 
 # Plot a single curve in a stack of plots that use the same x-axis
-def stack(y, ylim, labels, title, x=None, data_type=PlotDataType.TIME_SERIES):
+def stack(y, ylim, title, labels=None, x=None, data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type)
 
     nplot = len(y)
@@ -99,12 +129,22 @@ def stack(y, ylim, labels, title, x=None, data_type=PlotDataType.TIME_SERIES):
         axis[i].set_ylabel(plot_config.ylabel)
         axis[i].set_ylim(ylim)
         axis[i].set_xlim([0.0, x[i][-1]])
-        text = axis[i].text(x[i][int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
-        text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
-        _plot(lot_config.plot_type, logStyle=False)
+
+        if labels is not None:
+            text = axis[i].text(x[i][int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
+            text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
+
+        if plot_config.plot_type == PlotType.LOG:
+            axis[i].loglog(x[i], y[i], lw=1)
+        elif plot_config.plot_type == PlotType.XLOG:
+            axis[i].semilogx(x[i], y[i], lw=1)
+        elif plot_config.plot_type == PlotType.YLOG:
+            axis[i].semilogy(x[i], y[i], lw=1)
+        else:
+            axis[i].plot(x[i], y[i], lw=1)
 
 # Compare the cumulative value of a variable as a function of time with its target value
-def cumulative(accum, target, title, label, lengend_location="upper left"):
+def cumulative(accum, target, title, label, lengend_location=[0.95, 0.95]):
     range = max(accum) - min(accum)
     nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
@@ -116,10 +156,10 @@ def cumulative(accum, target, title, label, lengend_location="upper left"):
     axis.set_xlim([1.0, nsample])
     axis.semilogx(time, accum, label=f"Cumulative "+label)
     axis.semilogx(time, numpy.full((len(time)), target), label="Target "+label)
-    axis.legend(loc=lengend_location)
+    axis.legend(bbox_to_anchor=lengend_location)
 
 # Plot the autocorrelation function and the partial autocorrelation function of a random process
-def acf_pacf(title, acf, pacf, max_lag):
+def acf_pacf(title, acf, pacf, max_lag, lengend_location=[0.95, 0.95]):
     figure, axis = pyplot.subplots(figsize=(15, 12))
     axis.set_title(title)
     axis.set_xlabel("Time Lag (τ)")
@@ -127,7 +167,7 @@ def acf_pacf(title, acf, pacf, max_lag):
     axis.set_ylim([-1.1, 1.1])
     axis.plot(range(max_lag+1), acf, label="ACF")
     axis.plot(range(1, max_lag+1), pacf, label="PACF")
-    axis.legend(fontsize=16)
+    axis.legend(bbox_to_anchor=lengend_location, fontsize=16)
 
 # Compare the result of a linear regression with teh acutal data
 def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
@@ -136,11 +176,11 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
     if β[1] < 0:
         x_text = 0.1
         y_text = 0.1
-        legend_loc = 'upper right'
+        lengend_location = [0.95, 0.95]
     else:
         x_text = 0.8
         y_text = 0.1
-        legend_loc = 'upper left'
+        lengend_location = [0.3, 0.95]
 
     plot_config = _create_regression_plot_type(type, results, x)
 
@@ -155,21 +195,21 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
 
     if plot_config.plot_type == PlotType.LOG:
         _logStyle(axis, x)
-        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.loglog(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
-    elif plot_type == PlotType.XLOG:
+    elif plot_config.plot_type == PlotType.XLOG:
         _logXStyle(axis, ps)
-        axis.semilogx(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.semilogx(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.semilogx(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
-    elif plot_type == PlotType.YLOG:
+    elif plot_config.plot_type == PlotType.YLOG:
         _logYStyle(axis, ps)
-        axis.semilogy(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.semilogy(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     else:
-        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=legend_labels[0])
+        axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
 
-    axis.legend(loc=legend_loc)
+    axis.legend(bbox_to_anchor=lengend_location)
 
 # generate points evenly spaced on a logarithmic axis
 def logspace(npts, max, min=10.0):
@@ -240,14 +280,14 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$\omega$",
                            ylabel=r"$\rho_\omega$",
                            plot_type=PlotType.LOG)
-    elif data_type == PlotDataType.MEAN:
+    elif data_type == PlotDataType.FBM_MEAN:
         f = lambda t : numpy.full(len(t), 0.0)
         return _PlotConfig(xlabel=r"$t$",
                          ylabel=r"$\mu_t$",
                          plot_type=PlotType.LINEAR,
                          legend_labels=["Ensemble Average", r"$\mu=0$"],
                          f=f)
-    elif data_type == PlotDataType.STD:
+    elif data_type == PlotDataType.FBM_STD:
         H = params[0]
         f = lambda t : t**H
         return _PlotConfig(xlabel=r"$t$",
@@ -255,39 +295,40 @@ def _create_plot_data_type(data_type, params=[]):
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Ensemble Average", r"$t^H$"],
                            f=f)
-    elif data_type == PlotDataType.AUTO_COR:
+    elif data_type == PlotDataType.FBM_ACF:
         H = params[0]
-        f= lambda t : fbm.autocorrelation(H, t)
-        return _PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$\rho_t$",
+        f = lambda t : fbm.autocorrelation(H, t)
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\rho_\tau$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(t-1)^{2H} + (t+1)^{2H} - 2t^{2H})]$"],
+                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
                            f=f)
     elif data_type == PlotDataType.ENSEMBLE:
         return _PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
-
+    elif data_type == PlotDataType.BM_MEAN:
+        μ = params[0]
+        f = lambda t : numpy.full(len(t), μ)
+        return _PlotConfig(xlabel=r"$t$",
+                           ylabel=r"$\mu_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
+                           f=f)
+    elif data_type == PlotDataType.BM_DRIFT_MEAN:
+        μ = params[0]
+        f = lambda t : μ*t
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\rho_\tau$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
+                           f=f)
+    elif data_type == PlotDataType.BM_STD:
+    elif data_type == PlotDataType.GBM_MEAN:
+    elif data_type == PlotDataType.GBM_STD:
     else:
         plot_type = PlotType.LINEAR
         xlabel = "y"
         ylabel = "x"
         return _PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
-
-# plot using PlotType
-def _plot(plot_type, logStyle=True, lw=1):
-    if plot_type == PlotType.LOG:
-        if logStyle:
-            _logXStyle(axis, ps)
-        axis.loglog(x, y[i], lw=lw, label=labels[i])
-    elif plot_type == PlotType.XLOG:
-        if logStyle:
-            _logXStyle(axis, ps)
-        axis.semilogx(x, y[i], lw=lw, label=labels[i])
-    elif plot_type == PlotType.YLOG:
-        if logStyle:
-            _logYStyle(axis, ps)
-        axis.semilogy(x, y[i], lw=lw, label=labels[i])
-    else:
-        axis.plot(x, y[i], lw=lw, label=labels[i])
 
 # Add axes for log plots for 1 to 3 decades
 def _logStyle(axis, x):
