@@ -35,7 +35,7 @@ class PlotDataType(Enum):
 def curve(x, y, title, data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type)
 
-    figure, axis = pyplot.subplots(figsize=(15, 12))
+    figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_title(title)
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
@@ -58,7 +58,7 @@ def comparison(x, y, title, labels=None, lengend_location=[0.95, 0.95], data_typ
     nplot = len(y)
     ncol = int(nplot/6) + 1
 
-    figure, axis = pyplot.subplots(figsize=(15, 12))
+    figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
     axis.set_title(title)
@@ -84,11 +84,11 @@ def comparison(x, y, title, labels=None, lengend_location=[0.95, 0.95], data_typ
         axis.legend(ncol=ncol, bbox_to_anchor=lengend_location)
 
 # Compare data to the value of a function
-def fcompare(y, x, title, params=[], npts=10, lengend_location=[0.95, 0.95], data_type=PlotDataType.TIME_SERIES):
+def fcompare(x, y, title, params=[], npts=10, lengend_location=[0.4, 0.95], data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type, params)
     step = int(len(x)/npts)
 
-    figure, axis = pyplot.subplots(figsize=(15, 12))
+    figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
     axis.set_title(title)
@@ -120,7 +120,7 @@ def stack(y, ylim, title, labels=None, x=None, data_type=PlotDataType.TIME_SERIE
         nx = len(y[0])
         x = numpy.tile(numpy.linspace(0, nx-1, nx), (nplot,1))
 
-    figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(15, 12))
+    figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
     axis[0].set_title(title)
     axis[nplot-1].set_xlabel(plot_config.xlabel)
 
@@ -131,7 +131,7 @@ def stack(y, ylim, title, labels=None, x=None, data_type=PlotDataType.TIME_SERIE
         axis[i].set_xlim([0.0, x[i][-1]])
 
         if labels is not None:
-            text = axis[i].text(x[i][int(0.9*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
+            text = axis[i].text(x[i][int(0.8*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
         if plot_config.plot_type == PlotType.LOG:
@@ -148,7 +148,7 @@ def cumulative(accum, target, title, label, lengend_location=[0.95, 0.95]):
     range = max(accum) - min(accum)
     nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
-    figure, axis = pyplot.subplots(figsize=(15, 12))
+    figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_ylim([min(accum)-0.25*range, max(accum)+0.25*range])
     axis.set_xlabel("Time")
     axis.set_ylabel(label)
@@ -184,7 +184,7 @@ def regression(y, x, results, title, type=RegressionPlotType.LINEAR):
 
     plot_config = _create_regression_plot_type(type, results, x)
 
-    figure, axis = pyplot.subplots(figsize=(15, 12))
+    figure, axis = pyplot.subplots(figsize=(13, 10))
 
     axis.set_title(title)
     axis.set_ylabel(plot_config.ylabel)
@@ -311,19 +311,43 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$t$",
                            ylabel=r"$\mu_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
+                           legend_labels=["Ensemble Average", f"μ={μ}"],
                            f=f)
     elif data_type == PlotDataType.BM_DRIFT_MEAN:
         μ = params[0]
         f = lambda t : μ*t
-        return _PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\rho_\tau$",
+        return _PlotConfig(xlabel=r"$t$",
+                           ylabel=r"$\mu_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
+                           legend_labels=["Ensemble Average", f"μ={μ}"],
                            f=f)
     elif data_type == PlotDataType.BM_STD:
+        σ = params[0]
+        f = lambda t : σ*numpy.sqrt(t)
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\sigma_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\sigma \sqrt{t}$"],
+                           f=f)
     elif data_type == PlotDataType.GBM_MEAN:
+        S0 = params[0]
+        μ = params[1]
+        f = lambda t : S0*numpy.exp(μ*t)
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\mu_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$S_0 e^{\mu t}$"],
+                           f=f)
     elif data_type == PlotDataType.GBM_STD:
+        S0 = params[0]
+        μ = params[1]
+        σ = params[2]
+        f = lambda t : numpy.sqrt(S0**2*numpy.exp(2*μ*t)*(numpy.exp(t*σ**2)-1))
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\sigma_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
+                           f=f)
     else:
         plot_type = PlotType.LINEAR
         xlabel = "y"
