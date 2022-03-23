@@ -6,17 +6,17 @@ def var(H, n):
     return n**(2.0*H)
 
 def cov(H, s, n):
-    return 0.5*(n**(2.0*H) + s**(2.0*H) - numpy.abs(n - s)**(2.0*H))
+    return 0.5*(n**(2.0*H) + s**(2.0*H) - numpy.abs(n-s)**(2.0*H))
 
-def autocorrelation(H, n):
+def acf(H, n):
     return 0.5*(abs(n-1.0)**(2.0*H) + (n+1.0)**(2.0*H) - 2.0*n**(2.0*H))
 
-def autocorrelation_matrix(H, n):
+def acf_matrix(H, n):
     γ = numpy.matrix(numpy.zeros([n+1, n+1]))
     for i in range(n+1):
         for j in range(n+1):
             if i != j :
-                γ[i,j] = autocorrelation(H, numpy.abs(i-j))
+                γ[i,j] = acf(H, numpy.abs(i-j))
             else:
                 γ[i,j] = 1.0
     return γ
@@ -29,11 +29,11 @@ def cholesky_decompose(H, n):
             if j == 0 and i == 0:
                 l[i,j] = 1.0
             elif j == 0:
-                l[i,j] = autocorrelation(H, i) / l[0,0]
+                l[i,j] = acf(H, i) / l[0,0]
             elif i == j:
                 l[i,j] = numpy.sqrt(l[0,0] - numpy.sum(l[i,0:i]*l[i,0:i].T))
             else:
-                l[i,j] = (autocorrelation(H, i - j) - numpy.sum(l[i,0:j]*l[j,0:j].T)) / l[j,j]
+                l[i,j] = (acf(H, i - j) - numpy.sum(l[i,0:j]*l[j,0:j].T)) / l[j,j]
     return l
 
 def cholesky_noise(H, n, Δt=1, dB=None, L=None):
@@ -43,7 +43,7 @@ def cholesky_noise(H, n, Δt=1, dB=None, L=None):
         raise Exception(f"dB should have length {n+1}")
     dB = numpy.matrix(dB)
     if L is None:
-        R = autocorrelation_matrix(H, n)
+        R = acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(L) != n + 1:
         raise Exception(f"L should have length {n+1}")
@@ -53,7 +53,7 @@ def generate_cholesky(H, n, Δt=1, dB=None, L=None):
     if dB is None:
         dB = bm.noise(n+1)
     if L is None:
-        R = autocorrelation_matrix(H, n)
+        R = acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(dB) != n + 1:
         raise Exception(f"dB should have length {n+1}")
@@ -79,9 +79,9 @@ def fft_noise(H, n, Δt=1, dB=None):
         if i == n:
             C[i] = 0.0
         elif i < n:
-            C[i] = autocorrelation(H, i)
+            C[i] = acf(H, i)
         else:
-            C[i] = autocorrelation(H, 2*n-i)
+            C[i] = acf(H, 2*n-i)
 
     # Compute circulant matrix eigen values
     Λ = numpy.fft.fft(C).real

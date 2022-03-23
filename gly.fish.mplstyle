@@ -1,4 +1,4 @@
-lines.linewidth : 3.0
+lines.linewidth : 2.0
 
 patch.antialiased: True
 
@@ -26,7 +26,7 @@ grid.linewidth: 1.0
 legend.edgecolor: white
 legend.fancybox: True
 legend.fontsize: 18
-legend.framealpha: 0.8
+legend.framealpha: 0.5
 legend.facecolor: white
 
 font.size: 14
