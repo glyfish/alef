@@ -2,6 +2,7 @@ import numpy
 from matplotlib import pyplot
 from lib import config
 from lib import fbm
+from lib import arima
 from enum import Enum
 
 # Specify PlotConfig for regression plot
@@ -30,7 +31,8 @@ class PlotDataType(Enum):
     BM_STD = 9          # Compare BM model standard deviation with data
     GBM_MEAN = 10       # Compare GBM model mean with data
     GBM_STD = 11        # Compare GBM model standard deviation with data
-    AR1_ACF = 12        # Compare ACF model autocorrelation function with data
+    AR1_ACF = 12        # Compare AR1 model ACF autocorrelation function with data
+    MAQ_ACF = 13        # Compare MA(q) model ACF autocorrelation function with data
 
 # Plot a single curve as a function of the dependent variable
 def curve(x, y, title, data_type=PlotDataType.TIME_SERIES):
@@ -145,18 +147,20 @@ def stack(y, ylim, title, labels=None, x=None, data_type=PlotDataType.TIME_SERIE
             axis[i].plot(x[i], y[i], lw=1)
 
 # Compare the cumulative value of a variable as a function of time with its target value
-def cumulative(accum, target, title, label, lengend_location=[0.95, 0.95], lw=2):
+def cumulative(accum, target, title, ylabel, label=None, lengend_location=[0.95, 0.95], lw=2):
+    if label == None:
+        label = ylabel
     range = max(accum) - min(accum)
     nsample = len(accum)
     time = numpy.linspace(1.0, nsample, nsample)
     figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_ylim([min(accum)-0.25*range, max(accum)+0.25*range])
-    axis.set_xlabel("Time")
-    axis.set_ylabel(label)
+    axis.set_xlabel("t")
+    axis.set_ylabel(ylabel)
     axis.set_title(title)
     axis.set_xlim([1.0, nsample])
-    axis.semilogx(time, accum, label=f"Cumulative "+label, lw=lw)
-    axis.semilogx(time, numpy.full((len(time)), target), label="Target "+label, lw=lw)
+    axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
+    axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
     axis.legend(bbox_to_anchor=lengend_location)
 
 # Plot the autocorrelation function and the partial autocorrelation function of a random process
@@ -284,10 +288,10 @@ def _create_plot_data_type(data_type, params=[]):
     elif data_type == PlotDataType.FBM_MEAN:
         f = lambda t : numpy.full(len(t), 0.0)
         return _PlotConfig(xlabel=r"$t$",
-                         ylabel=r"$\mu_t$",
-                         plot_type=PlotType.LINEAR,
-                         legend_labels=["Ensemble Average", r"$\mu=0$"],
-                         f=f)
+                           ylabel=r"$\mu_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\mu=0$"],
+                           f=f)
     elif data_type == PlotDataType.FBM_STD:
         H = params[0]
         f = lambda t : t**H
@@ -357,11 +361,21 @@ def _create_plot_data_type(data_type, params=[]):
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Ensemble Average", r"$\phi^\tau$"],
                            f=f)
+    elif data_type == PlotDataType.MAQ_ACF:
+        θ = params[0]
+        σ = params[1]
+        f = lambda t : arima.maq_acf(θ, σ, len(t))
+        return _PlotConfig(xlabel=r"$\tau$",
+                           ylabel=r"$\rho_t$",
+                           plot_type=PlotType.LINEAR,
+                           legend_labels=["Ensemble Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"],
+                           f=f)
     else:
         plot_type = PlotType.LINEAR
         xlabel = "y"
         ylabel = "x"
-        return _PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
+        f = lambda t : t
+        return _PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR, legend_labels=["Data", "f(x)"], f=f)
 
 # Add axes for log plots for 1 to 3 decades
 def _logStyle(axis, x):
