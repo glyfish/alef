@@ -41,7 +41,7 @@ def curve(y, x=None, title=None, data_type=PlotDataType.TIME_SERIES):
     if x is None:
         npts = len(y)
         if plot_config.plot_type.value == PlotType.XLOG.value or plot_config.plot_type.value == PlotType.LOG.value:
-            x = numpy.linspace(1.0, npts, npts)
+            x = numpy.linspace(1.0, float(npts), npts)
         else:
             x = numpy.linspace(0.0, float(npts), npts)
 
@@ -66,10 +66,17 @@ def curve(y, x=None, title=None, data_type=PlotDataType.TIME_SERIES):
         axis.plot(x, y, lw=1)
 
 # Plot multiple curves using the same axes
-def comparison(x, y, title=None, labels=None, lengend_location=[0.95, 0.95], lw=2, data_type=PlotDataType.TIME_SERIES):
+def comparison(y, x=None, title=None, labels=None, lengend_location=[0.95, 0.95], lw=2, data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type)
     nplot = len(y)
     ncol = int(nplot/6) + 1
+
+    if x is None:
+        nx = len(y[0])
+        if plot_config.plot_type.value == PlotType.XLOG.value or plot_config.plot_type.value == PlotType.LOG.value:
+            x = numpy.linspace(1.0, float(nx-1), nx)
+        else:
+            x = numpy.linspace(0.0, float(nx-1), nx)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -100,8 +107,16 @@ def comparison(x, y, title=None, labels=None, lengend_location=[0.95, 0.95], lw=
         axis.legend(ncol=ncol, bbox_to_anchor=lengend_location)
 
 # Compare data to the value of a function
-def fcompare(x, y, title=None, params=[], npts=10, lengend_location=[0.4, 0.8], lw=2, data_type=PlotDataType.TIME_SERIES):
+def fcompare(y, x=None, title=None, params=[], npts=10, lengend_location=[0.4, 0.8], lw=2, data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type, params)
+
+    if x is None:
+        nx = len(y)
+        if plot_config.plot_type.value == PlotType.XLOG.value or plot_config.plot_type.value == PlotType.LOG.value:
+            x = numpy.linspace(1.0, float(nx-1), nx)
+        else:
+            x = numpy.linspace(0.0, float(nx-1), nx)
+
     step = int(len(x)/npts)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
@@ -130,7 +145,7 @@ def fcompare(x, y, title=None, params=[], npts=10, lengend_location=[0.4, 0.8], 
     axis.legend(bbox_to_anchor=lengend_location)
 
 # Plot a single curve in a stack of plots that use the same x-axis
-def stack(y, ylim, title=None, labels=None, x=None, data_type=PlotDataType.TIME_SERIES):
+def stack(y, ylim, x=None, title=None, labels=None, data_type=PlotDataType.TIME_SERIES):
     plot_config = _create_plot_data_type(data_type)
 
     nplot = len(y)
@@ -165,18 +180,27 @@ def stack(y, ylim, title=None, labels=None, x=None, data_type=PlotDataType.TIME_
             axis[i].plot(x[i], y[i], lw=1)
 
 # Compare the cumulative value of a variable as a function of time with its target value
-def cumulative(accum, target, title, ylabel, label=None, lengend_location=[0.95, 0.95], lw=2):
+def cumulative(accum, target, title=None, ylabel=None, label=None, lengend_location=[0.95, 0.95], lw=2):
+    if ylabel is None:
+        ylabel = "y"
+
     if label == None:
         label = ylabel
+
     range = max(accum) - min(accum)
-    nsample = len(accum)
-    time = numpy.linspace(1.0, nsample, nsample)
+    ntime = len(accum)
+    time = numpy.linspace(1.0, ntime-1, ntime)
+
     figure, axis = pyplot.subplots(figsize=(13, 10))
+
+    if title is None:
+        axis[0].set_title(title)
+
     axis.set_ylim([min(accum)-0.25*range, max(accum)+0.25*range])
-    axis.set_xlabel("t")
     axis.set_ylabel(ylabel)
+    axis.set_xlabel("t")
     axis.set_title(title)
-    axis.set_xlim([1.0, nsample])
+    axis.set_xlim([1.0, ntime])
     axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
     axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
     axis.legend(bbox_to_anchor=lengend_location)
@@ -344,7 +368,7 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$t$",
                            ylabel=r"$\mu_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", f"μ={μ}"],
+                           legend_labels=["Ensemble Average", r"$μ_t=μt$"],
                            f=f)
     elif data_type.value == PlotDataType.BM_STD.value:
         σ = params[0]
@@ -352,7 +376,7 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$\tau$",
                            ylabel=r"$\sigma_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\sigma \sqrt{t}$"],
+                           legend_labels=["Ensemble Average", r"$\sigma_t = \sigma \sqrt{t}$"],
                            f=f)
     elif data_type.value == PlotDataType.GBM_MEAN.value:
         S0 = params[0]
@@ -361,7 +385,7 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$\tau$",
                            ylabel=r"$\mu_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$S_0 e^{\mu t}$"],
+                           legend_labels=["Ensemble Average", r"$\mu_t = S_0 e^{\mu t}$"],
                            f=f)
     elif data_type.value == PlotDataType.GBM_STD.value:
         S0 = params[0]
@@ -371,7 +395,7 @@ def _create_plot_data_type(data_type, params=[]):
         return _PlotConfig(xlabel=r"$\tau$",
                            ylabel=r"$\sigma_t$",
                            plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
+                           legend_labels=["Ensemble Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
                            f=f)
     elif data_type.value == PlotDataType.AR1_ACF.value:
         φ = params[0]
