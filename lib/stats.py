@@ -41,7 +41,7 @@ def cummean(samples):
     mean = numpy.zeros(nsample)
     mean[0] = samples[0]
     for i in range(1, nsample):
-        mean[i] = (float(i) * mean[i - 1] + samples[i])/float(i + 1)
+        mean[i] = (float(i)*mean[i-1]+samples[i])/float(i+1)
     return mean
 
 def cumsigma(samples):
@@ -50,7 +50,7 @@ def cumsigma(samples):
     var = numpy.zeros(nsample)
     var[0] = samples[0]**2
     for i in range(1, nsample):
-        var[i] = (float(i) * var[i - 1] + samples[i]**2)/float(i + 1)
+        var[i] = (float(i)*var[i-1]+samples[i]**2)/float(i+1)
     return numpy.sqrt(var-mean**2)
 
 def cumcov(x, y):
@@ -60,17 +60,17 @@ def cumcov(x, y):
     meany = cummean(y)
     cov[0] = x[0]*y[0]
     for i in range(1, nsample):
-        cov[i] = (float(i) * cov[i - 1] + x[i] * y[i])/float(i + 1)
-    return cov - meanx * meany
+        cov[i] = (float(i)*cov[i-1]+x[i]*y[i])/float(i+1)
+    return cov-meanx*meany
 
-def covariance(x, y):
+def cov(x, y):
     nsample = len(x)
     meanx = numpy.mean(x)
     meany = numpy.mean(y)
-    cov = 0.0
+    c = 0.0
     for i in range(nsample):
-        cov += x[i] * y[i]
-    return cov/nsample - meanx * meany
+        c += x[i]*y[i]
+    return c/nsample-meanx*meany
 
 def pspec(x):
     n = len(x)
@@ -79,8 +79,8 @@ def pspec(x):
     energy = numpy.sum(x_shifted**2)
     x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
     x_fft = numpy.fft.fft(x_padded)
-    power = numpy.conj(x_fft) * x_fft
-    return power[1:n].real / (n * energy)
+    power = numpy.conj(x_fft)*x_fft
+    return power[1:n].real/(n*energy)
 
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
@@ -89,15 +89,6 @@ def OLS(y, x, type=RegressionType.LINEAR):
     if type == RegressionType.LOG:
         x = numpy.log10(x)
         y = numpy.log10(y)
-    x = sm.add_constant(x)
-    model = sm.OLS(y, x)
-    results = model.fit()
-    results.summary()
-    return results
-
-def agg_var_H_estimate(agg_var, m_vals):
-    x = numpy.log10(m_vals)
-    y = numpy.log10(agg_var)
     x = sm.add_constant(x)
     model = sm.OLS(y, x)
     results = model.fit()
