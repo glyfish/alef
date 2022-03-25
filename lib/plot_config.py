@@ -9,14 +9,14 @@ class RegressionPlotType(Enum):
     FBM_AGG_VAR = 2     # FBM variance aggregation
     FBM_PSPEC = 3       # FBM Power Spectrum
 
-# Supported plot types supported for all plots
+# Supported plot types supported
 class PlotType(Enum):
     LINEAR = 1
     LOG = 2
     XLOG = 3
     YLOG = 4
 
-# Specify plot config for plots
+# Specify plot config which specifies configuarble plot parameters
 class PlotDataType(Enum):
     TIME_SERIES = 1     # Time Series
     PSPEC = 2           # Power spectrum

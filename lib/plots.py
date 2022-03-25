@@ -6,7 +6,16 @@ from lib.plot_config import (create_regression_plot_type, create_plot_data_type,
                              logStyle, logXStyle, logYStyle)
 
 # Plot a single curve as a function of the dependent variable
-def curve(y, x=None, title=None, data_type=PlotDataType.TIME_SERIES):
+def curve(y, x=None, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "data_type" in kwargs:
+        data_type = kwargs["data_type"]
+    else:
+        data_type = PlotDataType.TIME_SERIES
+
     plot_config = create_plot_data_type(data_type)
 
     if x is None:
