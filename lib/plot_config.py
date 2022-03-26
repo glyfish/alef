@@ -31,6 +31,7 @@ class PlotDataType(Enum):
     GBM_STD = 11        # Compare GBM model standard deviation with data
     AR1_ACF = 12        # Compare AR1 model ACF autocorrelation function with data
     MAQ_ACF = 13        # Compare MA(q) model ACF autocorrelation function with data
+    ACF_PACF = 14       # Compare ACF and PACF for an ARIMA process
 
 # Config used in plots
 class PlotConfig:

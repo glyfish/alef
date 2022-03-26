@@ -15,6 +15,10 @@ def curve(y, x=None, **kwargs):
         data_type = kwargs["data_type"]
     else:
         data_type = PlotDataType.TIME_SERIES
+    if "lw" in kwargs:
+        lw = kwargs["lw"]
+    else:
+        lw = 2
 
     plot_config = create_plot_data_type(data_type)
 
@@ -35,15 +39,15 @@ def curve(y, x=None, **kwargs):
 
     if plot_config.plot_type.value == PlotType.LOG.value:
         logStyle(axis, x)
-        axis.loglog(x, y, lw=1)
+        axis.loglog(x, y, lw=lw)
     elif plot_config.plot_type.value == PlotType.XLOG.value:
         logXStyle(axis, x)
-        axis.semilogx(x, y, lw=1)
+        axis.semilogx(x, y, lw=lw)
     elif plot_config.plot_type.value == PlotType.YLOG.value:
         logYStyle(axis, x)
-        axis.semilogy(x, y, lw=1)
+        axis.semilogy(x, y, lw=lw)
     else:
-        axis.plot(x, y, lw=1)
+        axis.plot(x, y, lw=lw)
 
 # Plot multiple curves using the same axes
 def comparison(y, x=None, **kwargs):
@@ -101,7 +105,7 @@ def comparison(y, x=None, **kwargs):
             axis.plot(x, y[i], label=label, lw=lw)
 
     if nplot <= 12:
-        axis.legend(ncol=ncol)
+        axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 # Compare data to the value of a function
 def fcompare(y, x=None, **kwargs):
@@ -164,7 +168,7 @@ def fcompare(y, x=None, **kwargs):
         axis.plot(x, y, label=plot_config.legend_labels[0], lw=lw)
         axis.plot(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
 
-    axis.legend()
+    axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 # Plot a single curve in a stack of plots that use the same x-axis
 def stack(y, ylim, x=None, **kwargs):
@@ -249,10 +253,11 @@ def cumulative(accum, target, **kwargs):
     axis.set_xlim([1.0, ntime])
     axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
     axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
-    axis.legend()
+    axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 # Plot the autocorrelation function and the partial autocorrelation function of a random process
-def acf_pacf(title, acf, pacf, max_lag, lengend_location=[0.95, 0.95], lw=2):
+def acf_pacf(acf, pacf, **kwargs):
+    plots.comparison([acf, pacf], x=time, title=title, labels=labels(H_vals), lengend_location=[0.5, 0.9])
     figure, axis = pyplot.subplots(figsize=(15, 12))
     axis.set_title(title)
     axis.set_xlabel("Time Lag (τ)")
@@ -278,11 +283,11 @@ def regression(y, x, results, **kwargs):
     if β[1] < 0:
         x_text = 0.1
         y_text = 0.1
-        lengend_location = [0.95, 0.95]
+        lengend_location = (0.6, 0.65, 0.3, 0.3)
     else:
         x_text = 0.8
         y_text = 0.1
-        lengend_location = [0.3, 0.95]
+        lengend_location = (0.05, 0.65, 0.3, 0.3)
 
     plot_config = create_regression_plot_type(type, results, x)
 
@@ -313,7 +318,7 @@ def regression(y, x, results, **kwargs):
         axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
 
-    axis.legend()
+    axis.legend(loc='best', bbox_to_anchor=lengend_location)
 
 # generate points evenly spaced on a logarithmic axis
 def logspace(npts, max, min=10.0):
