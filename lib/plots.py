@@ -46,7 +46,24 @@ def curve(y, x=None, **kwargs):
         axis.plot(x, y, lw=1)
 
 # Plot multiple curves using the same axes
-def comparison(y, x=None, title=None, labels=None, lengend_location=[0.95, 0.95], lw=2, data_type=PlotDataType.TIME_SERIES):
+def comparison(y, x=None, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "data_type" in kwargs:
+        data_type = kwargs["data_type"]
+    else:
+        data_type = PlotDataType.TIME_SERIES
+    if "lw" in kwargs:
+        lw = kwargs["lw"]
+    else:
+        lw = 2
+    if "labels" in kwargs:
+        labels = kwargs["labels"]
+    else:
+        labels = None
+
     plot_config = create_plot_data_type(data_type)
     nplot = len(y)
     ncol = int(nplot/6) + 1
@@ -84,10 +101,35 @@ def comparison(y, x=None, title=None, labels=None, lengend_location=[0.95, 0.95]
             axis.plot(x, y[i], label=label, lw=lw)
 
     if nplot <= 12:
-        axis.legend(ncol=ncol, bbox_to_anchor=lengend_location)
+        axis.legend(ncol=ncol)
 
 # Compare data to the value of a function
-def fcompare(y, x=None, title=None, params=[], npts=10, lengend_location=[0.4, 0.8], lw=2, data_type=PlotDataType.TIME_SERIES):
+def fcompare(y, x=None, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "data_type" in kwargs:
+        data_type = kwargs["data_type"]
+    else:
+        data_type = PlotDataType.TIME_SERIES
+    if "lw" in kwargs:
+        lw = kwargs["lw"]
+    else:
+        lw = 2
+    if "labels" in kwargs:
+        labels = kwargs["labels"]
+    else:
+        labels = None
+    if "npts" in kwargs:
+        npts = kwargs["npts"]
+    else:
+        npts = 10
+    if "params" in kwargs:
+        params = kwargs["params"]
+    else:
+        params = []
+
     plot_config = create_plot_data_type(data_type, params)
 
     if x is None:
@@ -122,10 +164,23 @@ def fcompare(y, x=None, title=None, params=[], npts=10, lengend_location=[0.4, 0
         axis.plot(x, y, label=plot_config.legend_labels[0], lw=lw)
         axis.plot(x[::step], plot_config.f(x[::step]), label=plot_config.legend_labels[1], marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
 
-    axis.legend(bbox_to_anchor=lengend_location)
+    axis.legend()
 
 # Plot a single curve in a stack of plots that use the same x-axis
-def stack(y, ylim, x=None, title=None, labels=None, data_type=PlotDataType.TIME_SERIES):
+def stack(y, ylim, x=None, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "data_type" in kwargs:
+        data_type = kwargs["data_type"]
+    else:
+        data_type = PlotDataType.TIME_SERIES
+    if "labels" in kwargs:
+        labels = kwargs["labels"]
+    else:
+        labels = None
+
     plot_config = create_plot_data_type(data_type)
 
     nplot = len(y)
@@ -160,12 +215,23 @@ def stack(y, ylim, x=None, title=None, labels=None, data_type=PlotDataType.TIME_
             axis[i].plot(x[i], y[i], lw=1)
 
 # Compare the cumulative value of a variable as a function of time with its target value
-def cumulative(accum, target, title=None, ylabel=None, label=None, lengend_location=[0.95, 0.95], lw=2):
-    if ylabel is None:
+def cumulative(accum, target, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "lw" in kwargs:
+        lw = kwargs["lw"]
+    else:
+        lw = 2
+    if "ylabel" in kwargs:
+        ylabel = kwargs["ylabel"]
+    else:
         ylabel = "y"
-
-    if label == None:
-        label = ylabel
+    if "label" in kwargs:
+        label = kwargs["label"]
+    else:
+        labels = ylabel
 
     range = max(accum) - min(accum)
     ntime = len(accum)
@@ -183,7 +249,7 @@ def cumulative(accum, target, title=None, ylabel=None, label=None, lengend_locat
     axis.set_xlim([1.0, ntime])
     axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
     axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
-    axis.legend(bbox_to_anchor=lengend_location)
+    axis.legend()
 
 # Plot the autocorrelation function and the partial autocorrelation function of a random process
 def acf_pacf(title, acf, pacf, max_lag, lengend_location=[0.95, 0.95], lw=2):
@@ -197,7 +263,16 @@ def acf_pacf(title, acf, pacf, max_lag, lengend_location=[0.95, 0.95], lw=2):
     axis.legend(bbox_to_anchor=lengend_location, fontsize=16)
 
 # Compare the result of a linear regression with teh acutal data
-def regression(y, x, results, title=None, type=RegressionPlotType.LINEAR):
+def regression(y, x, results, **kwargs):
+    if "title" in kwargs:
+        title = kwargs["title"]
+    else:
+        title = None
+    if "type" in kwargs:
+        type = kwargs["type"]
+    else:
+        type = RegressionPlotType.LINEAR
+
     β = results.params
 
     if β[1] < 0:
@@ -238,7 +313,7 @@ def regression(y, x, results, title=None, type=RegressionPlotType.LINEAR):
         axis.plot(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
 
-    axis.legend(bbox_to_anchor=lengend_location)
+    axis.legend()
 
 # generate points evenly spaced on a logarithmic axis
 def logspace(npts, max, min=10.0):
