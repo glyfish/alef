@@ -18,10 +18,10 @@ class PlotType(Enum):
 
 # Specify plot config which specifies configuarble plot parameters
 class PlotDataType(Enum):
-    TIME_SERIES = 1     # Time Series
-    PSPEC = 2           # Power spectrum
-    ACF = 3             # Compare ACF functions for an ARIMA process
-    ENSEMBLE = 4        # Data ensemble
+    GENERIC = 1         # Unknown data type
+    TIME_SERIES = 2     # Time Series
+    PSPEC = 3           # Power spectrum
+    ACF = 4             # Plot autocorrelation function
 
 # Specify plot config which specifies configuarble plot parameters
 class PlotFuncType(Enum):
@@ -98,8 +98,6 @@ def create_plot_data_type(data_type):
         return PlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", plot_type=PlotType.LOG)
     elif data_type.value == PlotDataType.ACF.value:
         return PlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_tau$", plot_type=PlotType.LINEAR)
-    elif data_type.value == PlotDataType.ENSEMBLE.value:
-        return PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
     else:
         return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
 

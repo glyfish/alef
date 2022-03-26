@@ -14,7 +14,7 @@ def curve(y, x=None, **kwargs):
     if "data_type" in kwargs:
         data_type = kwargs["data_type"]
     else:
-        data_type = PlotDataType.TIME_SERIES
+        data_type = PlotDataType.GENERIC
     if "lw" in kwargs:
         lw = kwargs["lw"]
     else:
@@ -58,7 +58,7 @@ def comparison(y, x=None, **kwargs):
     if "data_type" in kwargs:
         data_type = kwargs["data_type"]
     else:
-        data_type = PlotDataType.TIME_SERIES
+        data_type = PlotDataType.GENERIC
     if "lw" in kwargs:
         lw = kwargs["lw"]
     else:
@@ -179,7 +179,7 @@ def stack(y, ylim, x=None, **kwargs):
     if "data_type" in kwargs:
         data_type = kwargs["data_type"]
     else:
-        data_type = PlotDataType.TIME_SERIES
+        data_type = PlotDataType.GENERIC
     if "labels" in kwargs:
         labels = kwargs["labels"]
     else:
@@ -194,7 +194,7 @@ def stack(y, ylim, x=None, **kwargs):
 
     figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
 
-    if title is None:
+    if title is not None:
         axis[0].set_title(title)
 
     axis[nplot-1].set_xlabel(plot_config.xlabel)
@@ -206,7 +206,7 @@ def stack(y, ylim, x=None, **kwargs):
         axis[i].set_xlim([0.0, x[i][-1]])
 
         if labels is not None:
-            text = axis[i].text(x[i][int(0.8*nsample)], 0.65*ylim[-1], labels[i], fontsize=18)
+            text = axis[i].text(0.8*x[i][-1], 0.65*ylim[-1], labels[i], fontsize=18)
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
         if plot_config.plot_type.value == PlotType.LOG.value:
