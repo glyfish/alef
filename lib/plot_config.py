@@ -20,18 +20,22 @@ class PlotType(Enum):
 class PlotDataType(Enum):
     TIME_SERIES = 1     # Time Series
     PSPEC = 2           # Power spectrum
-    FBM_MEAN = 3        # Compare FBM model mean with data
-    FBM_STD = 4         # Compare FBM model standard deviation with data
-    FBM_ACF = 5         # Compare FBM model autocorrelation with data
-    ENSEMBLE = 6        # Data ensemble
-    BM_MEAN = 7         # Compare BM model mean with data
-    BM_DRIFT_MEAN = 8   # Compare BM model mean with data
-    BM_STD = 9          # Compare BM model standard deviation with data
-    GBM_MEAN = 10       # Compare GBM model mean with data
-    GBM_STD = 11        # Compare GBM model standard deviation with data
-    AR1_ACF = 12        # Compare AR1 model ACF autocorrelation function with data
-    MAQ_ACF = 13        # Compare MA(q) model ACF autocorrelation function with data
-    ACF_PACF = 14       # Compare ACF and PACF for an ARIMA process
+    ACF = 3             # Compare ACF functions for an ARIMA process
+    ENSEMBLE = 4        # Data ensemble
+
+# Specify plot config which specifies configuarble plot parameters
+class PlotFuncType(Enum):
+    LINEAR = 1          # Compare a Linear Model
+    FBM_MEAN = 2        # Compare FBM model mean with data
+    FBM_STD = 3         # Compare FBM model standard deviation with data
+    FBM_ACF = 4         # Compare FBM model autocorrelation with data
+    BM_MEAN = 5         # Compare BM model mean with data
+    BM_DRIFT_MEAN = 6   # Compare BM model mean with data
+    BM_STD = 7          # Compare BM model standard deviation with data
+    GBM_MEAN = 8        # Compare GBM model mean with data
+    GBM_STD = 9         # Compare GBM model standard deviation with data
+    AR1_ACF = 10        # Compare AR1 model ACF autocorrelation function with data
+    MAQ_ACF = 11        # Compare MA(q) model ACF autocorrelation function with data
 
 # Config used in plots
 class PlotConfig:
@@ -87,98 +91,100 @@ def create_regression_plot_type(type, results, x):
                            y_fit=β[0]+x*β[1])
 
 ## plot data type
-def create_plot_data_type(data_type, params=[]):
+def create_plot_data_type(data_type):
     if data_type.value == PlotDataType.TIME_SERIES.value:
-        return PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$X_t$",
-                           plot_type=PlotType.LINEAR)
+        return PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
     elif data_type.value == PlotDataType.PSPEC.value:
-        plot_type = PlotType.LOG
-        return PlotConfig(xlabel=r"$\omega$",
-                           ylabel=r"$\rho_\omega$",
-                           plot_type=PlotType.LOG)
-    elif data_type.value == PlotDataType.FBM_MEAN.value:
+        return PlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", plot_type=PlotType.LOG)
+    elif data_type.value == PlotDataType.ACF.value:
+        return PlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_tau$", plot_type=PlotType.LINEAR)
+    elif data_type.value == PlotDataType.ENSEMBLE.value:
+        return PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
+    else:
+        return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
+
+## plot function type
+def create_plot_func_type(data_type, params):
+    if data_type.value == PlotFuncType.FBM_MEAN.value:
         f = lambda t : numpy.full(len(t), 0.0)
         return PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$\mu_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\mu=0$"],
-                           f=f)
-    elif data_type.value == PlotDataType.FBM_STD.value:
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$\mu=0$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.FBM_STD.value:
         H = params[0]
         f = lambda t : t**H
         return PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$\sigma_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$t^H$"],
-                           f=f)
-    elif data_type.value == PlotDataType.FBM_ACF.value:
+                          ylabel=r"$\sigma_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$t^H$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.FBM_ACF.value:
         H = params[0]
         f = lambda t : fbm.acf(H, t)
         return PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\rho_\tau$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
-                           f=f)
-    elif data_type.value == PlotDataType.ENSEMBLE.value:
-        return PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
-    elif data_type.value == PlotDataType.BM_MEAN.value:
+                          ylabel=r"$\rho_\tau$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.BM_MEAN.value:
         μ = params[0]
         f = lambda t : numpy.full(len(t), μ)
         return PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$\mu_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", f"μ={μ}"],
-                           f=f)
-    elif data_type.value == PlotDataType.BM_DRIFT_MEAN.value:
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", f"μ={μ}"],
+                          f=f)
+    elif data_type.value == PlotFuncType.BM_DRIFT_MEAN.value:
         μ = params[0]
         f = lambda t : μ*t
         return PlotConfig(xlabel=r"$t$",
-                           ylabel=r"$\mu_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$μ_t=μt$"],
-                           f=f)
-    elif data_type.value == PlotDataType.BM_STD.value:
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$μ_t=μt$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.BM_STD.value:
         σ = params[0]
         f = lambda t : σ*numpy.sqrt(t)
-        return PlotConfig(xlabel=r"$\tau$",
+        return PlotConfig(xlabel=r"$\t$",
                            ylabel=r"$\sigma_t$",
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Ensemble Average", r"$\sigma_t = \sigma \sqrt{t}$"],
                            f=f)
-    elif data_type.value == PlotDataType.GBM_MEAN.value:
+    elif data_type.value == PlotFuncType.GBM_MEAN.value:
         S0 = params[0]
         μ = params[1]
         f = lambda t : S0*numpy.exp(μ*t)
-        return PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\mu_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\mu_t = S_0 e^{\mu t}$"],
-                           f=f)
-    elif data_type.value == PlotDataType.GBM_STD.value:
+        return PlotConfig(xlabel=r"$\t$",
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$\mu_t = S_0 e^{\mu t}$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.GBM_STD.value:
         S0 = params[0]
         μ = params[1]
         σ = params[2]
         f = lambda t : numpy.sqrt(S0**2*numpy.exp(2*μ*t)*(numpy.exp(t*σ**2)-1))
-        return PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\sigma_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
-                           f=f)
-    elif data_type.value == PlotDataType.AR1_ACF.value:
+        return PlotConfig(xlabel=r"$\t$",
+                          ylabel=r"$\sigma_t$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.AR1_ACF.value:
         φ = params[0]
         f = lambda t : φ**t
         return PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\rho_t$",
-                           plot_type=PlotType.LINEAR,
-                           legend_labels=["Ensemble Average", r"$\phi^\tau$"],
-                           f=f)
-    elif data_type.value == PlotDataType.MAQ_ACF.value:
+                          ylabel=r"$\rho_tau$",
+                          plot_type=PlotType.LINEAR,
+                          legend_labels=["Ensemble Average", r"$\phi^\tau$"],
+                          f=f)
+    elif data_type.value == PlotFuncType.MAQ_ACF.value:
         θ = params[0]
         σ = params[1]
         f = lambda t : arima.maq_acf(θ, σ, len(t))
         return PlotConfig(xlabel=r"$\tau$",
-                           ylabel=r"$\rho_t$",
+                           ylabel=r"$\rho_\tau$",
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Ensemble Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"],
                            f=f)

@@ -1,8 +1,8 @@
 import numpy
 from matplotlib import pyplot
 from lib import config
-from lib.plot_config import (create_regression_plot_type, create_plot_data_type,
-                             PlotDataType, PlotType, RegressionPlotType,
+from lib.plot_config import (create_regression_plot_type, create_plot_data_type, create_plot_func_type,
+                             PlotDataType, PlotType, RegressionPlotType, PlotFuncType,
                              logStyle, logXStyle, logYStyle)
 
 # Plot a single curve as a function of the dependent variable
@@ -75,9 +75,9 @@ def comparison(y, x=None, **kwargs):
     if x is None:
         nx = len(y[0])
         if plot_config.plot_type.value == PlotType.XLOG.value or plot_config.plot_type.value == PlotType.LOG.value:
-            x = numpy.linspace(1.0, float(nx-1), nx)
+            x = numpy.tile(numpy.linspace(1, nx-1, nx), (nplot, 1))
         else:
-            x = numpy.linspace(0.0, float(nx-1), nx)
+            x = numpy.tile(numpy.linspace(0, nx-1, nx), (nplot, 1))
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -93,19 +93,19 @@ def comparison(y, x=None, **kwargs):
         else:
             label = labels[i]
         if plot_config.plot_type.value == PlotType.LOG.value:
-            logStyle(axis, x)
-            axis.loglog(x, y[i], label=label, lw=lw)
+            logStyle(axis, x[i])
+            axis.loglog(x[i], y[i], label=label, lw=lw)
         elif plot_config.plot_type.value == PlotType.XLOG.value:
-            logXStyle(axis, x)
-            axis.semilogx(x, y[i], label=label, lw=lw)
+            logXStyle(axis, x[i])
+            axis.semilogx(x[i], y[i], label=label, lw=lw)
         elif plot_config.plot_type.value == PlotType.YLOG.value:
-            logYStyle(axis, x)
-            axis.semilogy(x, y[i], label=label, lw=lw)
+            logYStyle(axis, x[i])
+            axis.semilogy(x[i], y[i], label=label, lw=lw)
         else:
-            axis.plot(x, y[i], label=label, lw=lw)
+            axis.plot(x[i], y[i], label=label, lw=lw)
 
     if nplot <= 12:
-        axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
+        axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
 # Compare data to the value of a function
 def fcompare(y, x=None, **kwargs):
@@ -113,10 +113,10 @@ def fcompare(y, x=None, **kwargs):
         title = kwargs["title"]
     else:
         title = None
-    if "data_type" in kwargs:
-        data_type = kwargs["data_type"]
+    if "func_type" in kwargs:
+        func_type = kwargs["func_type"]
     else:
-        data_type = PlotDataType.TIME_SERIES
+        func_type = PlotFuncType.LINEAR
     if "lw" in kwargs:
         lw = kwargs["lw"]
     else:
@@ -134,7 +134,7 @@ def fcompare(y, x=None, **kwargs):
     else:
         params = []
 
-    plot_config = create_plot_data_type(data_type, params)
+    plot_config = create_plot_func_type(func_type, params)
 
     if x is None:
         nx = len(y)
@@ -254,18 +254,6 @@ def cumulative(accum, target, **kwargs):
     axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
     axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
-
-# Plot the autocorrelation function and the partial autocorrelation function of a random process
-def acf_pacf(acf, pacf, **kwargs):
-    plots.comparison([acf, pacf], x=time, title=title, labels=labels(H_vals), lengend_location=[0.5, 0.9])
-    figure, axis = pyplot.subplots(figsize=(15, 12))
-    axis.set_title(title)
-    axis.set_xlabel("Time Lag (τ)")
-    axis.set_xlim([-0.1, max_lag])
-    axis.set_ylim([-1.1, 1.1])
-    axis.plot(range(max_lag+1), acf, label="ACF", lw=lw)
-    axis.plot(range(1, max_lag+1), pacf, label="PACF", lw=lw)
-    axis.legend(bbox_to_anchor=lengend_location, fontsize=16)
 
 # Compare the result of a linear regression with teh acutal data
 def regression(y, x, results, **kwargs):
