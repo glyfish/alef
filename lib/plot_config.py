@@ -39,9 +39,12 @@ class PlotFuncType(Enum):
     LAGG_VAR = 12       # Lagged variance computed from a time
     VR = 13             # Vraiance ratio use in test for brownian motion
 
+class HypothesisTestType(Enum):
+    VR = 1              # Variance ration test
+
 # Config used in plots
 class PlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_labels=None, y_fit=None, f=None):
+    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_labels=None, y_fit=None, f=None, dist_type=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.plot_type = plot_type
@@ -49,14 +52,15 @@ class PlotConfig:
         self.legend_labels = legend_labels
         self.y_fit = y_fit
         self.f = f
+        self.dist_type = dist_type
 
 # Regression plot configuartion
-def create_regression_plot_type(type, results, x):
+def create_regression_plot_type(plot_type, results, x):
     β = results.params
     σ = results.bse[1]/2
     r2 = results.rsquared
 
-    if type.value == RegressionPlotType.FBM_AGG_VAR.value:
+    if plot_type.value == RegressionPlotType.FBM_AGG_VAR.value:
         h = float(1.0 + β[1]/2.0)
         results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
                        r"$\hat{\sigma}^2=$" + f"{format(10**β[0], '2.2f')}\n" + \
@@ -68,7 +72,7 @@ def create_regression_plot_type(type, results, x):
                            results_text=results_text,
                            legend_labels=["Data", r"$Var(X^{m})=\sigma^2 m^{2H-2}$"],
                            y_fit=10**β[0]*x**β[1])
-    elif type.value == RegressionPlotType.FBM_PSPEC.value:
+    elif plot_type.value == RegressionPlotType.FBM_PSPEC.value:
         h = float(1.0 - β[1])/2.0
         results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
                        r"$\hat{C}=$" + f"{format(10**β[0], '2.2f')}\n" + \
@@ -93,28 +97,28 @@ def create_regression_plot_type(type, results, x):
                            y_fit=β[0]+x*β[1])
 
 ## plot data type
-def create_plot_data_type(data_type):
-    if data_type.value == PlotDataType.TIME_SERIES.value:
+def create_plot_data_type(plot_type):
+    if plot_type.value == PlotDataType.TIME_SERIES.value:
         return PlotConfig(xlabel=r"$t$", ylabel=r"$X_t$", plot_type=PlotType.LINEAR)
-    elif data_type.value == PlotDataType.PSPEC.value:
+    elif plot_type.value == PlotDataType.PSPEC.value:
         return PlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", plot_type=PlotType.LOG)
-    elif data_type.value == PlotDataType.ACF.value:
-        return PlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_tau$", plot_type=PlotType.LINEAR)
-    elif data_type.value == PlotDataType.VR.value:
+    elif plot_type.value == PlotDataType.ACF.value:
+        return PlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", plot_type=PlotType.LINEAR)
+    elif plot_type.value == PlotDataType.VR.value:
         return PlotConfig(xlabel=r"$s$", ylabel=r"$VR(s)$", plot_type=PlotType.LOG)
     else:
         return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
 
 ## plot function type
-def create_plot_func_type(func_type, params):
-    if func_type.value == PlotFuncType.FBM_MEAN.value:
+def create_plot_func_type(plot_type, params):
+    if plot_type.value == PlotFuncType.FBM_MEAN.value:
         f = lambda t : numpy.full(len(t), 0.0)
         return PlotConfig(xlabel=r"$t$",
                           ylabel=r"$\mu_t$",
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\mu=0$"],
                           f=f)
-    elif func_type.value == PlotFuncType.FBM_STD.value:
+    elif plot_type.value == PlotFuncType.FBM_STD.value:
         H = params[0]
         if len(params) > 1:
             σ = params[1]
@@ -126,7 +130,7 @@ def create_plot_func_type(func_type, params):
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\sigma t^H$"],
                           f=f)
-    elif func_type.value == PlotFuncType.FBM_ACF.value:
+    elif plot_type.value == PlotFuncType.FBM_ACF.value:
         H = params[0]
         f = lambda t : fbm.acf(H, t)
         return PlotConfig(xlabel=r"$\tau$",
@@ -134,7 +138,7 @@ def create_plot_func_type(func_type, params):
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
                           f=f)
-    elif func_type.value == PlotFuncType.BM_MEAN.value:
+    elif plot_type.value == PlotFuncType.BM_MEAN.value:
         μ = params[0]
         f = lambda t : numpy.full(len(t), μ)
         return PlotConfig(xlabel=r"$t$",
@@ -142,7 +146,7 @@ def create_plot_func_type(func_type, params):
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", f"μ={μ}"],
                           f=f)
-    elif func_type.value == PlotFuncType.BM_DRIFT_MEAN.value:
+    elif plot_type.value == PlotFuncType.BM_DRIFT_MEAN.value:
         μ = params[0]
         f = lambda t : μ*t
         return PlotConfig(xlabel=r"$t$",
@@ -150,42 +154,42 @@ def create_plot_func_type(func_type, params):
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$μ_t=μt$"],
                           f=f)
-    elif func_type.value == PlotFuncType.BM_STD.value:
+    elif plot_type.value == PlotFuncType.BM_STD.value:
         σ = params[0]
         f = lambda t : σ*numpy.sqrt(t)
-        return PlotConfig(xlabel=r"$\t$",
+        return PlotConfig(xlabel=r"$t$",
                            ylabel=r"$\sigma_t$",
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Average", r"$\sigma_t = \sigma \sqrt{t}$"],
                            f=f)
-    elif func_type.value == PlotFuncType.GBM_MEAN.value:
+    elif plot_type.value == PlotFuncType.GBM_MEAN.value:
         S0 = params[0]
         μ = params[1]
         f = lambda t : S0*numpy.exp(μ*t)
-        return PlotConfig(xlabel=r"$\t$",
+        return PlotConfig(xlabel=r"$t$",
                           ylabel=r"$\mu_t$",
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\mu_t = S_0 e^{\mu t}$"],
                           f=f)
-    elif func_type.value == PlotFuncType.GBM_STD.value:
+    elif plot_type.value == PlotFuncType.GBM_STD.value:
         S0 = params[0]
         μ = params[1]
         σ = params[2]
         f = lambda t : numpy.sqrt(S0**2*numpy.exp(2*μ*t)*(numpy.exp(t*σ**2)-1))
-        return PlotConfig(xlabel=r"$\t$",
+        return PlotConfig(xlabel=r"$t$",
                           ylabel=r"$\sigma_t$",
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
                           f=f)
-    elif func_type.value == PlotFuncType.AR1_ACF.value:
+    elif plot_type.value == PlotFuncType.AR1_ACF.value:
         φ = params[0]
         f = lambda t : φ**t
         return PlotConfig(xlabel=r"$\tau$",
-                          ylabel=r"$\rho_tau$",
+                          ylabel=r"$\rho_\tau$",
                           plot_type=PlotType.LINEAR,
                           legend_labels=["Average", r"$\phi^\tau$"],
                           f=f)
-    elif func_type.value == PlotFuncType.MAQ_ACF.value:
+    elif plot_type.value == PlotFuncType.MAQ_ACF.value:
         θ = params[0]
         σ = params[1]
         f = lambda t : arima.maq_acf(θ, σ, len(t))
@@ -194,7 +198,7 @@ def create_plot_func_type(func_type, params):
                            plot_type=PlotType.LINEAR,
                            legend_labels=["Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"],
                            f=f)
-    elif func_type.value == PlotFuncType.LAGG_VAR.value:
+    elif plot_type.value == PlotFuncType.LAGG_VAR.value:
         H = params[0]
         if len(params) > 1:
             σ = params[1]
@@ -206,7 +210,7 @@ def create_plot_func_type(func_type, params):
                           plot_type=PlotType.LOG,
                           legend_labels=[r"$\sigma^2(s)$", r"$\sigma^2 t^{2H}$"],
                           f=f)
-    elif func_type.value == PlotFuncType.VR.value:
+    elif plot_type.value == PlotFuncType.VR.value:
         H = params[0]
         if len(params) > 1:
             σ = params[1]
@@ -219,11 +223,17 @@ def create_plot_func_type(func_type, params):
                           legend_labels=[r"VR(s)", r"$\sigma^2 t^{2H-1}$"],
                           f=f)
     else:
-        plot_type = PlotType.LINEAR
-        xlabel = "y"
-        ylabel = "x"
         f = lambda t : t
         return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR, legend_labels=["Data", "f(x)"], f=f)
+
+## Hypothesis Test Type
+def create_hypothesis_test_plot_type(plot_type):
+    if plot_type.value == HypothesisTestType.VR.value:
+        return PlotConfig(xlabel=r"$t$",
+                          ylabel=r"$X_t$",
+                          plot_type=PlotType.LINEAR)
+    else:
+        raise Exception(f"Hypothesis test type is invalid: {plot_type}")
 
 # Add axes for log plots for 1 to 3 decades
 def logStyle(axis, x, y):

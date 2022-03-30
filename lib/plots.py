@@ -2,26 +2,17 @@ import numpy
 from matplotlib import pyplot
 from lib import config
 from lib.dist import (DistributionFuncType, HypothesisType, distribution_function)
-from lib.plot_config import (create_regression_plot_type, create_plot_data_type, create_plot_func_type,
-                             PlotDataType, PlotType, RegressionPlotType, PlotFuncType,
+from lib.plot_config import (create_regression_plot_type, create_plot_data_type, create_plot_func_type, create_hypothesis_test_plot_type,
+                             PlotDataType, PlotType, RegressionPlotType, PlotFuncType, HypothesisTestType,
                              logStyle, logXStyle, logYStyle)
 
 # Plot a single curve as a function of the dependent variable
 def curve(y, x=None, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "data_type" in kwargs:
-        data_type = kwargs["data_type"]
-    else:
-        data_type = PlotDataType.GENERIC
-    if "lw" in kwargs:
-        lw = kwargs["lw"]
-    else:
-        lw = 2
+    title     = kwargs["title"]     if "title"     in kwargs else None
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
 
-    plot_config = create_plot_data_type(data_type)
+    plot_config = create_plot_data_type(plot_type)
 
     if x is None:
         npts = len(y)
@@ -52,24 +43,12 @@ def curve(y, x=None, **kwargs):
 
 # Plot multiple curves using the same axes
 def comparison(y, x=None, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "data_type" in kwargs:
-        data_type = kwargs["data_type"]
-    else:
-        data_type = PlotDataType.GENERIC
-    if "lw" in kwargs:
-        lw = kwargs["lw"]
-    else:
-        lw = 2
-    if "labels" in kwargs:
-        labels = kwargs["labels"]
-    else:
-        labels = None
+    title     = kwargs["title"]     if "title"     in kwargs else None
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
+    labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
-    plot_config = create_plot_data_type(data_type)
+    plot_config = create_plot_data_type(plot_type)
     nplot = len(y)
     ncol = int(nplot/6) + 1
 
@@ -118,32 +97,14 @@ def comparison(y, x=None, **kwargs):
 
 # Compare data to the value of a function
 def fcompare(y, x=None, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "func_type" in kwargs:
-        func_type = kwargs["func_type"]
-    else:
-        func_type = PlotFuncType.LINEAR
-    if "lw" in kwargs:
-        lw = kwargs["lw"]
-    else:
-        lw = 2
-    if "labels" in kwargs:
-        labels = kwargs["labels"]
-    else:
-        labels = None
-    if "npts" in kwargs:
-        npts = kwargs["npts"]
-    else:
-        npts = 10
-    if "params" in kwargs:
-        params = kwargs["params"]
-    else:
-        params = []
+    title     = kwargs["title"]     if "title"     in kwargs else None
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotFuncType.LINEAR
+    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
+    labels    = kwargs["labels"]    if "labels"    in kwargs else None
+    npts      = kwargs["npts"]      if "npts"      in kwargs else 10
+    params    = kwargs["params"]    if "params"    in kwargs else []
 
-    plot_config = create_plot_func_type(func_type, params)
+    plot_config = create_plot_func_type(plot_type, params)
 
     if x is None:
         nx = len(y)
@@ -180,20 +141,11 @@ def fcompare(y, x=None, **kwargs):
 
 # Plot a single curve in a stack of plots that use the same x-axis
 def stack(y, ylim, x=None, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "data_type" in kwargs:
-        data_type = kwargs["data_type"]
-    else:
-        data_type = PlotDataType.GENERIC
-    if "labels" in kwargs:
-        labels = kwargs["labels"]
-    else:
-        labels = None
+    title     = kwargs["title"]     if "title"     in kwargs else None
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
-    plot_config = create_plot_data_type(data_type)
+    plot_config = create_plot_data_type(plot_type)
 
     nplot = len(y)
     if x is None:
@@ -228,22 +180,10 @@ def stack(y, ylim, x=None, **kwargs):
 
 # Compare the cumulative value of a variable as a function of time with its target value
 def cumulative(accum, target, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "lw" in kwargs:
-        lw = kwargs["lw"]
-    else:
-        lw = 2
-    if "ylabel" in kwargs:
-        ylabel = kwargs["ylabel"]
-    else:
-        ylabel = "y"
-    if "label" in kwargs:
-        label = kwargs["label"]
-    else:
-        labels = ylabel
+    title  = kwargs["title"]  if "title"  in kwargs else None
+    lw     = kwargs["lw"]     if "lw"     in kwargs else 2
+    ylabel = kwargs["ylabel"] if "ylabel" in kwargs else "y"
+    label  = kwargs["label"]  if "label"  in kwargs else ylabel
 
     range = max(accum) - min(accum)
     ntime = len(accum)
@@ -265,14 +205,8 @@ def cumulative(accum, target, **kwargs):
 
 # Compare the result of a linear regression with teh acutal data
 def regression(y, x, results, **kwargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "type" in kwargs:
-        type = kwargs["type"]
-    else:
-        type = RegressionPlotType.LINEAR
+    title = kwargs["title"] if "title" in kwargs else None
+    plot_type = kwargs["plot_type"]  if "plot_type"  in kwargs else RegressionPlotType.LINEAR
 
     β = results.params
 
@@ -285,7 +219,7 @@ def regression(y, x, results, **kwargs):
         y_text = 0.1
         lengend_location = (0.05, 0.65, 0.3, 0.3)
 
-    plot_config = create_regression_plot_type(type, results, x)
+    plot_config = create_regression_plot_type(plot_type, results, x)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -299,15 +233,15 @@ def regression(y, x, results, **kwargs):
     axis.text(x_text, y_text, plot_config.results_text, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
 
     if plot_config.plot_type.value == PlotType.LOG.value:
-        logStyle(axis, x)
+        logStyle(axis, x, y)
         axis.loglog(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.loglog(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     elif plot_config.plot_type.value == PlotType.XLOG.value:
-        logXStyle(axis, ps)
+        logXStyle(axis, x, y)
         axis.semilogx(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.semilogx(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     elif plot_config.plot_type.value == PlotType.YLOG.value:
-        logYStyle(axis, ps)
+        logYStyle(axis, x, y)
         axis.semilogy(x, y, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=plot_config.legend_labels[0])
         axis.plot(x, plot_config.y_fit, zorder=10, label=plot_config.legend_labels[1])
     else:
@@ -317,37 +251,17 @@ def regression(y, x, results, **kwargs):
     axis.legend(loc='best', bbox_to_anchor=lengend_location)
 
 # hypothesis test plot
-def htest(dist_type, test_stats, **kargs):
-    if "title" in kwargs:
-        title = kwargs["title"]
-    else:
-        title = None
-    if "xlabel" in kwargs:
-        xlabel = kwargs["xlabel"]
-    else:
-        xlabel = "x"
-    if "test_type" in kwargs:
-        test_type = kwargs["test_type"]
-    else:
-        test_type = HypothesisType.EQUAL
-    if "npts" in kwargs:
-        npts = kwargs["npts"]
-    else:
-        npts = 100
-    if 'x' in kwargs:
-        x_vals = kwargs['x']
-    else:
-        range = distribution_function(dist_type, DistributionFuncType.RANGE)
-        x_vals = range(npts)
-    if "sig_level" in kwargs["sig_level"]:
-        sig_level = kwargs["sig_level"]
-    else:
-        sig_level = 0.5
-    if "labels" in kwargs:
-        labels = kwargs["labels"]
-    else:
-        labels = None
+def htest(test_stats, plot_type, **kargs):
+    title     = kwargs["title"]      if "title"     in kwargs else None
+    xlabel    = kwargs["xlabel"]     if "xlabel"    in kwargs else "x"
+    test_type = kwargs["test_type"]  if "test_type" in kwargs else HypothesisType.TWO_TAIL
+    npts      = kwargs["npts"]       if "npts"      in kwargs else 100
+    x_vals    = kwargs['x']          if 'x'         in kwargs else None
+    sig_level = kwargs["sig_level"]  if "sig_level" in kwargs else 0.5
+    labels    = kwargs["labels"]     if "labels"    in kwargs else None
+    z         = kwargs["z"]          if "z"         in kwargs else None
 
+    plot_config = create_hypothesis_test_plot_type()
     cdf = distribution_function(dist_type, DistributionFuncType.CDF)
     ppf = distribution_function(dist_type, DistributionFuncType.PPF)
 
