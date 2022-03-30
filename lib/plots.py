@@ -3,7 +3,8 @@ from matplotlib import pyplot
 from lib import config
 from lib.dist import (DistributionFuncType, HypothesisType, distribution_function)
 from lib.plot_config import (create_regression_plot_type, create_plot_data_type, create_plot_func_type, create_hypothesis_test_plot_type,
-                             PlotDataType, PlotType, RegressionPlotType, PlotFuncType, HypothesisTestType,
+                             create_cumulative_plot_type,
+                             PlotDataType, PlotType, PlotRegressionType, PlotFuncType, PlotHypothesisTestType, PlotAccumulationType,
                              logStyle, logXStyle, logYStyle)
 
 # Plot a single curve as a function of the dependent variable
@@ -95,6 +96,45 @@ def comparison(y, x=None, **kwargs):
     if nplot <= 12 and labels is not None:
         axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
+# Plot a single curve in a stack of plots that use the same x-axis
+def stack(y, ylim, x=None, **kwargs):
+    title     = kwargs["title"]     if "title"     in kwargs else None
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    labels    = kwargs["labels"]    if "labels"    in kwargs else None
+
+    plot_config = create_plot_data_type(plot_type)
+
+    nplot = len(y)
+    if x is None:
+        nx = len(y[0])
+        x = numpy.tile(numpy.linspace(0, nx-1, nx), (nplot, 1))
+
+    figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
+
+    if title is not None:
+        axis[0].set_title(title)
+
+    axis[nplot-1].set_xlabel(plot_config.xlabel)
+
+    for i in range(nplot):
+        nsample = len(y[i])
+        axis[i].set_ylabel(plot_config.ylabel)
+        axis[i].set_ylim(ylim)
+        axis[i].set_xlim([0.0, x[i][-1]])
+
+        if labels is not None:
+            text = axis[i].text(0.8*x[i][-1], 0.65*ylim[-1], labels[i], fontsize=18)
+            text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
+
+        if plot_config.plot_type.value == PlotType.LOG.value:
+            axis[i].loglog(x[i], y[i], lw=1)
+        elif plot_config.plot_type.value == PlotType.XLOG.value:
+            axis[i].semilogx(x[i], y[i], lw=1)
+        elif plot_config.plot_type.value == PlotType.YLOG.value:
+            axis[i].semilogy(x[i], y[i], lw=1)
+        else:
+            axis[i].plot(x[i], y[i], lw=1)
+
 # Compare data to the value of a function
 def fcompare(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
@@ -139,52 +179,15 @@ def fcompare(y, x=None, **kwargs):
 
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
-# Plot a single curve in a stack of plots that use the same x-axis
-def stack(y, ylim, x=None, **kwargs):
-    title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
-    labels    = kwargs["labels"]    if "labels"    in kwargs else None
-
-    plot_config = create_plot_data_type(plot_type)
-
-    nplot = len(y)
-    if x is None:
-        nx = len(y[0])
-        x = numpy.tile(numpy.linspace(0, nx-1, nx), (nplot, 1))
-
-    figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
-
-    if title is not None:
-        axis[0].set_title(title)
-
-    axis[nplot-1].set_xlabel(plot_config.xlabel)
-
-    for i in range(nplot):
-        nsample = len(y[i])
-        axis[i].set_ylabel(plot_config.ylabel)
-        axis[i].set_ylim(ylim)
-        axis[i].set_xlim([0.0, x[i][-1]])
-
-        if labels is not None:
-            text = axis[i].text(0.8*x[i][-1], 0.65*ylim[-1], labels[i], fontsize=18)
-            text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
-
-        if plot_config.plot_type.value == PlotType.LOG.value:
-            axis[i].loglog(x[i], y[i], lw=1)
-        elif plot_config.plot_type.value == PlotType.XLOG.value:
-            axis[i].semilogx(x[i], y[i], lw=1)
-        elif plot_config.plot_type.value == PlotType.YLOG.value:
-            axis[i].semilogy(x[i], y[i], lw=1)
-        else:
-            axis[i].plot(x[i], y[i], lw=1)
-
 # Compare the cumulative value of a variable as a function of time with its target value
-def cumulative(accum, target, **kwargs):
+def cumulative(samples, plot_type, **kwargs):
     title  = kwargs["title"]  if "title"  in kwargs else None
     lw     = kwargs["lw"]     if "lw"     in kwargs else 2
-    ylabel = kwargs["ylabel"] if "ylabel" in kwargs else "y"
-    label  = kwargs["label"]  if "label"  in kwargs else ylabel
+    params = kwargs["params"] if "params" in kwargs else []
 
+    plot_config = create_cumulative_plot_type(plot_type, params)
+
+    accum = plot_config.f(samples)
     range = max(accum) - min(accum)
     ntime = len(accum)
     time = numpy.linspace(1.0, ntime-1, ntime)
@@ -195,12 +198,12 @@ def cumulative(accum, target, **kwargs):
         axis[0].set_title(title)
 
     axis.set_ylim([min(accum)-0.25*range, max(accum)+0.25*range])
-    axis.set_ylabel(ylabel)
-    axis.set_xlabel("t")
+    axis.set_ylabel(plot_config.ylabel)
+    axis.set_xlabel(plot_config.xlabel)
     axis.set_title(title)
     axis.set_xlim([1.0, ntime])
-    axis.semilogx(time, accum, label=f"Cumulative "+ ylabel, lw=lw)
-    axis.semilogx(time, numpy.full((len(time)), target), label=label, lw=lw)
+    axis.semilogx(time, accum, label=plot_config.legend_labels[0], lw=lw)
+    axis.semilogx(time, numpy.full((len(time)), plot_config.target), label=plot_config.legend_labels[1], lw=lw)
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 # Compare the result of a linear regression with teh acutal data

@@ -2,9 +2,10 @@ import numpy
 from enum import Enum
 from lib import fbm
 from lib import arima
+from lib import stats
 
 # Specify PlotConfig for regression plot
-class RegressionPlotType(Enum):
+class PlotRegressionType(Enum):
     LINEAR = 1          # Default
     FBM_AGG_VAR = 2     # FBM variance aggregation
     FBM_PSPEC = 3       # FBM Power Spectrum
@@ -39,12 +40,18 @@ class PlotFuncType(Enum):
     LAGG_VAR = 12       # Lagged variance computed from a time
     VR = 13             # Vraiance ratio use in test for brownian motion
 
-class HypothesisTestType(Enum):
+class PlotHypothesisTestType(Enum):
     VR = 1              # Variance ration test
+
+class PlotAccumulationType(Enum):
+    AR1_MEAN = 1        # Accumulation mean for AR(1)
+    AR1_STD = 2         # Accumulation standard deviation for AR(1)
+    MAQ_MEAN = 1        # Accumulation mean for MA(q)
+    MAQ_STD = 2         # Accumulation standard deviation for MA(q)
 
 # Config used in plots
 class PlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_labels=None, y_fit=None, f=None, dist_type=None):
+    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, results_text=None, legend_labels=None, y_fit=None, f=None, dist_type=None, target=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.plot_type = plot_type
@@ -52,6 +59,7 @@ class PlotConfig:
         self.legend_labels = legend_labels
         self.y_fit = y_fit
         self.f = f
+        self.target = target
         self.dist_type = dist_type
 
 # Regression plot configuartion
@@ -60,7 +68,7 @@ def create_regression_plot_type(plot_type, results, x):
     σ = results.bse[1]/2
     r2 = results.rsquared
 
-    if plot_type.value == RegressionPlotType.FBM_AGG_VAR.value:
+    if plot_type.value == PlotHypothesisTestType.FBM_AGG_VAR.value:
         h = float(1.0 + β[1]/2.0)
         results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
                        r"$\hat{\sigma}^2=$" + f"{format(10**β[0], '2.2f')}\n" + \
@@ -72,7 +80,7 @@ def create_regression_plot_type(plot_type, results, x):
                            results_text=results_text,
                            legend_labels=["Data", r"$Var(X^{m})=\sigma^2 m^{2H-2}$"],
                            y_fit=10**β[0]*x**β[1])
-    elif plot_type.value == RegressionPlotType.FBM_PSPEC.value:
+    elif plot_type.value == PlotHypothesisTestType.FBM_PSPEC.value:
         h = float(1.0 - β[1])/2.0
         results_text = r"$\hat{Η}=$" + f"{format(h, '2.2f')}\n" + \
                        r"$\hat{C}=$" + f"{format(10**β[0], '2.2f')}\n" + \
@@ -226,7 +234,7 @@ def create_plot_func_type(plot_type, params):
         f = lambda t : t
         return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR, legend_labels=["Data", "f(x)"], f=f)
 
-## Hypothesis Test Type
+# Create Hypothesis Test Type
 def create_hypothesis_test_plot_type(plot_type):
     if plot_type.value == HypothesisTestType.VR.value:
         return PlotConfig(xlabel=r"$t$",
@@ -234,6 +242,54 @@ def create_hypothesis_test_plot_type(plot_type):
                           plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Hypothesis test type is invalid: {plot_type}")
+
+# Create Cumlative plot type
+def create_cumulative_plot_type(plot_type, params):
+    if plot_type.value == PlotAccumulationType.AR1_MEAN.value:
+        f = lambda t : stats.cummean(t)
+        return PlotConfig(xlabel=r"$t$",
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.XLOG,
+                          legend_labels=["Accumulation", "Target"],
+                          f=f,
+                          target = 0.0)
+    if plot_type.value == PlotAccumulationType.AR1_STD.value:
+        φ = params[0]
+        if len(params) > 1:
+            σ = params[1]
+        else:
+            σ = 1.0
+        f = lambda t : stats.cumsigma(t)
+        return PlotConfig(xlabel=r"$t$",
+                          ylabel=r"$\sigma_t$",
+                          plot_type=PlotType.XLOG,
+                          legend_labels=["Accumulation", "Target"],
+                          f=f,
+                          target=arima.sigma(φ, σ))
+    if plot_type.value == PlotAccumulationType.MAQ_MEAN.value:
+        f = lambda t : stats.cummean(t)
+        return PlotConfig(xlabel=r"$t$",
+                          ylabel=r"$\mu_t$",
+                          plot_type=PlotType.XLOG,
+                          legend_labels=["Accumulation", "Target"],
+                          f=f,
+                          target = 0.0)
+    if plot_type.value == PlotAccumulationType.MAQ_STD.value:
+        θ = params[0]
+        if len(params) > 1:
+            σ = params[1]
+        else:
+            σ = 1.0
+        f = lambda t : stats.cumsigma(t)
+        return PlotConfig(xlabel=r"$t$",
+                          ylabel=r"$\sigma_t$",
+                          plot_type=PlotType.XLOG,
+                          legend_labels=["Accumulation", "Target"],
+                          f=f,
+                          target=arima.maq_sigma(θ, σ))
+    else:
+        raise Exception(f"Accumulation test type is invalid: {plot_type}")
+
 
 # Add axes for log plots for 1 to 3 decades
 def logStyle(axis, x, y):
@@ -244,7 +300,7 @@ def logStyle(axis, x, y):
         axis.spines['left'].set_color("#b0b0b0")
         axis.set_xlim([min(x)/1.5, 1.5*max(x)])
         if numpy.log10(max(y)/min(y)) < 1:
-            axis.set_ylim([min(y)/5.0, 5.0*max(y)])
+            axis.set_ylim([min(y)/1.5, 1.5*max(y)])
 
 
 def logXStyle(axis, x, y):
