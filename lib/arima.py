@@ -32,10 +32,10 @@ def maq_acf(θ, σ, max_lag):
     return ac_eq
 
 ## AR1 standard deviation and autocorrelation
-def sigma(φ, σ):
+def ar1_sigma(φ, σ):
     return numpy.sqrt(σ**2/(1.0-φ**2))
 
-def acf(φ, nvals):
+def ar1_acf(φ, nvals):
     return [φ**n for n in range(nvals)]
 
 ## AR(p) simulators

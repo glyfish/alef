@@ -46,8 +46,8 @@ class PlotHypothesisTestType(Enum):
 class PlotAccumulationType(Enum):
     AR1_MEAN = 1        # Accumulation mean for AR(1)
     AR1_STD = 2         # Accumulation standard deviation for AR(1)
-    MAQ_MEAN = 1        # Accumulation mean for MA(q)
-    MAQ_STD = 2         # Accumulation standard deviation for MA(q)
+    MAQ_MEAN = 3        # Accumulation mean for MA(q)
+    MAQ_STD = 4         # Accumulation standard deviation for MA(q)
 
 # Config used in plots
 class PlotConfig:
@@ -265,7 +265,7 @@ def create_cumulative_plot_type(plot_type, params):
                           plot_type=PlotType.XLOG,
                           legend_labels=["Accumulation", "Target"],
                           f=f,
-                          target=arima.sigma(φ, σ))
+                          target=arima.ar1_sigma(φ, σ))
     if plot_type.value == PlotAccumulationType.MAQ_MEAN.value:
         f = lambda t : stats.cummean(t)
         return PlotConfig(xlabel=r"$t$",
