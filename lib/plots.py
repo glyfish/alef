@@ -1,10 +1,10 @@
 import numpy
 from matplotlib import pyplot
 from lib import config
-from lib.dist import (DistributionFuncType, HypothesisType, distribution_function)
-from lib.plot_config import (create_regression_plot_type, create_plot_data_type, create_plot_func_type, create_hypothesis_test_plot_type,
-                             create_cumulative_plot_type,
-                             PlotDataType, PlotType, PlotRegressionType, PlotFuncType, PlotHypothesisTestType, PlotAccumulationType,
+from lib.dist import (DistributionType, DistributionFuncType, HypothesisType, distribution_function)
+from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create_func_plot_type, create_dist_plot_type,
+                             create_cum_plot_type,
+                             DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType,
                              logStyle, logXStyle, logYStyle)
 
 # Plot a single curve as a function of the dependent variable
@@ -13,7 +13,7 @@ def curve(y, x=None, **kwargs):
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
 
-    plot_config = create_plot_data_type(plot_type)
+    plot_config = create_data_plot_type(plot_type)
 
     if x is None:
         npts = len(y)
@@ -49,7 +49,7 @@ def comparison(y, x=None, **kwargs):
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
     labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
-    plot_config = create_plot_data_type(plot_type)
+    plot_config = create_data_plot_type(plot_type)
     nplot = len(y)
     ncol = int(nplot/6) + 1
 
@@ -102,7 +102,7 @@ def stack(y, ylim, x=None, **kwargs):
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
     labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
-    plot_config = create_plot_data_type(plot_type)
+    plot_config = create_data_plot_type(plot_type)
 
     nplot = len(y)
     if x is None:
@@ -144,7 +144,7 @@ def fcompare(y, x=None, **kwargs):
     npts      = kwargs["npts"]      if "npts"      in kwargs else 10
     params    = kwargs["params"]    if "params"    in kwargs else []
 
-    plot_config = create_plot_func_type(plot_type, params)
+    plot_config = create_func_plot_type(plot_type, params)
 
     if x is None:
         nx = len(y)
@@ -185,7 +185,7 @@ def cumulative(samples, plot_type, **kwargs):
     lw     = kwargs["lw"]     if "lw"     in kwargs else 2
     params = kwargs["params"] if "params" in kwargs else []
 
-    plot_config = create_cumulative_plot_type(plot_type, params)
+    plot_config = create_cum_plot_type(plot_type, params)
 
     accum = plot_config.f(samples)
     range = max(accum) - min(accum)
@@ -222,7 +222,7 @@ def regression(y, x, results, **kwargs):
         y_text = 0.1
         lengend_location = (0.05, 0.65, 0.3, 0.3)
 
-    plot_config = create_regression_plot_type(plot_type, results, x)
+    plot_config = create_reg_plot_type(plot_type, results, x)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -254,19 +254,24 @@ def regression(y, x, results, **kwargs):
     axis.legend(loc='best', bbox_to_anchor=lengend_location)
 
 # hypothesis test plot
-def htest(test_stats, plot_type, **kargs):
-    title     = kwargs["title"]      if "title"     in kwargs else None
-    xlabel    = kwargs["xlabel"]     if "xlabel"    in kwargs else "x"
-    test_type = kwargs["test_type"]  if "test_type" in kwargs else HypothesisType.TWO_TAIL
-    npts      = kwargs["npts"]       if "npts"      in kwargs else 100
-    x_vals    = kwargs['x']          if 'x'         in kwargs else None
-    sig_level = kwargs["sig_level"]  if "sig_level" in kwargs else 0.5
-    labels    = kwargs["labels"]     if "labels"    in kwargs else None
-    z         = kwargs["z"]          if "z"         in kwargs else None
+def htest(test_stats, plot_type, **kwargs):
+    title        = kwargs["title"]        if "title"       in kwargs else None
+    test_type    = kwargs["test_type"]    if "test_type"   in kwargs else HypothesisType.TWO_TAIL
+    npts         = kwargs["npts"]         if "npts"        in kwargs else 100
+    sig_level    = kwargs["sig_level"]    if "sig_level"   in kwargs else 0.05
+    labels       = kwargs["labels"]       if "labels"      in kwargs else None
+    dist_params  = kwargs["dist_params"]  if "dist_params" in kwargs else []
 
-    plot_config = create_hypothesis_test_plot_type()
-    cdf = distribution_function(dist_type, DistributionFuncType.CDF)
-    ppf = distribution_function(dist_type, DistributionFuncType.PPF)
+    plot_config = create_dist_plot_type(plot_type)
+    if plot_config.dist_params is not None:
+        dist_params = plot_config.dist_params
+
+    cdf = distribution_function(plot_config.dist_type, DistributionFuncType.CDF, dist_params)
+    ppf = distribution_function(plot_config.dist_type, DistributionFuncType.PPF, dist_params)
+    x_range = distribution_function(plot_config.dist_type, DistributionFuncType.RANGE, dist_params)
+
+    x_vals = x_range(npts)
+    y_vals = cdf(x_vals)
 
     left_critical_value = None
     left_label = None
@@ -274,26 +279,29 @@ def htest(test_stats, plot_type, **kargs):
     right_label = None
 
     if test_type == HypothesisType.TWO_TAIL:
-        sig_level = sig_level/2.0
-        left_critical_value = ppf(sig_level)
-        right_critical_value = ppf(1.0 - sig_level)
-        left_label = f"{format(sig_level, '1.3f')}"
-        right_label = f"{format(1.0 - sig_level, '1.3f')}"
+        sig_level_2 = sig_level/2.0
+        left_critical_value = ppf(sig_level_2)
+        right_critical_value = ppf(1.0 - sig_level_2)
+        left_label = f"Lower Tail={format(sig_level_2, '1.3f')}"
+        right_label = f"Upper Tail={format(1.0 - sig_level_2, '1.3f')}"
     elif test_type == HypothesisType.LOWER_TAIL:
         left_critical_value = ppf(sig_level)
-        left_label = f"{format(sig_level, '1.3f')}"
+        left_label = f"Lower Tail={format(sig_level, '1.3f')}"
     elif test_type == HypothesisType.UPPER_TAIL:
         right_critical_value = ppf(1.0 - sig_level)
-        right_label = f"{format(1.0 - sig_level, '1.3f')}"
+        right_label = f"Upper Tail={format(1.0 - sig_level, '1.3f')}"
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
+
+    text = axis.text(x_vals[0], 0.05*y_vals[-1], f"Signicance={format(100.0*sig_level, '2.0f')}%", fontsize=18)
+    text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
     if title is not None:
         axis.set_title(title)
 
-    axis.set_ylabel(r"$CDF$")
+    axis.set_ylabel(plot_config.ylabel)
     axis.set_ylim([-0.05, 1.05])
-    axis.set_xlabel(xlabel)
+    axis.set_xlabel(plot_config.xlabel)
 
     axis.plot(x_vals, y_vals)
     if left_critical_value is not None:
@@ -301,13 +309,15 @@ def htest(test_stats, plot_type, **kargs):
     if right_critical_value is not None:
         axis.plot([right_critical_value, right_critical_value], [0.0, 1.0], color='black', label=right_label)
 
-    for stat in test_stats:
+    # if z_vals is None:
+    for i in range(len(test_stats)):
         if labels is None:
-            axis.plot([stat, stat], [0.0, 1.0])
+            axis.plot([test_stats[i], test_stats[i]], [0.0, 1.0])
         else:
-            axis.plot([vr_test_stat[i], vr_test_stat[i]], [0.0, 1.0], label=labels[i])
+            axis.plot([test_stats[i], test_stats[i]], [0.0, 1.0], label=labels[i])
 
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
+
 
 # generate points evenly spaced on a logarithmic axis
 def logspace(npts, max, min=10.0):

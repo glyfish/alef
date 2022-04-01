@@ -1,5 +1,6 @@
 from scipy import stats
 from enum import Enum
+import numpy
 
 # Supported Distributions
 class DistributionType(Enum):
@@ -21,20 +22,20 @@ class HypothesisType(Enum):
     UPPER_TAIL = 3
 
 # Create specified distribution function with specifoed parameters
-def distribution_function(type, func_type, *params):
+def distribution_function(type, func_type, params):
     if type.value == DistributionType.NORMAL.value:
-        return normal(func_type, *params)
+        return _normal(func_type, params)
     else:
         raise Exception(f"Distribution type is invalid: {type}")
 
 # Normal distributions with scale σ and loc μ
-def _normal(func_type, *params):
-    if params["σ"] is None:
-        σ = params["σ"]
+def _normal(func_type, params):
+    if len(params) > 0:
+        σ = params[0]
     else:
         σ = 1.0
-    if params["μ"] is None:
-        μ = params["μ"]
+    if len(params) > 1:
+        μ = params[1]
     else:
         μ = 0.0
 

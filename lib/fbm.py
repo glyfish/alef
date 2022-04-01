@@ -183,16 +183,16 @@ def vr(x, s):
 # Homoscedastic variance Ratio
 def vr_stat_homo(x, s):
     t = len(x) - 1
-    vr = vr(x, s)
+    r = vr(x, s)
     θ = 2.0*(2.0*s - 1.0)*(s - 1.0)/(3.0*s*t)
-    return (vr - 1.0)/numpy.sqrt(θ)
+    return (r - 1.0)/numpy.sqrt(θ)
 
 # Heteroscedastic variance Ratio
 def vr_stat_hetero(x, s):
     t = len(x) - 1
-    vr = vr(x, s)
+    r = vr(x, s)
     θ = theta_factor(x, s)
-    return (vr - 1.0)/numpy.sqrt(θ)
+    return (r - 1.0)/numpy.sqrt(θ)
 
 def delta_factor(x, j):
     t = len(x) - 1
