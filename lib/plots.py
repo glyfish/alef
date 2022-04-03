@@ -278,6 +278,12 @@ def htest(test_stats, plot_type, **kwargs):
     x_range = distribution_function(plot_config.dist_type, DistributionFuncType.RANGE, dist_params)
 
     x_vals = x_range(npts)
+    min_stats = min(test_stats)
+    max_stats = max(test_stats)
+    min_stats = x_vals[0] if x_vals[0] < min_stats else min_stats
+    max_stats = x_vals[-1] if x_vals[-1] > max_stats else max_stats
+    x_vals = numpy.linspace(min_stats, max_stats, npts)
+
     y_vals = cdf(x_vals)
 
     lower_critical_value = None
