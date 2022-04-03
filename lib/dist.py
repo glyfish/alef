@@ -50,6 +50,6 @@ def _normal(func_type, params):
     elif func_type.value == DistributionFuncType.SAMP.value:
         return lambda x=1 : stats.norm.rvs(loc=μ, scale=σ, size=x)
     elif func_type.value == DistributionFuncType.RANGE.value:
-        return lambda x : numpy.linspace(-4.0*σ, 4.0*σ, x)
+        return lambda x : numpy.linspace(-5.0*σ, 5.0*σ, x)
     else:
         raise Exception(f"Distribution function type is invalid: {func_type}")

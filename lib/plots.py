@@ -7,6 +7,7 @@ from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create
                              DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType,
                              logStyle, logXStyle, logYStyle)
 
+###############################################################################################
 # Plot a single curve as a function of the dependent variable
 def curve(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
@@ -42,6 +43,7 @@ def curve(y, x=None, **kwargs):
     else:
         axis.plot(x, y, lw=lw)
 
+###############################################################################################
 # Plot multiple curves using the same axes
 def comparison(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
@@ -96,6 +98,7 @@ def comparison(y, x=None, **kwargs):
     if nplot <= 12 and labels is not None:
         axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
+###############################################################################################
 # Plot a single curve in a stack of plots that use the same x-axis
 def stack(y, ylim, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
@@ -135,6 +138,7 @@ def stack(y, ylim, x=None, **kwargs):
         else:
             axis[i].plot(x[i], y[i], lw=1)
 
+###############################################################################################
 # Compare data to the value of a function
 def fcompare(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
@@ -179,6 +183,7 @@ def fcompare(y, x=None, **kwargs):
 
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
+###############################################################################################
 # Compare the cumulative value of a variable as a function of time with its target value
 def cumulative(samples, plot_type, **kwargs):
     title  = kwargs["title"]  if "title"  in kwargs else None
@@ -206,6 +211,7 @@ def cumulative(samples, plot_type, **kwargs):
     axis.semilogx(time, numpy.full((len(time)), plot_config.target), label=plot_config.legend_labels[1], lw=lw)
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
+###############################################################################################
 # Compare the result of a linear regression with teh acutal data
 def regression(y, x, results, **kwargs):
     title = kwargs["title"] if "title" in kwargs else None
@@ -253,7 +259,8 @@ def regression(y, x, results, **kwargs):
 
     axis.legend(loc='best', bbox_to_anchor=lengend_location)
 
-# hypothesis test plot
+###############################################################################################
+# Hypothesis test plot
 def htest(test_stats, plot_type, **kwargs):
     title        = kwargs["title"]        if "title"       in kwargs else None
     test_type    = kwargs["test_type"]    if "test_type"   in kwargs else HypothesisType.TWO_TAIL
@@ -273,23 +280,23 @@ def htest(test_stats, plot_type, **kwargs):
     x_vals = x_range(npts)
     y_vals = cdf(x_vals)
 
-    left_critical_value = None
-    left_label = None
-    right_critical_value = None
-    right_label = None
+    lower_critical_value = None
+    lower_label = None
+    upper_critical_value = None
+    upper_label = None
 
     if test_type == HypothesisType.TWO_TAIL:
         sig_level_2 = sig_level/2.0
-        left_critical_value = ppf(sig_level_2)
-        right_critical_value = ppf(1.0 - sig_level_2)
-        left_label = f"Lower Tail={format(sig_level_2, '1.3f')}"
-        right_label = f"Upper Tail={format(1.0 - sig_level_2, '1.3f')}"
+        lower_critical_value = ppf(sig_level_2)
+        upper_critical_value = ppf(1.0 - sig_level_2)
+        lower_label = f"Lower Tail={format(sig_level_2, '1.3f')}"
+        upper_label = f"Upper Tail={format(1.0 - sig_level_2, '1.3f')}"
     elif test_type == HypothesisType.LOWER_TAIL:
-        left_critical_value = ppf(sig_level)
-        left_label = f"Lower Tail={format(sig_level, '1.3f')}"
+        lower_critical_value = ppf(sig_level)
+        lower_label = f"Lower Tail={format(sig_level, '1.3f')}"
     elif test_type == HypothesisType.UPPER_TAIL:
-        right_critical_value = ppf(1.0 - sig_level)
-        right_label = f"Upper Tail={format(1.0 - sig_level, '1.3f')}"
+        upper_critical_value = ppf(1.0 - sig_level)
+        upper_label = f"Upper Tail={format(1.0 - sig_level, '1.3f')}"
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
 
@@ -304,10 +311,10 @@ def htest(test_stats, plot_type, **kwargs):
     axis.set_xlabel(plot_config.xlabel)
 
     axis.plot(x_vals, y_vals)
-    if left_critical_value is not None:
-        axis.plot([left_critical_value, left_critical_value], [0.0, 1.0], color='red', label=left_label)
-    if right_critical_value is not None:
-        axis.plot([right_critical_value, right_critical_value], [0.0, 1.0], color='black', label=right_label)
+    if lower_critical_value is not None:
+        axis.plot([lower_critical_value, lower_critical_value], [0.0, 1.0], color='red', label=lower_label, lw=4)
+    if upper_critical_value is not None:
+        axis.plot([upper_critical_value, upper_critical_value], [0.0, 1.0], color='black', label=upper_label, lw=4)
 
     # if z_vals is None:
     for i in range(len(test_stats)):
@@ -319,6 +326,7 @@ def htest(test_stats, plot_type, **kwargs):
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 
+###############################################################################################
 # generate points evenly spaced on a logarithmic axis
 def logspace(npts, max, min=10.0):
     return numpy.logspace(numpy.log10(min), numpy.log10(max/min), npts)
