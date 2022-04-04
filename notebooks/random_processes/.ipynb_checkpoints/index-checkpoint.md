@@ -1,10 +1,10 @@
 # Random Processes
 
-* **[adf_test.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/adf_test.ipynb)** The Augmented Dickey-Fuller (ADF) test is used to determine if an `AR(q)` process is stationary. Her the ADF test implementation is evaluated against simulated `AR(q)` processes.
+* **[adf_test.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/adf_test.ipynb)** The Augmented Dickey Fuller (ADF) test is used to determine if an `AR(q)` process is stationary. The ADF test implementation is evaluated against simulated `AR(q)` processes.
 
 * **[ar1.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ar1.ipynb)** Test `AR(p)` simulators by comparing first and second order moments of `AR(1)` computed from simulations with analytic results obtained by assuming stationarity.
 
-* **[arima.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arima.ipynb)** Test `ARIMA(p,d,q)` simulation and parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation.
+* **[arima.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arima.ipynb)** Test `ARIMA(p,d,q)` simulators and parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation.
 
 * **[arma_order_estimation.ipynb](http://localhost:8888/files/notebooks/random_processes/arma_order_estimation.ipynb?_xsrf=2%7Cdc5622b9%7C972d0332676f9814e33c8e21c7a0a95f%7C1642532355)** Test `ARMA(p,q)` simulations and order determination using autocorrelation function analysis and partial autocorrelation function analysis.
 
@@ -24,6 +24,6 @@
 
 * **[fbm.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm.ipynb)** Examples of simulations using the Cholesky and FFT methods as the Hurst parameter, `H`, is varied.
 
-* **[maq_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq_parameter_estimation.ipynb)** Test `MA(q)` parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation.
+* **[maq_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq_parameter_estimation.ipynb)** Test `MA(q)` parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation..
 
 * **[maq.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq.ipynb)** Test `MA(q)` simulator by comparing first and second order moments computed from simulations with analytic results.

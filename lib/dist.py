@@ -21,6 +21,20 @@ class HypothesisType(Enum):
     LOWER_TAIL = 2
     UPPER_TAIL = 3
 
+class VarianceRatioTestResults:
+    def __init__(self, status, sig_level, statistics, p_values, critical_values):
+        self.status = status
+        self.sig_level = sig_level
+        self.statistics = statistics
+        self.p_values = p_values
+        self.critical_values = critical_values
+
+    def __repr__(self):
+        f"VarianceRatioTestResults(status={self.status}, sig_level={self.sig_level}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values})"
+
+    def __str__(self):
+        return f"status={self.status}, sig_level={self.sig_level}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values}"
+
 # Create specified distribution function with specifoed parameters
 def distribution_function(type, func_type, params):
     if type.value == DistributionType.NORMAL.value:

@@ -1,6 +1,6 @@
 import numpy
 from lib import bm
-from lib.dist import (HypothesisType, DistributionType, DistributionFuncType, distribution_function)
+from lib.dist import (HypothesisType, DistributionType, DistributionFuncType, distribution_function, VarianceRatioTestResults)
 from lib import plots
 from lib.plots import (DistPlotType)
 
@@ -205,7 +205,10 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
     result = npass >= nstats/2.0
     _var_test_report(test_stats, s_vals, 2.0*sig_level, test_type, result, report)
 
-    return [result, 2.0*sig_level, test_stats, [lower_critical_value, upper_critical_value]]
+    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
+
+    return VarianceRatioTestResults(result, 2.0*sig_level, test_stats, p_values, [lower_critical_value, upper_critical_value])
 
 # perform upper tail variance ratio test
 def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
@@ -223,7 +226,10 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
     result = npass >= nstats/2.0
     _var_test_report(test_stats, s_vals, sig_level, test_type, result, report)
 
-    return [result, sig_level, test_stats, [None, upper_critical_value]]
+    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    p_values = [1.0 - cdf(stat) for stat in test_stats]
+
+    return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [None, upper_critical_value])
 
 # perform lower tail variance ratio test
 def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
@@ -241,7 +247,11 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
     result = npass >= nstats/2.0
     _var_test_report(test_stats, s_vals, sig_level, test_type, result, report)
 
-    return [result, sig_level, test_stats, [lower_critical_value, None]]
+    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    p_values = [cdf(stat) for stat in test_stats]
+
+    return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [lower_critical_value, None])
+
 
 # print test report
 def _var_test_report(test_stats, s_vals, sig_level, test_type, result, report):

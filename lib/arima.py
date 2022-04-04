@@ -57,16 +57,35 @@ def arp(φ, n, σ=1.0):
     δ = numpy.array([1.0])
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
 
-## MA9q) simulator
+## MA(q) simulator
 def maq(δ, n, σ=1.0):
     φ = numpy.array([1.0])
     δ = numpy.r_[1, δ]
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
 
-def generate(φ, δ, n, σ=1):
+## ARMA(p,q) simulator
+def arma(φ, δ, n, σ=1):
     φ = numpy.r_[1, -φ]
     δ = numpy.r_[1, δ]
     return sm.tsa.arma_generate_sample(φ, δ, n, σ)
+
+### ARIMA(p,d,q) simulator
+def diff(samples):
+    n = len(samples)
+    d = numpy.zeros(n-1)
+    for i in range(n-1):
+        d[i] = samples[i+1] - samples[i]
+    return d
+
+def arima(φ, δ, d, n, σ=1.0):
+    assert d <= 2, "d must equal 1 or 2"
+    samples = arma_generate_sample(φ, δ, n, σ)
+    if d == 1:
+        return numpy.cumsum(samples)
+    else:
+        for i in range(2, n):
+            samples[i] = samples[i] + 2.0*samples[i-1] - samples[i-2]
+        return samples
 
 ## Yule-Walker ACF and PACF
 def yw(x, max_lag):
@@ -82,3 +101,31 @@ def ar_estimate(samples, order):
 
 def ma_estimate(samples, order):
     return tsa.arima.model.ARIMA(samples, order=(0, 0, order)).fit()
+
+## ADF Test
+def df_test(samples):
+    return adfuller_report(samples, 'n')
+
+def adf_report(samples):
+    return adfuller_report(samples, 'c')
+
+def adf_report_with_trend(samples):
+    return adfuller_report(samples, 'ct')
+
+def adf_test(samples):
+    return adfuller_test(samples, 'c')
+
+def adfuller_test(samples, test_type):
+    adf_result = sm.tsa.stattools.adfuller(samples, regression=test_type)
+    return adf_result[0] < adf_result[4]["5%"]
+
+def adfuller_report(samples, test_type):
+    adf_result = sm.tsa.stattools.adfuller(samples, regression=test_type)
+    print('ADF Statistic: %f' % adf_result[0])
+    print('p-value: %f' % adf_result[1])
+    isStationary = adf_result[0] < adf_result[4]["5%"]
+    print(f"Is Stationary at 5%: {isStationary}")
+    print("Critical Values")
+    for key, value in adf_result[4].items():
+	       print('\t%s: %.3f' % (key, value))
+    return adf_result[0] < adf_result[4]["5%"]
