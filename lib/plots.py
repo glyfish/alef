@@ -3,12 +3,12 @@ from matplotlib import pyplot
 from lib import config
 from lib.dist import (DistributionType, DistributionFuncType, HypothesisType, distribution_function)
 from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create_func_plot_type, create_dist_plot_type,
-                             create_cum_plot_type,
-                             DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType,
+                             create_cum_plot_type, create_hist_dist_plot_type,
+                             DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType, HistDistPlotType,
                              logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
-# Plot a single curve as a function of the dependent variable
+# Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
 def curve(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
@@ -44,7 +44,7 @@ def curve(y, x=None, **kwargs):
         axis.plot(x, y, lw=lw)
 
 ###############################################################################################
-# Plot multiple curves using the same axes
+# Plot multiple curves using the same axes  (Uses DataPlotType config)
 def comparison(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
@@ -99,7 +99,7 @@ def comparison(y, x=None, **kwargs):
         axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
 ###############################################################################################
-# Plot a single curve in a stack of plots that use the same x-axis
+# Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
 def stack(y, ylim, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
@@ -139,7 +139,50 @@ def stack(y, ylim, x=None, **kwargs):
             axis[i].plot(x[i], y[i], lw=1)
 
 ###############################################################################################
-# Compare data to the value of a function
+# Histogram plot (Uses HistPlotType config)
+def hist(samples, **kwargs):
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    title = kwargs["title"] if "title" in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 0.0
+    xrange = kwargs["xrange"] if "xrange" in kwargs else None
+    ylimit = kwargs["ylimit"] if "ylimit" in kwargs else None
+    nbins = kwargs["nbins"] if "nbins" in kwargs else 50
+
+    plot_config = create_hist_dist_plot_type(plot_type)
+
+    figure, axis = pyplot.subplots(figsize=(12, 8))
+
+    if title is not None:
+        axis.set_title(title, y=title_offset)
+
+    axis.set_ylabel(plot_config.ylabel)
+    axis.set_xlabel(plot_config.xlabel)
+
+    bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+    axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
+
+    if plot_config.plot_type.value == PlotType.LOG.value:
+        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity, log=True)
+        axis.yscale('log', nonposy='clip')
+    elif plot_config.plot_type.value == PlotType.XLOG.value:
+        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity, log=True)
+    elif plot_config.plot_type.value == PlotType.YLOG.value:
+        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity)
+        axis.yscale('log', nonposy='clip')
+    else:
+        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity)
+
+    if xrange is None:
+        delta = (bins[-1] - bins[0]) / 500.0
+        xrange = numpy.arange(bins[0], bins[-1], delta)
+
+    axis.set_xlim([xrange[0], xrange[-1]])
+
+    if ylimit is not None:
+        axis.set_ylim(ylimit)
+
+###############################################################################################
+# Compare data to the value of a function (Uses PlotFuncType config)
 def fcompare(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotFuncType.LINEAR
@@ -183,8 +226,8 @@ def fcompare(y, x=None, **kwargs):
 
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
-###############################################################################################
-# Compare the cumulative value of a variable as a function of time with its target value
+##################################################################################################################
+# Compare the cumulative value of a variable as a function of time with its target value (Uses CumPlotType config)
 def cumulative(samples, plot_type, **kwargs):
     title  = kwargs["title"]  if "title"  in kwargs else None
     lw     = kwargs["lw"]     if "lw"     in kwargs else 2
@@ -212,7 +255,7 @@ def cumulative(samples, plot_type, **kwargs):
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 ###############################################################################################
-# Compare the result of a linear regression with teh acutal data
+# Compare the result of a linear regression with teh acutal data (Uses RegPlotType config)
 def regression(y, x, results, **kwargs):
     title = kwargs["title"] if "title" in kwargs else None
     plot_type = kwargs["plot_type"]  if "plot_type"  in kwargs else RegressionPlotType.LINEAR
@@ -260,7 +303,7 @@ def regression(y, x, results, **kwargs):
     axis.legend(loc='best', bbox_to_anchor=lengend_location)
 
 ###############################################################################################
-# Hypothesis test plot
+# Hypothesis test plot (Uses DistPlotType config)
 def htest(test_stats, plot_type, **kwargs):
     title        = kwargs["title"]        if "title"       in kwargs else None
     test_type    = kwargs["test_type"]    if "test_type"   in kwargs else HypothesisType.TWO_TAIL
@@ -330,7 +373,6 @@ def htest(test_stats, plot_type, **kwargs):
             axis.plot([test_stats[i], test_stats[i]], [0.0, 1.0], label=labels[i])
 
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
-
 
 ###############################################################################################
 # generate points evenly spaced on a logarithmic axis

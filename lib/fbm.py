@@ -2,7 +2,6 @@ import numpy
 from lib import bm
 from lib.dist import (HypothesisType, DistributionType, DistributionFuncType, distribution_function, VarianceRatioTestResults)
 from lib import plots
-from lib.plots import (DistPlotType)
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation
@@ -203,10 +202,11 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
             npass += 1
 
     result = npass >= nstats/2.0
-    _var_test_report(test_stats, s_vals, 2.0*sig_level, test_type, result, report)
 
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
+
+    _var_test_report(test_stats, s_vals, p_values, 2.0*sig_level, test_type, result, report)
 
     return VarianceRatioTestResults(result, 2.0*sig_level, test_stats, p_values, [lower_critical_value, upper_critical_value])
 
@@ -224,10 +224,11 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
             npass += 1
 
     result = npass >= nstats/2.0
-    _var_test_report(test_stats, s_vals, sig_level, test_type, result, report)
 
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [1.0 - cdf(stat) for stat in test_stats]
+
+    _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report)
 
     return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [None, upper_critical_value])
 
@@ -245,23 +246,19 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
             npass += 1
 
     result = npass >= nstats/2.0
-    _var_test_report(test_stats, s_vals, sig_level, test_type, result, report)
 
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [cdf(stat) for stat in test_stats]
+
+    _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report)
 
     return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [lower_critical_value, None])
 
 
 # print test report
-def _var_test_report(test_stats, s_vals, sig_level, test_type, result, report):
+def _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report):
     if not report:
         return
-
-    result_text = "PASSED" if result else "FAILED"
-    title = f"Variance Ratio Test, Result = {result_text} "
-    labels = [f"s={s}" for s in s_vals]
-    plots.htest(test_stats, DistPlotType.VR_TEST, title=title, labels=labels, test_type=test_type, sig_level=sig_level)
 
 # lag variance
 def lag_var(samples, s):

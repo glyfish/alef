@@ -53,6 +53,11 @@ class CumPlotType(Enum):
     MAQ_MEAN = 3        # Accumulation mean for MA(q)
     MAQ_STD = 4         # Accumulation standard deviation for MA(q)
 
+# Specify Config for historgram PlotType
+class HistDistPlotType(Enum):
+    PDF = 1             # Probability density function
+    CDF = 2             # Cummulative density function
+
 # Configurations used in plots
 class PlotConfig:
     def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, legend_labels=None):
@@ -95,6 +100,15 @@ class DistPlotConfig(PlotConfig):
         self.legend_labels = legend_labels
         self.dist_type = dist_type
         self.dist_params = dist_params
+
+class HistDistPlotType:
+    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, density=False, params=None, f=None):
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.plot_type = plot_type
+        self.density = density
+        self.params = params
+        self.f = f
 
 # Regression plot configuartion
 def create_reg_plot_type(plot_type, results, x):
@@ -325,6 +339,17 @@ def create_dist_plot_type(plot_type):
                               dist_params = [1.0, 0.0])
     else:
         raise Exception(f"Distribution plot type is invalid: {plot_type}")
+
+## plot histogram type
+def create_hist_dist_plot_type(plot_type, params=None):
+    if plot_type.value == HistPlotType.PDF.value:
+        plot_params = f"μ={params[1]}\nσ={params[0]}"
+        return PlotConfig(xlabel=r"$x$", ylabel=r"$p(x)$", plot_type=PlotType.LINEAR, density=True, params=plot_params)
+    if plot_type.value == HistPlotType.CDF.value:
+        plot_params = f"μ={params[1]}\nσ={params[0]}"
+        return PlotConfig(xlabel=r"$x$", ylabel=r"$P(x)$", plot_type=PlotType.LINEAR, density=True, params=plot_params)
+    else:
+        return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
 
 # Add axes for log plots for 1 to 3 decades
 def logStyle(axis, x, y):

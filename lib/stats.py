@@ -82,6 +82,17 @@ def pspec(x):
     power = numpy.conj(x_fft)*x_fft
     return power[1:n].real/(n*energy)
 
+def pdf_hist(samples, range, nbins=50):
+    return numpy.histogram(samples, bins=nbins, range=range, density=True)
+
+def cdf_hist(x, pdf):
+    npoints = len(pdf)
+    cdf = numpy.zeros(npoints)
+    for i in range(npoints):
+        dx = x[i+1] - x[i]
+        cdf[i] = numpy.sum(pdf[:i])*dx
+    return cdf
+
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
 
