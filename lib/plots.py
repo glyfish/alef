@@ -3,8 +3,8 @@ from matplotlib import pyplot
 from lib import config
 from lib.dist import (DistributionType, DistributionFuncType, HypothesisType, distribution_function)
 from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create_func_plot_type, create_dist_plot_type,
-                             create_cum_plot_type, create_hist_dist_plot_type,
-                             DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType, HistDistPlotType,
+                             create_cum_plot_type, create_hist_plot_type,
+                             DataPlotType, PlotType, RegPlotType, FuncPlotType, DistPlotType, CumPlotType, HistPlotType,
                              logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
@@ -149,7 +149,7 @@ def hist(samples, **kwargs):
     nbins = kwargs["nbins"] if "nbins" in kwargs else 50
     params = kwargs["params"] if "params" in kwargs else None
 
-    plot_config = create_hist_dist_plot_type(plot_type, params)
+    plot_config = create_hist_plot_type(plot_type, params)
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
 
@@ -190,14 +190,14 @@ def hist(samples, **kwargs):
 ###############################################################################################
 # bar plot (Uses HistPlotType config)
 def bar(x, y, **kwargs):
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else HistPlotType.GENERIC
     title = kwargs["title"] if "title" in kwargs else None
     params = kwargs["params"] if "params" in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 0.0
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
-    width = [0.9*(x[i+1]-x[i]) for in range(len(x))]
+    width = 0.9*(x[1]-x[0])
 
-    plot_config = create_hist_dist_plot_type(plot_type, params)
+    plot_config = create_hist_plot_type(plot_type, params)
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
 
@@ -216,7 +216,6 @@ def bar(x, y, **kwargs):
         axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
 
     axis.bar(x, y, align='center', width=width, zorder=10)
-
 
 ###############################################################################################
 # Compare data to the value of a function (Uses PlotFuncType config)
