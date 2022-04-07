@@ -206,9 +206,9 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
 
-    _var_test_report(test_stats, s_vals, p_values, 2.0*sig_level, test_type, result, report)
-
-    return VarianceRatioTestResults(result, 2.0*sig_level, test_stats, p_values, [lower_critical_value, upper_critical_value])
+    results = VarianceRatioTestResults(result,  2.0*sig_level, test_stats, p_values, [lower_critical_value, upper_critical_value])
+    _var_test_report(results, report)
+    return results
 
 # perform upper tail variance ratio test
 def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
@@ -228,9 +228,9 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [1.0 - cdf(stat) for stat in test_stats]
 
-    _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report)
-
-    return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [None, upper_critical_value])
+    results = VarianceRatioTestResults(result, sig_level, test_stats, p_values, [None, upper_critical_value])
+    _var_test_report(results, report)
+    return results
 
 # perform lower tail variance ratio test
 def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
@@ -250,13 +250,13 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [cdf(stat) for stat in test_stats]
 
-    _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report)
-
-    return VarianceRatioTestResults(result, sig_level, test_stats, p_values, [lower_critical_value, None])
+    results = VarianceRatioTestResults(result, sig_level, test_stats, p_values, [lower_critical_value, None])
+    _var_test_report(results, report)
+    return results
 
 
 # print test report
-def _var_test_report(test_stats, s_vals, p_values, sig_level, test_type, result, report):
+def _var_test_report(results, report):
     if not report:
         return
 

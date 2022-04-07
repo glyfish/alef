@@ -147,19 +147,25 @@ def hist(samples, **kwargs):
     xrange = kwargs["xrange"] if "xrange" in kwargs else None
     ylimit = kwargs["ylimit"] if "ylimit" in kwargs else None
     nbins = kwargs["nbins"] if "nbins" in kwargs else 50
+    params = kwargs["params"] if "params" in kwargs else None
 
-    plot_config = create_hist_dist_plot_type(plot_type)
+    plot_config = create_hist_dist_plot_type(plot_type, params)
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
 
     if title is not None:
         axis.set_title(title, y=title_offset)
 
+    axis.set_prop_cycle(config.distribution_sample_cycler)
+
     axis.set_ylabel(plot_config.ylabel)
     axis.set_xlabel(plot_config.xlabel)
 
-    bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
-    axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
+    if plot_config.params is not None:
+        x_text = 0.8
+        y_text = 0.1
+        bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+        axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
 
     if plot_config.plot_type.value == PlotType.LOG.value:
         _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity, log=True)
@@ -180,6 +186,37 @@ def hist(samples, **kwargs):
 
     if ylimit is not None:
         axis.set_ylim(ylimit)
+
+###############################################################################################
+# bar plot (Uses HistPlotType config)
+def bar(x, y, **kwargs):
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    title = kwargs["title"] if "title" in kwargs else None
+    params = kwargs["params"] if "params" in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 0.0
+
+    width = [0.9*(x[i+1]-x[i]) for in range(len(x))]
+
+    plot_config = create_hist_dist_plot_type(plot_type, params)
+
+    figure, axis = pyplot.subplots(figsize=(12, 8))
+
+    if title is not None:
+        axis.set_title(title, y=title_offset)
+
+    axis.set_prop_cycle(config.distribution_sample_cycler)
+
+    axis.set_ylabel(plot_config.ylabel)
+    axis.set_xlabel(plot_config.xlabel)
+
+    if plot_config.params is not None:
+        x_text = 0.8
+        y_text = 0.1
+        bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+        axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=16.0, zorder=7, transform=axis.transAxes)
+
+    axis.bar(x, y, align='center', width=width, zorder=10)
+
 
 ###############################################################################################
 # Compare data to the value of a function (Uses PlotFuncType config)
