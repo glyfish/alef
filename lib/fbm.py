@@ -261,6 +261,7 @@ def _var_test_report(results, report):
         return
     table = results.table("fancy_grid")
     print(table[0])
+    print(table[1])
 
 
 
