@@ -206,7 +206,7 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result,  2.0*sig_level, test_stats, p_values, [lower_critical_value, upper_critical_value])
+    results = VarianceRatioTestResults(result,  2.0*sig_level, "Two Tail", s_vals, test_stats, p_values, [lower_critical_value, upper_critical_value])
     _var_test_report(results, report)
     return results
 
@@ -228,7 +228,7 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [1.0 - cdf(stat) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result, sig_level, test_stats, p_values, [None, upper_critical_value])
+    results = VarianceRatioTestResults(result, sig_level, "Upper Tail", s_vals, test_stats, p_values, [None, upper_critical_value])
     _var_test_report(results, report)
     return results
 
@@ -250,7 +250,7 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
     cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
     p_values = [cdf(stat) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result, sig_level, test_stats, p_values, [lower_critical_value, None])
+    results = VarianceRatioTestResults(result, sig_level, "Lower Tail", s_vals, test_stats, p_values, [lower_critical_value, None])
     _var_test_report(results, report)
     return results
 
@@ -259,6 +259,10 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
 def _var_test_report(results, report):
     if not report:
         return
+    table = results.table("fancy_grid")
+    print(table[0])
+
+
 
 # lag variance
 def lag_var(samples, s):
