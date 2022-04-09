@@ -8,7 +8,7 @@
 
 * **[arma_order_estimation.ipynb](http://localhost:8888/files/notebooks/random_processes/arma_order_estimation.ipynb?_xsrf=2%7Cdc5622b9%7C972d0332676f9814e33c8e21c7a0a95f%7C1642532355)** Test `ARMA(p,q)` simulations and order determination using autocorrelation function analysis and partial autocorrelation function analysis.
 
-* **[arq_parameter_esimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arq_parameter_estimation.ipynb)** Test `AR(p)` parameter estimation using the Yule-Walker equations by comparing the parameters used in a simulation with the results obtained by parameter estimation..
+* **[arp_parameter_esimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arq_parameter_estimation.ipynb)** Test `AR(p)` parameter estimation using the Yule-Walker equations by comparing the parameters used in a simulation with the results obtained by parameter estimation..
 
 * **[bm_ensembles.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/bm_ensembles.ipynb)** Test brownian motion and geometric brownian motion simulations by comparing mean and variance analytic results with calculations from ensembles.
 

@@ -1,5 +1,6 @@
 import numpy
 from matplotlib import pyplot
+
 from lib import config
 from lib.dist import (DistributionType, DistributionFuncType, HypothesisType, distribution_function)
 from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create_func_plot_type, create_dist_plot_type,
@@ -11,7 +12,7 @@ from lib.plot_config import (create_reg_plot_type, create_data_plot_type, create
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
 def curve(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
 
     plot_config = create_data_plot_type(plot_type)
@@ -47,7 +48,7 @@ def curve(y, x=None, **kwargs):
 # Plot multiple curves using the same axes  (Uses DataPlotType config)
 def comparison(y, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
     labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
@@ -102,7 +103,7 @@ def comparison(y, x=None, **kwargs):
 # Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
 def stack(y, ylim, x=None, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
     labels    = kwargs["labels"]    if "labels"    in kwargs else None
 
     plot_config = create_data_plot_type(plot_type)
@@ -141,7 +142,7 @@ def stack(y, ylim, x=None, **kwargs):
 ###############################################################################################
 # Histogram plot (Uses HistPlotType config)
 def hist(samples, **kwargs):
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotDataType.GENERIC
+    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else HistPlotType.GENERIC
     title = kwargs["title"] if "title" in kwargs else None
     title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 0.0
     xrange = kwargs["xrange"] if "xrange" in kwargs else None

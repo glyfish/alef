@@ -1,5 +1,6 @@
 import numpy
 from enum import Enum
+
 from lib import fbm
 from lib import arima
 from lib import stats

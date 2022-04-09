@@ -63,9 +63,9 @@ class VarianceRatioTestResults:
         results.append(pval_result)
         results.append(z_result)
         results = numpy.transpose(numpy.array(results))
-        return tabulate(results, headers=["s", "Z(s)", "p-val", "Result"], tablefmt=tablefmt)
+        return tabulate(results, headers=["s", "Z(s)", "pvalue", "Result"], tablefmt=tablefmt)
 
-    def table(self, tablefmt="grid"):
+    def table(self, tablefmt):
         header = self._header(tablefmt)
         result = self._results(tablefmt)
         return [header, result]

@@ -1,7 +1,7 @@
 import numpy
+
 from lib import bm
 from lib.dist import (HypothesisType, DistributionType, DistributionFuncType, distribution_function, VarianceRatioTestResults)
-from lib import plots
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation
@@ -175,19 +175,19 @@ def agg_time(samples, m):
 ###############################################################################################
 ## Variance Ratio Test
 # The homoscedastic test statistic is used n the analysis.
-def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=HypothesisType.TWO_TAIL, report=False):
+def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=HypothesisType.TWO_TAIL, report=False, tablefmt="fancy_grid"):
     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
     if test_type.value == HypothesisType.TWO_TAIL.value:
-        return _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report)
+        return _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
     elif test_type.value == HypothesisType.UPPER_TAIL.value:
-        return _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report)
+        return _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
     elif test_type.value == HypothesisType.LOWER_TAIL.value:
-        return _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report)
+        return _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
     else:
         raise Exception(f"Hypothesis test type is invalid: {test_type}")
 
 # perform two tail variance ratio test
-def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
+def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     sig_level = sig_level/2.0
     dist_params = [1.0, 0.0]
     ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
@@ -207,11 +207,11 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report):
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
 
     results = VarianceRatioTestResults(result,  2.0*sig_level, "Two Tail", s_vals, test_stats, p_values, [lower_critical_value, upper_critical_value])
-    _var_test_report(results, report)
+    _var_test_report(results, report, tablefmt)
     return results
 
 # perform upper tail variance ratio test
-def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
+def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     dist_params = [1.0, 0.0]
     ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
     upper_critical_value = ppf(1.0 - sig_level)
@@ -229,11 +229,11 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report):
     p_values = [1.0 - cdf(stat) for stat in test_stats]
 
     results = VarianceRatioTestResults(result, sig_level, "Upper Tail", s_vals, test_stats, p_values, [None, upper_critical_value])
-    _var_test_report(results, report)
+    _var_test_report(results, report, tablefmt)
     return results
 
 # perform lower tail variance ratio test
-def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
+def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     dist_params = [1.0, 0.0]
     ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
     lower_critical_value = ppf(sig_level)
@@ -251,15 +251,15 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report):
     p_values = [cdf(stat) for stat in test_stats]
 
     results = VarianceRatioTestResults(result, sig_level, "Lower Tail", s_vals, test_stats, p_values, [lower_critical_value, None])
-    _var_test_report(results, report)
+    _var_test_report(results, report, tablefmt)
     return results
 
 
 # print test report
-def _var_test_report(results, report):
+def _var_test_report(results, report, tablefmt):
     if not report:
         return
-    table = results.table("fancy_grid")
+    table = results.table(tablefmt)
     print(table[0])
     print(table[1])
 
