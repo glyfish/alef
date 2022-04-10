@@ -92,13 +92,26 @@ def diff(samples):
 
 def arima(φ, δ, d, n, σ=1.0):
     assert d <= 2, "d must equal 1 or 2"
-    samples = arma_generate_sample(φ, δ, n, σ)
+    samples = arma(φ, δ, n, σ)
     if d == 1:
         return numpy.cumsum(samples)
     else:
         for i in range(2, n):
             samples[i] = samples[i] + 2.0*samples[i-1] - samples[i-2]
         return samples
+
+def arima_from_arma(samples, d):
+    assert d <= 2, "d must equal 1 or 2"
+    n = len(samples)
+    if d == 1:
+        return numpy.cumsum(samples)
+    else:
+        result = numpy.zeros(n)
+        result[0] = samples[0]
+        result[1] = samples[1]
+        for i in range(2, n):
+            result[i] = samples[i] + 2.0*result[i-1] - result[i-2]
+        return result
 
 ## Yule-Walker ACF and PACF
 def yw(x, max_lag):
@@ -144,6 +157,6 @@ def _adfuller_report(results, report, tablefmt):
     results = [["1%", results[4]["1%"], status[0]],
                ["5%", results[4]["5%"], status[1]],
                ["10%", results[4]["10%"], status[2]]]
-    headers = ["Signisficance", "Critical Value", "Result"]
+    headers = ["Significance", "Critical Value", "Result"]
     print(tabulate(header, tablefmt=tablefmt))
     print(tabulate(results, tablefmt=tablefmt, headers=headers))

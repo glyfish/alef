@@ -101,33 +101,50 @@ def comparison(y, x=None, **kwargs):
 
 ###############################################################################################
 # Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
-def stack(y, ylim, x=None, **kwargs):
+def stack(y, **kwargs):
+    ylim      = kwargs["ylim"]      if "ylim"      in kwargs else None
+    x         = kwargs["x"]         if "x"         in kwargs else None
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
     labels    = kwargs["labels"]    if "labels"    in kwargs else None
-
-    plot_config = create_data_plot_type(plot_type)
 
     nplot = len(y)
     if x is None:
         nx = len(y[0])
         x = numpy.tile(numpy.linspace(0, nx-1, nx), (nplot, 1))
 
+    if isinstance(plot_type, list):
+        m = len(plot_type)
+        if m < nplot:
+            plot_type.append([plot_type[m-1] for i in range(m, nplot)])
+    else:
+        plot_type = [plot_type for i in range(nplot)]
+
     figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
 
     if title is not None:
         axis[0].set_title(title)
 
-    axis[nplot-1].set_xlabel(plot_config.xlabel)
 
     for i in range(nplot):
+        plot_config = create_data_plot_type(plot_type[i])
+
+        if i == nplot-1:
+            axis[nplot-1].set_xlabel(plot_config.xlabel)
+
         nsample = len(y[i])
         axis[i].set_ylabel(plot_config.ylabel)
-        axis[i].set_ylim(ylim)
+
+        if ylim is None:
+            ylim_plot = [1.1*numpy.amin(y[i]), 1.1*numpy.amax(y[i])]
+        else:
+            ylim_plot = ylim
+
+        axis[i].set_ylim(ylim_plot)
         axis[i].set_xlim([0.0, x[i][-1]])
 
         if labels is not None:
-            text = axis[i].text(0.8*x[i][-1], 0.65*ylim[-1], labels[i], fontsize=18)
+            text = axis[i].text(0.8*x[i][-1], 0.65*ylim_plot[-1], labels[i], fontsize=18)
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
         if plot_config.plot_type.value == PlotType.LOG.value:

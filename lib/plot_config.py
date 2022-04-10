@@ -26,6 +26,8 @@ class DataPlotType(Enum):
     PSPEC = 3           # Power Spectrum
     ACF = 4             # Autocorrelation function
     VR_STAT = 5         # FBM variance ratio test statistic
+    DIFF_1 = 6          # First time series difference
+    DIFF_2 = 7          # Second time series difference
 
 # Specify PlotConfig for fcompare plot
 class FuncPlotType(Enum):
@@ -163,6 +165,10 @@ def create_data_plot_type(plot_type):
         return PlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VR_STAT.value:
         return PlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", plot_type=PlotType.LINEAR)
+    elif plot_type.value == DataPlotType.DIFF_1.value:
+        return PlotConfig(xlabel=r"$t$", ylabel=r"$\Delta X_t$", plot_type=PlotType.LINEAR)
+    elif plot_type.value == DataPlotType.DIFF_2.value:
+        return PlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 X_t$", plot_type=PlotType.LINEAR)
     else:
         return PlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR)
 
