@@ -39,6 +39,12 @@ def ar1_sigma(φ, σ):
 def ar1_acf(φ, nvals):
     return [φ**n for n in range(nvals)]
 
+def ar1_offset_mean(φ, μ):
+    return μ/(1.0 - φ)
+
+def ar1_offset_sigma(φ, σ):
+    return σ/numpy.sqrt(1.0 - φ**2)
+
 ## AR(p) simulators
 def ar(φ, x0, n, σ):
     p = len(φ)
@@ -52,7 +58,10 @@ def ar(φ, x0, n, σ):
             samples[i] += φ[j] * samples[i-(j+1)]
     return samples
 
-def ar_drift(φ, μ, γ, n, σ):
+def arp_offset(φ, μ, n, σ):
+    return arp_drift(φ, μ, 0.0, n, σ)
+
+def arp_drift(φ, μ, γ, n, σ):
     p = len(φ)
     samples = numpy.zeros(n)
     ε = σ*bm.noise(n)

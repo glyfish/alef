@@ -2,6 +2,8 @@
 
 * **[adf_test.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/adf_test.ipynb)** The Augmented Dickey-Fuller (ADF) test is used to determine if an `AR(q)` process is stationary. Her the ADF test implementation is evaluated against simulated `AR(q)` processes.
 
+* **[ar1_with_offset.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ar1_with_offset.ipynb)** Test AR(1) simulation, parameter estimation and stationary mean and variance by comparing simulation parameters with estimation values and stationary mean and variance with cumulative values from simulations.
+
 * **[ar1.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ar1.ipynb)** Test `AR(p)` simulators by comparing first and second order moments of `AR(1)` computed from simulations with analytic results obtained by assuming stationarity.
 
 * **[arima.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arima.ipynb)** Test `ARIMA(p,d,q)` simulation and parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation.
@@ -27,3 +29,5 @@
 * **[maq_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq_parameter_estimation.ipynb)** Test `MA(q)` parameter estimation by comparing the parameters used in a simulation with the results obtained by parameter estimation.
 
 * **[maq.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/maq.ipynb)** Test `MA(q)` simulator by comparing first and second order moments computed from simulations with analytic results.
+
+* **[ornstein_uhlenbeck_process.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_process.ipynb)** The Ornstein Uhlenbeck stochastic differential equation describes a mean reverting random process. The mean and variance are compared with the simulation results. Simulations are used to test parameter estimation.

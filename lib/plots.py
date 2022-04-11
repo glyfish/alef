@@ -141,10 +141,12 @@ def stack(y, **kwargs):
             ylim_plot = ylim
 
         axis[i].set_ylim(ylim_plot)
-        axis[i].set_xlim([0.0, x[i][-1]])
+        axis[i].set_xlim([x[i][0], x[i][-1]])
 
         if labels is not None:
-            text = axis[i].text(0.8*x[i][-1], 0.65*ylim_plot[-1], labels[i], fontsize=18)
+            ypos = 0.8*(ylim_plot[1]-ylim[0])+ylim[0]
+            xpos = 0.8*(x[i][-1]-x[i][0])+x[i][0]
+            text = axis[i].text(xpos, ypos, labels[i], fontsize=18)
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
         if plot_config.plot_type.value == PlotType.LOG.value:
