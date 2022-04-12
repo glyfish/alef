@@ -44,8 +44,6 @@ class FuncPlotType(Enum):
     MAQ_ACF = 11              # MA(q) model ACF autocorrelation function with data
     LAGG_VAR = 12             # Lagged variance computed from a time
     VR = 13                   # Vraiance ratio use in test for brownian motion
-    AR1_OFFSET_MEAN = 14      # AR1 with Offset model mean
-    AR1_OFFSET_SIGMA = 15     # AR1 with Offset model standard deviation
 
 ## Specify PlotConfig for distributions plot
 class DistPlotType(Enum):
@@ -53,10 +51,12 @@ class DistPlotType(Enum):
 
 # Specify PlotConfig for cumulative plot
 class CumPlotType(Enum):
-    AR1_MEAN = 1        # Accumulation mean for AR(1)
-    AR1_STD = 2         # Accumulation standard deviation for AR(1)
-    MAQ_MEAN = 3        # Accumulation mean for MA(q)
-    MAQ_STD = 4         # Accumulation standard deviation for MA(q)
+    AR1_MEAN = 1             # Accumulation mean for AR(1)
+    AR1_STD = 2              # Accumulation standard deviation for AR(1)
+    MAQ_MEAN = 3             # Accumulation mean for MA(q)
+    MAQ_STD = 4              # Accumulation standard deviation for MA(q)
+    AR1_OFFSET_MEAN = 5      # AR1 with Offset model mean
+    AR1_OFFSET_STD = 6       # AR1 with Offset model standard deviation
 
 # Specify Config for historgram PlotType
 class HistPlotType(Enum):
@@ -287,25 +287,6 @@ def create_func_plot_type(plot_type, params):
                               plot_type=PlotType.LOG,
                               legend_labels=[r"VR(s)", r"$\sigma^2 t^{2H-1}$"],
                               f=f)
-    elif plot_type.value == FuncPlotType.AR1_OFFSET_MEAN.value:
-        φ = params[0]
-        μ = params[1]
-        f = lambda t : arima.ar1_offset_mean(φ, μ)
-        return FuncPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\mu_t$",
-                              plot_type=PlotType.LOG,
-                              legend_labels=[r"VR(s)", r"$\sigma^2 t^{2H-1}$"],
-                              f=f)
-    elif plot_type.value == FuncPlotType.AR1_OFFSET_SIGMA.value:
-        φ = params[0]
-        σ = params[1]
-        f = lambda t : arima.ar1_offset_sigma(φ, σ)
-        return FuncPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\sigma_t$",
-                              plot_type=PlotType.LOG,
-                              legend_labels=[r"VR(s)", r"$\sigma^2 t^{2H-1}$"],
-                              f=f)
-
     else:
         f = lambda t : t
         return FuncPlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR, legend_labels=["Data", "f(x)"], f=f)
@@ -354,6 +335,26 @@ def create_cum_plot_type(plot_type, params):
                              legend_labels=["Accumulation", "Target"],
                              f=f,
                              target=arima.maq_sigma(θ, σ))
+    elif plot_type.value == CumPlotType.AR1_OFFSET_MEAN.value:
+        φ = params[0]
+        μ = params[1]
+        f = lambda t : stats.cummean(t)
+        return CumPlotConfig(xlabel=r"$t$",
+                             ylabel=r"$\mu_t$",
+                             plot_type=PlotType.XLOG,
+                             legend_labels=["Accumulation", "Target"],
+                             f=f,
+                             target=arima.ar1_offset_mean(φ, μ))
+    elif plot_type.value == CumPlotType.AR1_OFFSET_STD.value:
+        φ = params[0]
+        σ = params[1]
+        f = lambda t : stats.cumsigma(t)
+        return CumPlotConfig(xlabel=r"$t$",
+                             ylabel=r"$\sigma_t$",
+                             plot_type=PlotType.XLOG,
+                             legend_labels=["Accumulation", "Target"],
+                             f=f,
+                             target=arima.ar1_offset_sigma(φ, σ))
     else:
         raise Exception(f"Cumulative plot type is invalid: {plot_type}")
 
