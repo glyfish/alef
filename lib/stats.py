@@ -96,12 +96,16 @@ def cdf_hist(x, pdf):
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
 
+## OLS
 def OLS(y, x, type=RegressionType.LINEAR):
     if type == RegressionType.LOG:
         x = numpy.log10(x)
         y = numpy.log10(y)
     x = sm.add_constant(x)
-    model = sm.OLS(y, x)
+    return sm.OLS(y, x)
+
+def OLS_fit(y, x, type=RegressionType.LINEAR):
+    model = OLS(y, x, type=type)
     results = model.fit()
     results.summary()
     return results

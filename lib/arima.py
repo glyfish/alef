@@ -58,6 +58,11 @@ def ar(φ, x0, n, σ):
             samples[i] += φ[j] * samples[i-(j+1)]
     return samples
 
+def ou(λ, μ, n, σ=1.0):
+    φ = -λ
+    m = μ*λ
+    return arp_offset(φ, m, n, σ)
+
 def arp_offset(φ, μ, n, σ):
     return arp_drift(φ, μ, 0.0, n, σ)
 
@@ -131,11 +136,29 @@ def pacf(samples, nlags):
     return sm.tsa.stattools.pacf(samples, nlags=nlags, method="ywunbiased")
 
 ## ARIMA parameter estimation
-def ar_estimate(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0)).fit()
+def ar_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
 
-def ma_estimate(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(0, 0, order)).fit()
+def ar_fit(samples, order):
+    return ar_model(samples, order).fit()
+
+def ar_offset_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')
+
+def ar_offset_fit(samples, order):
+    return ar_offset_model(samples, order).fit()
+
+def ma_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(0, 0, order))
+
+def ma_fit(samples, order):
+    return ma_model(samples, order).fit()
+
+def ma_offset_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(0, 0, order), trend='c')
+
+def ma_offset_fit(samples, order):
+    return ar_offset_model(samples, order).fit()
 
 ## ADF Test
 def adf_test(samples, report=False, tablefmt="fancy_grid"):
