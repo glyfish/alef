@@ -2,7 +2,7 @@ import numpy
 import statsmodels.api as sm
 from enum import Enum
 
-class RegressionType(Enum):
+class RegType(Enum):
     LINEAR = 1
     LOG = 2
     XLOG = 3
@@ -97,14 +97,14 @@ def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
 
 ## OLS
-def OLS(y, x, type=RegressionType.LINEAR):
-    if type == RegressionType.LOG:
+def OLS(y, x, type=RegType.LINEAR):
+    if type == RegType.LOG:
         x = numpy.log10(x)
         y = numpy.log10(y)
     x = sm.add_constant(x)
     return sm.OLS(y, x)
 
-def OLS_fit(y, x, type=RegressionType.LINEAR):
+def OLS_fit(y, x, type=RegType.LINEAR):
     model = OLS(y, x, type=type)
     results = model.fit()
     results.summary()

@@ -4,6 +4,7 @@ import statsmodels.tsa as tsa
 from tabulate import tabulate
 
 from lib import bm
+from lib.reports import adfuller_report
 
 ## MA(q) standard deviation amd ACF
 def maq_sigma(θ, σ):
@@ -172,23 +173,7 @@ def adf_test_drift(samples, report=False, tablefmt="fancy_grid"):
 
 def _adfuller_test(samples, test_type, report, tablefmt):
     results = sm.tsa.stattools.adfuller(samples, regression=test_type)
-    _adfuller_report(results, report, tablefmt)
+    adfuller_report(results, report, tablefmt)
     stat = results[0]
     status = stat >= results[4]["10%"]
     return status
-
-def _adfuller_report(results, report, tablefmt):
-    if not report:
-        return
-    stat = results[0]
-    header = [["Test Statistic", stat],
-              ["pvalue", results[1]],
-              ["Lags", results[2]],
-              ["Number Obs", results[3]]]
-    status = ["Passed" if stat >= results[4][sig] else "Failed" for sig in ["1%", "5%", "10%"]]
-    results = [["1%", results[4]["1%"], status[0]],
-               ["5%", results[4]["5%"], status[1]],
-               ["10%", results[4]["10%"], status[2]]]
-    headers = ["Significance", "Critical Value", "Result"]
-    print(tabulate(header, tablefmt=tablefmt))
-    print(tabulate(results, tablefmt=tablefmt, headers=headers))

@@ -1,7 +1,8 @@
 import numpy
 
 from lib import bm
-from lib.dist import (HypothesisType, DistributionType, DistributionFuncType, distribution_function, VarianceRatioTestResults)
+from lib.dist import (HypothesisType, DistType, DistFuncType, distribution_function)
+from lib.reports import (VarianceRatioTestReport)
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation
@@ -190,7 +191,7 @@ def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=Hypoth
 def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     sig_level = sig_level/2.0
     dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
+    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
     lower_critical_value = ppf(sig_level)
     upper_critical_value = ppf(1.0 - sig_level)
 
@@ -203,17 +204,17 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefm
 
     result = npass >= nstats/2.0
 
-    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result,  2.0*sig_level, "Two Tail", s_vals, test_stats, p_values, [lower_critical_value, upper_critical_value])
+    results = VarianceRatioTestReport(result,  2.0*sig_level, "Two Tail", s_vals, test_stats, p_values, [lower_critical_value, upper_critical_value])
     _var_test_report(results, report, tablefmt)
     return results
 
 # perform upper tail variance ratio test
 def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
+    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
     upper_critical_value = ppf(1.0 - sig_level)
 
     nstats = len(test_stats)
@@ -225,17 +226,17 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, table
 
     result = npass >= nstats/2.0
 
-    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [1.0 - cdf(stat) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result, sig_level, "Upper Tail", s_vals, test_stats, p_values, [None, upper_critical_value])
+    results = VarianceRatioTestReport(result, sig_level, "Upper Tail", s_vals, test_stats, p_values, [None, upper_critical_value])
     _var_test_report(results, report, tablefmt)
     return results
 
 # perform lower tail variance ratio test
 def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
     dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistributionType.NORMAL, DistributionFuncType.PPF, dist_params)
+    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
     lower_critical_value = ppf(sig_level)
 
     nstats = len(test_stats)
@@ -247,10 +248,10 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, table
 
     result = npass >= nstats/2.0
 
-    cdf = distribution_function(DistributionType.NORMAL, DistributionFuncType.CDF, dist_params)
+    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [cdf(stat) for stat in test_stats]
 
-    results = VarianceRatioTestResults(result, sig_level, "Lower Tail", s_vals, test_stats, p_values, [lower_critical_value, None])
+    results = VarianceRatioTestReport(result, sig_level, "Lower Tail", s_vals, test_stats, p_values, [lower_critical_value, None])
     _var_test_report(results, report, tablefmt)
     return results
 
