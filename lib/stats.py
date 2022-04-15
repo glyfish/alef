@@ -72,6 +72,30 @@ def cov(x, y):
         c += x[i]*y[i]
     return c/nsample-meanx*meany
 
+# Variance aggregation
+def agg(samples, m):
+    n = len(samples)
+    d = int(n/m)
+    agg = numpy.zeros(d)
+    for k in range(d):
+        for i in range(m):
+            j = k*m+i
+            agg[k] += samples[j]
+        agg[k] = agg[k]/m
+    return agg
+
+def agg_var(samples, m_vals):
+    npts = len(m_vals)
+    agg_var = numpy.zeros(npts)
+    for i in range(npts):
+        m = int(m_vals[i])
+        agg_vals = agg(samples, m)
+        agg_mean = numpy.mean(agg_vals)
+        d = len(agg_vals)
+        for k in range(d):
+            agg_var[i] += (agg_vals[k] - agg_mean)**2/(d - 1)
+    return agg_var
+
 def pspec(x):
     n = len(x)
     μ = x.mean()

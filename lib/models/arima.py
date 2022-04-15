@@ -3,7 +3,7 @@ import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from tabulate import tabulate
 
-from lib import bm
+from lib.models import bm
 from lib.reports import adfuller_report
 
 ## MA(q) standard deviation amd ACF

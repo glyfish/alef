@@ -2,8 +2,8 @@ import numpy
 from enum import Enum
 from matplotlib import pyplot
 
-from lib import fbm
-from lib import arima
+from lib.models import fbm
+from lib.models import arima
 from lib import stats
 
 from lib.plots.config import (PlotType, logStyle, logXStyle, logYStyle)

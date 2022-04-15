@@ -1,6 +1,6 @@
 import numpy
 
-from lib import bm
+from lib.models import bm
 from lib.dist import (HypothesisType, DistType, DistFuncType, distribution_function)
 from lib.reports import (VarianceRatioTestReport)
 
