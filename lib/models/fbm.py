@@ -1,8 +1,11 @@
+###############################################################################################
+## Fractional Brownian Motion variance, covariance, simulators paramemeter esimation
+## and statistical significance tests
 import numpy
+from tabulate import tabulate
 
 from lib.models import bm
 from lib.dist import (HypothesisType, DistType, DistFuncType, distribution_function)
-from lib.reports import (VarianceRatioTestReport)
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation
@@ -316,3 +319,52 @@ def theta_factor(samples, s):
         delta = delta_factor(samples, j)
         factor += delta*(2.0*(s-j)/s)**2
     return factor/t**2
+
+# variance ratio test report
+class VarianceRatioTestReport:
+    def __init__(self, status, sig_level, test_type, s, statistics, p_values, critical_values):
+        self.status = status
+        self.sig_level = sig_level
+        self.test_type = test_type
+        self.s = s
+        self.statistics = statistics
+        self.p_values = p_values
+        self.critical_values = critical_values
+
+    def __repr__(self):
+        f"VarianceRatioTestReport(status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values})"
+
+    def __str__(self):
+        return f"status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values}"
+
+    def _header(self, tablefmt):
+        test_status = "Passed" if self.status else "Failed"
+        header = [["Result", test_status], ["Test Type", self.test_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
+        if self.critical_values[0] is not None:
+            header.append(["Lower Critical Value", format(self.critical_values[0], '1.3f')])
+        if self.critical_values[1] is not None:
+            header.append(["Upper Critical Value", format(self.critical_values[1], '1.3f')])
+        return tabulate(header, tablefmt=tablefmt)
+
+    def _results(self, tablefmt):
+        if self.critical_values[0] is None:
+            z_result = [self.statistics[i] < self.critical_values[1] for i in range(len(self.statistics))]
+        elif self.critical_values[1] is None:
+            z_result = [self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
+        else:
+            z_result = [self.critical_values[1] > self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
+        z_result = ["Passed" if zr else "Failed" for zr in z_result]
+        s_result = [int(s_val) for s_val in self.s]
+        stat_result = [format(stat, '1.3f') for stat in self.statistics]
+        pval_result = [format(pval, '1.3f') for pval in self.p_values]
+        results = [s_result]
+        results.append(stat_result)
+        results.append(pval_result)
+        results.append(z_result)
+        results = numpy.transpose(numpy.array(results))
+        return tabulate(results, headers=["s", "Z(s)", "pvalue", "Result"], tablefmt=tablefmt)
+
+    def table(self, tablefmt):
+        header = self._header(tablefmt)
+        result = self._results(tablefmt)
+        return [header, result]

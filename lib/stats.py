@@ -72,7 +72,6 @@ def cov(x, y):
         c += x[i]*y[i]
     return c/nsample-meanx*meany
 
-# Variance aggregation
 def agg(samples, m):
     n = len(samples)
     d = int(n/m)
