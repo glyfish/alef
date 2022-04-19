@@ -54,19 +54,20 @@ def create_data_plot_type(plot_type):
 
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
-def curve(y, x=None, **kwargs):
+def curve(df, **kwargs):
     title     = kwargs["title"]     if "title"     in kwargs else None
     plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
 
     plot_config = create_data_plot_type(plot_type)
 
-    if x is None:
-        npts = len(y)
-        if plot_config.plot_type.value == PlotType.XLOG.value or plot_config.plot_type.value == PlotType.LOG.value:
-            x = numpy.linspace(1.0, float(npts), npts)
-        else:
-            x = numpy.linspace(0.0, float(npts), npts)
+    if plot_config.ycol in meta_data.keys():
+        npts = meta_data[plot_config.ycol]["npts"]
+    else:
+        npts = len(df[plot_config.ycol])
+
+    x = df[plot_config.xcol][:npts]
+    y = df[plot_config.ycol][:npts]
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -100,6 +101,8 @@ def comparison(dfs, **kwargs):
     nplot = len(dfs)
     ncol = int(nplot/6) + 1
 
+    figure, axis = pyplot.subplots(figsize=(13, 10))
+
     if title is not None:
         axis.set_title(title)
 
@@ -109,7 +112,12 @@ def comparison(dfs, **kwargs):
     for i in range(nplot):
         df = dfs[i]
         meta_data = df.attrs
-        npts = meta_data[plot_config.ycol]["npts"]
+
+        if plot_config.ycol in meta_data.keys():
+            npts = meta_data[plot_config.ycol]["npts"]
+        else:
+            npts = len(df[plot_config.ycol])
+
         x = df[plot_config.xcol][:npts]
         y = df[plot_config.ycol][:npts]
 
@@ -162,12 +170,16 @@ def stack(dfs, **kwargs):
     if title is not None:
         axis[0].set_title(title)
 
-
     for i in range(nplot):
         plot_config = create_data_plot_type(plot_type[i])
         df = dfs[i]
         meta_data = df.attrs
-        npts = meta_data[plot_config.ycol]["npts"]
+
+        if plot_config.ycol in meta_data.keys():
+            npts = meta_data[plot_config.ycol]["npts"]
+        else:
+            npts = len(df[plot_config.ycol])
+
         x = df[plot_config.xcol][:npts]
         y = df[plot_config.ycol][:npts]
 
