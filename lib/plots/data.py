@@ -2,7 +2,8 @@ import numpy
 from enum import Enum
 from matplotlib import pyplot
 
-from lib.plots.config import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.models.data import (DataType, create_data_type)
+from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 # Specify PlotConfig for curve, comparison and stack plots
 class DataPlotType(Enum):
@@ -20,37 +21,46 @@ class DataPlotType(Enum):
 
 # Configurations used in plots
 class DataPlotConfig:
-    def __init__(self, xlabel, ylabel, xcol, ycol, plot_type=PlotType.LINEAR):
+    def __init__(self, xlabel, ylabel, data_type, plot_type=PlotType.LINEAR):
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.plot_type = plot_type
-        self.xcol = xcol
-        self.ycol = ycol
+        self.data_type = data_type
 
 ## plot data type
 def create_data_plot_type(plot_type):
     if plot_type.value == DataPlotType.TIME_SERIES.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", xcol="Time", ycol="Xt", plot_type=PlotType.LINEAR)
+        data_type=create_data_type(DataType.TIME_SERIES)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.PSPEC.value:
-        return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", xcol="Frequency", ycol="Power Spectrum", plot_type=PlotType.LOG)
+        data_type = create_data_type(DataType.PSPEC)
+        return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", data_type=data_type, plot_type=PlotType.LOG)
     elif plot_type.value == DataPlotType.ACF.value:
-        return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", xcol="Lag", ycol="Autocorrelation", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.ACF)
+        return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VR_STAT.value:
-        return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", xcol="Lag", ycol="Variance Ratio", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.VR_STAT)
+        return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_1.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", xcol="Time", ycol="Difference 1", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.DIFF_1)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_2.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", xcol="Time", ycol="Difference 2", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.DIFF_2)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VAR.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", xcol="Time", ycol="Variance", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.VAR)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.COV.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", xcol="Time", ycol="Covariance", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.COV)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.MEAN.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", xcol="Time", ycol="Mean", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.MEAN)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.STD.value:
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", xcol="Time", ycol="STD", plot_type=PlotType.LINEAR)
+        data_type = create_data_type(DataType.STD)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     else:
-        return DataPlotConfig(xlabel="x", ylabel="y", xcol="x", ycol="y", plot_type=PlotType.LINEAR)
+        raise Exception(f"Data plot type is invalid: {plot_type}")
 
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
@@ -60,14 +70,7 @@ def curve(df, **kwargs):
     lw        = kwargs["lw"]        if "lw"        in kwargs else 2
 
     plot_config = create_data_plot_type(plot_type)
-
-    if plot_config.ycol in meta_data.keys():
-        npts = meta_data[plot_config.ycol]["npts"]
-    else:
-        npts = len(df[plot_config.ycol])
-
-    x = df[plot_config.xcol][:npts]
-    y = df[plot_config.ycol][:npts]
+    x, y = plot_config.data_type.get_data(df)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -110,16 +113,7 @@ def comparison(dfs, **kwargs):
     axis.set_ylabel(plot_config.ylabel)
 
     for i in range(nplot):
-        df = dfs[i]
-        meta_data = df.attrs
-
-        if plot_config.ycol in meta_data.keys():
-            npts = meta_data[plot_config.ycol]["npts"]
-        else:
-            npts = len(df[plot_config.ycol])
-
-        x = df[plot_config.xcol][:npts]
-        y = df[plot_config.ycol][:npts]
+        x, y = plot_config.data_type.get_data(dfs[i])
 
         if plot_config.plot_type.value == PlotType.LOG.value:
             logStyle(axis, x, y)
@@ -172,16 +166,8 @@ def stack(dfs, **kwargs):
 
     for i in range(nplot):
         plot_config = create_data_plot_type(plot_type[i])
-        df = dfs[i]
-        meta_data = df.attrs
-
-        if plot_config.ycol in meta_data.keys():
-            npts = meta_data[plot_config.ycol]["npts"]
-        else:
-            npts = len(df[plot_config.ycol])
-
-        x = df[plot_config.xcol][:npts]
-        y = df[plot_config.ycol][:npts]
+        x, y = plot_config.data_type.get_data(dfs[i])
+        npts = len(y)
 
         if i == nplot-1:
             axis[nplot-1].set_xlabel(plot_config.xlabel)

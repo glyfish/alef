@@ -3,7 +3,7 @@ from enum import Enum
 from matplotlib import pyplot
 from lib import config
 
-from lib.plots.config import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
 ## Specify Config for historgram PlotType

@@ -5,7 +5,7 @@ from matplotlib import pyplot
 from lib import stats
 
 from lib.dist import (DistType, DistFuncType, HypothesisType, distribution_function)
-from lib.plots.config import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
 ## Specify DistPlotConfig for distributions plot

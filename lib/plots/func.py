@@ -6,7 +6,7 @@ from lib.models import fbm
 from lib.models import arima
 from lib import stats
 
-from lib.plots.config import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ##################################################################################################################
 ## Specify PlotConfig for fcompare plot
