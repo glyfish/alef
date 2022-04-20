@@ -2,6 +2,8 @@ import numpy
 import statsmodels.api as sm
 from enum import Enum
 
+from lib.data.config import (DataType, create_data_type)
+
 class RegType(Enum):
     LINEAR = 1
     LOG = 2
@@ -36,13 +38,14 @@ def ensemble_acf(samples, nlags=None):
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
 
-def cummean(samples):
-    nsample = len(samples)
-    mean = numpy.zeros(nsample)
-    mean[0] = samples[0]
-    for i in range(1, nsample):
-        mean[i] = (float(i)*mean[i-1]+samples[i])/float(i+1)
-    return mean
+def cummean(df_data, data_type=DataType.TIME_SERIES):
+    x, y = data_type.get_data(df_data)
+    npts = len(y)
+    mean = numpy.zeros(npts)
+    mean[0] = y[0]
+    for i in range(1, npts):
+        mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
+    return _create_data_frame(df_data, x, mean, create_data_type(DataType.CUM_MEAN)):
 
 def cumsigma(samples):
     nsample = len(samples)
@@ -118,6 +121,14 @@ def cdf_hist(x, pdf):
 
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
+
+def _create_data_frame(df, x, y, data_type):
+    new_df = pandas.DataFrame({
+        data_type.xcol: x,
+        data_type.ycol: y
+    })
+    new_df.attrs = {data_type.ycol: {"npts": len(y), "DataType": data_type}}
+    return DataConfig.concat(df, new_df)
 
 ## OLS
 def OLS(y, x, type=RegType.LINEAR):

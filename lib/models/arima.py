@@ -11,7 +11,7 @@ import statsmodels.tsa as tsa
 from tabulate import tabulate
 
 from lib.models import bm
-from lib.models.data import (DataType, create_data_type)
+from lib.data.config import (DataType, create_data_type)
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
@@ -121,7 +121,7 @@ def create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
         data_config.ycol: xt
     })
     meta_data = {
-        data_config.ycol: {"npts": n},
+        data_config.ycol: {"npts": n, "DataType": DataType.TIME_SERIES},
         "Description": f"ARMA({p},0,{q}) Series Simulation",
         "Parameters": {"φ": φ,  "δ": δ, "σ": σ, "μ": μ, "γ": γ},
         "Date": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),

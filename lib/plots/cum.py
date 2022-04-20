@@ -6,6 +6,7 @@ from lib.models import arima
 from lib import stats
 
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.data.config import (DataType, create_data_type)
 
 ##################################################################################################################
 ## Specify PlotConfig for cumulative plot
@@ -20,9 +21,10 @@ class CumPlotType(Enum):
 ##################################################################################################################
 ## Plot Configuration
 class CumPlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, legend_labels=None, f=None, target=None):
+    def __init__(self, xlabel, ylabel, data_type, plot_type=PlotType.LINEAR, legend_labels=None, f=None, target=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
+        self.data_type = data_type
         self.plot_type = plot_type
         self.legend_labels = legend_labels
         self.f = f
@@ -35,6 +37,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cummean(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
+                             data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -48,6 +51,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cumsigma(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
+                             data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -56,6 +60,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cummean(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
+                             data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -69,6 +74,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cumsigma(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
+                             data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -79,6 +85,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cummean(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
+                             data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -89,6 +96,7 @@ def create_cum_plot_type(plot_type, params):
         f = lambda t : stats.cumsigma(t)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
+                             data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
                              legend_labels=["Accumulation", "Target"],
                              f=f,
@@ -98,17 +106,18 @@ def create_cum_plot_type(plot_type, params):
 
 ##################################################################################################################
 ## Compare the cumulative value of a variable as a function of time with its target value (Uses CumPlotType config)
-def cumulative(samples, plot_type, **kwargs):
+def cumulative(df, plot_type, **kwargs):
     title  = kwargs["title"]  if "title"  in kwargs else None
     lw     = kwargs["lw"]     if "lw"     in kwargs else 2
     params = kwargs["params"] if "params" in kwargs else []
 
     plot_config = create_cum_plot_type(plot_type, params)
+    time, accum = plot_config.data_type.get_data(df)
 
     accum = plot_config.f(samples)
     range = max(accum) - min(accum)
-    ntime = len(accum)
-    time = numpy.linspace(1.0, ntime-1, ntime)
+    max_time = len(time)
+    min_time = max(1.0, min(time))
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -119,7 +128,7 @@ def cumulative(samples, plot_type, **kwargs):
     axis.set_ylabel(plot_config.ylabel)
     axis.set_xlabel(plot_config.xlabel)
     axis.set_title(title)
-    axis.set_xlim([1.0, ntime])
+    axis.set_xlim([min_time, max_time])
     axis.semilogx(time, accum, label=plot_config.legend_labels[0], lw=lw)
     axis.semilogx(time, numpy.full((len(time)), plot_config.target), label=plot_config.legend_labels[1], lw=lw)
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))

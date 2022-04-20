@@ -13,6 +13,8 @@ class DataType(Enum):
     COV = 9             # Covariance
     MEAN = 10           # Mean
     STD = 11            # Standard deviation
+    CUM_MEAN = 12       # Cumulative mean
+    CUM_STD = 13        # Cumulative standard deviation
 
 # Configurations used in plots
 class DataConfig:
@@ -27,10 +29,20 @@ class DataConfig:
         if ycol in meta_data.keys():
             npts = meta_data[ycol]["npts"]
         else:
-            y_total = df[ycol]
-            npts = len(y_total[~numpy.isnan(y_total)])
+            y = df[ycol]
+            npts = len(y[~numpy.isnan(y)])
 
         return df[xcol][:npts], df[ycol][:npts]
+
+    def in(self, df):
+        cols = df.columns
+        return self.xcol in cols and self.ycol in cols
+
+    @staticmethod
+    def concat(df1, df2):
+        df = pandas.concat([df1, df2], axis=1)
+        df.attrs = df1.attrs | df2.attrs
+        return df.loc[:,~df.columns.duplicated()]
 
 ## plot data type
 def create_data_type(data_type):
@@ -54,6 +66,10 @@ def create_data_type(data_type):
         return DataConfig(xcol="Time", ycol="Mean")
     elif data_type.value == DataType.STD.value:
         return DataConfig(xcol="Time", ycol="STD")
+    elif data_type.value == DataType.CUM_MEAN.value:
+        return DataConfig(xcol="Time", ycol="Cumulative Mean")
+    elif data_type.value == DataType.CUM_STD.value:
+        return DataConfig(xcol="Time", ycol="Cumulative Standard Deviation")
     elif data_type.value == DataType.GENERIC.value:
         return DataConfig(xcol="x", ycol="y")
     else:
