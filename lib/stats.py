@@ -2,7 +2,7 @@ import numpy
 import statsmodels.api as sm
 from enum import Enum
 
-from lib.data.config import (DataType, create_data_type)
+from lib.data.schema import (DataType, create_data_type)
 
 class RegType(Enum):
     LINEAR = 1
@@ -38,14 +38,13 @@ def ensemble_acf(samples, nlags=None):
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
 
-def cummean(df_data, data_type=DataType.TIME_SERIES):
-    x, y = data_type.get_data(df_data)
-    npts = len(y)
-    mean = numpy.zeros(npts)
-    mean[0] = y[0]
-    for i in range(1, npts):
-        mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
-    return _create_data_frame(df_data, x, mean, create_data_type(DataType.CUM_MEAN)):
+def cummean(samples):
+    nsample = len(samples)
+    mean = numpy.zeros(nsample)
+    mean[0] = samples[0]
+    for i in range(1, nsample):
+        mean[i] = (float(i)*mean[i-1]+samples[i])/float(i+1)
+    return mean
 
 def cumsigma(samples):
     nsample = len(samples)

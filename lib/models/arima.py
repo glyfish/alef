@@ -11,7 +11,7 @@ import statsmodels.tsa as tsa
 from tabulate import tabulate
 
 from lib.models import bm
-from lib.data.config import (DataType, create_data_type)
+from lib.data.schema import (DataType, create_schema)
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
@@ -115,17 +115,18 @@ def create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
     p = len(φ)
     q = len(δ)
     t = numpy.linspace(0, n-1, n)
-    data_config = create_data_type(DataType.TIME_SERIES)
+    data_config = create_schems(DataType.TIME_SERIES)
     df = pandas.DataFrame({
         data_config.xcol: t,
         data_config.ycol: xt
     })
     meta_data = {
-        data_config.ycol: {"npts": n, "DataType": DataType.TIME_SERIES},
-        "Description": f"ARMA({p},0,{q}) Series Simulation",
+        data_config.ycol: {"npts": n, "DataType": DataType.TIME_SERIES, "Label": "SIM"},
+        "Description": f"ARIMA({p},0,{q}) Series Simulation",
         "Parameters": {"φ": φ,  "δ": δ, "σ": σ, "μ": μ, "γ": γ},
         "Date": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        "name": f"ARMA-Simulation-{str(uuid.uuid4())}"
+        "name": f"ARMA-Simulation-{str(uuid.uuid4())}",
+        "tags": "ARMA Simulation"
     }
     df.attrs = meta_data
     return df

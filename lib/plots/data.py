@@ -2,7 +2,7 @@ import numpy
 from enum import Enum
 from matplotlib import pyplot
 
-from lib.data.config import (DataType, create_data_type)
+from lib.data.schema import (DataType, create_data_type)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 # Specify PlotConfig for curve, comparison and stack plots

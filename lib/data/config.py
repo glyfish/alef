@@ -1,6 +1,8 @@
 from enum import Enum
+from lib import stats
 
-# Specify PlotConfig for curve, comparison and stack plots
+##################################################################################################################
+# Specify DataTypes used in analysis
 class DataType(Enum):
     GENERIC = 1         # Unknown data type
     TIME_SERIES = 2     # Time Series
@@ -16,11 +18,27 @@ class DataType(Enum):
     CUM_MEAN = 12       # Cumulative mean
     CUM_STD = 13        # Cumulative standard deviation
 
-# Configurations used in plots
+##################################################################################################################
+# Data definition consist of the x and y column and function used to compute data columns
+# xcol: name of data doamin in DataFrame
+# ycol: name of data range in DataFrame
+# f: Function used to compute xcol and ycol from source DataType
+# source: DataType input into f used to compute xcol and ycol
+#
 class DataConfig:
-    def __init__(self, xcol, ycol):
+    def __init__(self, xcol, ycol, f=None, source=DataType.TIME_SERIES):
         self.xcol = xcol
         self.ycol = ycol
+        self.f = f
+        self.source = source
+
+    def apply(self, df):
+        if self.f is None:
+            return df
+        config = create_data_config(self.source)
+        x, y = config.get_data(df)
+        range = self.f(x, y)
+        return DataConfig.concat(df, range)
 
     def get_data(self, df):
         meta_data = df.attrs
@@ -34,9 +52,9 @@ class DataConfig:
 
         return df[xcol][:npts], df[ycol][:npts]
 
-    def in(self, df):
+    def is_in(self, df):
         cols = df.columns
-        return self.xcol in cols and self.ycol in cols
+        return (self.xcol in cols) and (self.ycol in cols)
 
     @staticmethod
     def concat(df1, df2):
@@ -44,10 +62,10 @@ class DataConfig:
         df.attrs = df1.attrs | df2.attrs
         return df.loc[:,~df.columns.duplicated()]
 
-## plot data type
-def create_data_type(data_type):
+## create definition for data type
+def create_data_config(data_type, **kwrags):
     if data_type.value == DataType.TIME_SERIES.value:
-        return DataConfig(xcol="Time", ycol="Xt")
+        return DataConfig(xcol="Time", ycol="S(t)")
     elif data_type.value == DataType.PSPEC.value:
         return DataConfig(xcol="Frequency", ycol="Power Spectrum")
     elif data_type.value == DataType.ACF.value:
@@ -67,7 +85,8 @@ def create_data_type(data_type):
     elif data_type.value == DataType.STD.value:
         return DataConfig(xcol="Time", ycol="STD")
     elif data_type.value == DataType.CUM_MEAN.value:
-        return DataConfig(xcol="Time", ycol="Cumulative Mean")
+        f = lambda x, y : stats.cummean(y)
+        return DataConfig(xcol="Time", ycol="Cumulative Mean", f=f)
     elif data_type.value == DataType.CUM_STD.value:
         return DataConfig(xcol="Time", ycol="Cumulative Standard Deviation")
     elif data_type.value == DataType.GENERIC.value:
