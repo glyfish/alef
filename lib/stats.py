@@ -1,8 +1,9 @@
 import numpy
+from pandas import DataFrame
 import statsmodels.api as sm
+from lib.data.schema import (DataType, create_schema)
+from lib.data.func import (DataFunc)
 from enum import Enum
-
-from lib.data.schema import (DataType, create_data_type)
 
 class RegType(Enum):
     LINEAR = 1
@@ -10,56 +11,61 @@ class RegType(Enum):
     XLOG = 3
     YLOG = 4
 
-def ensemble_mean(samples):
-    nsim, npts = samples.shape
+def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
+    x, samples = _samples_from_dfs(dfs, data_type)
+    x, npts = samples.shape
     mean = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
             mean[i] += samples[j,i] / float(nsim)
-    return mean
+    return DataFunc.create_data_frame(x, mean, DataType.MEAN)
 
-def ensemble_std(samples):
+def ensemble_std(samples, data_type=DataType.TIME_SERIES):
+    time, samples = _samples_from_dfs(dfs, data_type)
     mean = ensemble_mean(samples)
     nsim, npts = samples.shape
     std = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
             std[i] += (samples[j,i] - mean[i])**2 / float(nsim)
-    return numpy.sqrt(std)
+    return DataFunc.create_data_frame(time, numpy.sqrt(std), DataType.STD)
 
-def ensemble_acf(samples, nlags=None):
+def ensemble_acf(samples, nlags=None, data_type=DataType.TIME_SERIES):
+    x, samples = _samples_from_dfs(dfs, data_type)
     nsim, npts = samples.shape
     if nlags is None:
         nlags = npts
-    ac_avg = numpy.zeros(npts)
+    ac_avg = numpy.zeros(nlags)
     for j in range(nsim):
         ac = acf(samples[j], nlags).real
         for i in range(npts):
             ac_avg[i] += ac[i]
-    return ac_avg / float(nsim)
+    return DataFunc.create_data_frame(x, ac_avg/float(nsim), DataType.ACF)
 
-def cummean(samples):
-    nsample = len(samples)
-    mean = numpy.zeros(nsample)
-    mean[0] = samples[0]
-    for i in range(1, nsample):
-        mean[i] = (float(i)*mean[i-1]+samples[i])/float(i+1)
-    return mean
+def cumu_mean(x, y):
+    ny = len(y)
+    mean = numpy.zeros(ny)
+    mean[0] = y[0]
+    for i in range(1, ny):
+        mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
+    return DataFunc.create_data_frame(x, mean, DataType.CUM_MEAN)
 
-def cumsigma(samples):
-    nsample = len(samples)
-    mean = cummean(samples)
-    var = numpy.zeros(nsample)
-    var[0] = samples[0]**2
-    for i in range(1, nsample):
-        var[i] = (float(i)*var[i-1]+samples[i]**2)/float(i+1)
-    return numpy.sqrt(var-mean**2)
+def cumu_std(x, y):
+    mean_df = cumu_mean(x, y)
+    _, mean = create_schema(DataType.CUM_MEAN).get_data(mean_df)
+    ny = len(y)
+    var = numpy.zeros(ny)
+    var[0] = y[0]**2
+    for i in range(1, ny):
+        var[i] = (float(i)*var[i-1]+y[i]**2)/float(i+1)
+    std = numpy.sqrt(var-mean**2)
+    return DataFunc.create_data_frame(x, std, DataType.CUM_STD)
 
-def cumcov(x, y):
+def cumu_cov(x, y):
     nsample = min(len(x), len(y))
     cov = numpy.zeros(nsample)
-    meanx = cummean(x)
-    meany = cummean(y)
+    meanx = cumu_mean(x)
+    meany = cumu_mean(y)
     cov[0] = x[0]*y[0]
     for i in range(1, nsample):
         cov[i] = (float(i)*cov[i-1]+x[i]*y[i])/float(i+1)
@@ -121,14 +127,6 @@ def cdf_hist(x, pdf):
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
 
-def _create_data_frame(df, x, y, data_type):
-    new_df = pandas.DataFrame({
-        data_type.xcol: x,
-        data_type.ycol: y
-    })
-    new_df.attrs = {data_type.ycol: {"npts": len(y), "DataType": data_type}}
-    return DataConfig.concat(df, new_df)
-
 ## OLS
 def OLS(y, x, type=RegType.LINEAR):
     if type == RegType.LOG:
@@ -142,3 +140,12 @@ def OLS_fit(y, x, type=RegType.LINEAR):
     results = model.fit()
     results.summary()
     return results
+
+## Private
+def _samples_from_dfs(dfs, data_type):
+    schema = create_schema(data_type)
+    samples = []
+    for df in dfs:
+        x, y = schema.get_data(df)
+        samples.append(df)
+    return x, samples

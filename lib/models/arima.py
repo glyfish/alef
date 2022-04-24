@@ -3,8 +3,8 @@
 ## and statistical significance tests
 
 import numpy
-import pandas
 from datetime import datetime
+from pandas import DataFrame
 import uuid
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
@@ -67,7 +67,7 @@ def ar(φ, x0, n, σ):
         samples[i] = ε[i]
         for j in range(0, p):
             samples[i] += φ[j] * samples[i-(j+1)]
-    return create_arma_simulation_data_frame(samples, φ, δ, 0.0, 0.0, n, σ)
+    return _create_arma_simulation_data_frame(samples, φ, δ, 0.0, 0.0, n, σ)
 
 # AR(1) with offset using Ornstein-Uhlenbeck parameterization
 def ou(λ, μ, n, σ=1.0):
@@ -86,7 +86,7 @@ def arp_drift(φ, μ, γ, n, σ):
         samples[i] = ε[i] + γ*i + μ
         for j in range(0, p):
             samples[i] += φ[j] * samples[i-(j+1)]
-    return create_arma_simulation_data_frame(samples, φ, δ, μ, γ, n, σ)
+    return _create_arma_simulation_data_frame(samples, φ, δ, μ, γ, n, σ)
 
 def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)
@@ -95,33 +95,33 @@ def arp(φ, n, σ=1.0):
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.array([1.0])
     xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return create_arma_simulation_data_frame(xt, φ, [], 0.0, 0.0, n, σ)
+    return _create_arma_simulation_data_frame(xt, φ, [], 0.0, 0.0, n, σ)
 
 ## MA(q) simulator
 def maq(δ, n, σ=1.0):
     φ_sim = numpy.array([1.0])
     δ_sim = numpy.r_[1, δ]
     xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return create_arma_simulation_data_frame(xt, [], δ, 0.0, 0.0, n, σ)
+    return _create_arma_simulation_data_frame(xt, [], δ, 0.0, 0.0, n, σ)
 
 ## ARMA(p,q) simulator
 def arma(φ, δ, n, σ=1):
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.r_[1, δ]
     xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return create_arma_simulation_data_frame(xt, φ, δ, 0.0, 0.0, n, σ)
+    return _create_arma_simulation_data_frame(xt, φ, δ, 0.0, 0.0, n, σ)
 
-def create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
+def _create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
     p = len(φ)
     q = len(δ)
     t = numpy.linspace(0, n-1, n)
-    data_config = create_schems(DataType.TIME_SERIES)
-    df = pandas.DataFrame({
-        data_config.xcol: t,
-        data_config.ycol: xt
+    schema = create_schema(DataType.TIME_SERIES)
+    df = DataFrame({
+        schema.xcol: t,
+        schema.ycol: xt
     })
     meta_data = {
-        data_config.ycol: {"npts": n, "DataType": DataType.TIME_SERIES, "Label": "SIM"},
+        schema.ycol: {"npts": n, "DataType": DataType.TIME_SERIES, "Label": "SIM"},
         "Description": f"ARIMA({p},0,{q}) Series Simulation",
         "Parameters": {"φ": φ,  "δ": δ, "σ": σ, "μ": μ, "γ": γ},
         "Date": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),

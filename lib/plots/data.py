@@ -2,7 +2,7 @@ import numpy
 from enum import Enum
 from matplotlib import pyplot
 
-from lib.data.schema import (DataType, create_data_type)
+from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 # Specify PlotConfig for curve, comparison and stack plots
@@ -30,34 +30,34 @@ class DataPlotConfig:
 ## plot data type
 def create_data_plot_type(plot_type):
     if plot_type.value == DataPlotType.TIME_SERIES.value:
-        data_type=create_data_type(DataType.TIME_SERIES)
+        data_type=create_schema(DataType.TIME_SERIES)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.PSPEC.value:
-        data_type = create_data_type(DataType.PSPEC)
+        data_type = create_schema(DataType.PSPEC)
         return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", data_type=data_type, plot_type=PlotType.LOG)
     elif plot_type.value == DataPlotType.ACF.value:
-        data_type = create_data_type(DataType.ACF)
+        data_type = create_schema(DataType.ACF)
         return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VR_STAT.value:
-        data_type = create_data_type(DataType.VR_STAT)
+        data_type = create_schema(DataType.VR_STAT)
         return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_1.value:
-        data_type = create_data_type(DataType.DIFF_1)
+        data_type = create_schema(DataType.DIFF_1)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_2.value:
-        data_type = create_data_type(DataType.DIFF_2)
+        data_type = create_schema(DataType.DIFF_2)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VAR.value:
-        data_type = create_data_type(DataType.VAR)
+        data_type = create_schema(DataType.VAR)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.COV.value:
-        data_type = create_data_type(DataType.COV)
+        data_type = create_schema(DataType.COV)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.MEAN.value:
-        data_type = create_data_type(DataType.MEAN)
+        data_type = create_schema(DataType.MEAN)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.STD.value:
-        data_type = create_data_type(DataType.STD)
+        data_type = create_schema(DataType.STD)
         return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", data_type=data_type, plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
