@@ -43,13 +43,13 @@ def create_hist_plot_type(plot_type, params=None):
 ###############################################################################################
 ## Histogram plot (Uses HistPlotType config)
 def hist(samples, **kwargs):
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else HistPlotType.GENERIC
-    title = kwargs["title"] if "title" in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 0.0
-    xrange = kwargs["xrange"] if "xrange" in kwargs else None
-    ylimit = kwargs["ylimit"] if "ylimit" in kwargs else None
-    nbins = kwargs["nbins"] if "nbins" in kwargs else 50
-    params = kwargs["params"] if "params" in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else HistPlotType.GENERIC
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+    xrange       = kwargs["xrange"]       if "xrange"       in kwargs else None
+    ylimit       = kwargs["ylimit"]       if "ylimit"       in kwargs else None
+    nbins        = kwargs["nbins"]        if "nbins"        in kwargs else 50
+    params       = kwargs["params"]       if "params"       in kwargs else None
 
     plot_config = create_hist_plot_type(plot_type, params)
 

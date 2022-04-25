@@ -8,7 +8,7 @@ from lib import stats
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.schema import (DataType, create_schema)
 from lib.data.func import (create_data_func)
-from lib.utils import throw_if_missing
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ##################################################################################################################
 ## Specify PlotConfig for cumulative plot
@@ -39,50 +39,50 @@ def create_cumu_plot_config(plot_type, **kwargs):
                              ylabel=r"$\mu_t$",
                              data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
     if plot_type.value == CumuPlotType.AR1_STD.value:
-        φ = throw_if_missing("φ", **kwargs)
-        σ = kwargs["σ"] if "σ" in kwargs else 1.0
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
                              data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\sigma_t$", r"$\sigma_\infty = \sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
                              target=arima.ar1_sigma(φ, σ))
     if plot_type.value == CumuPlotType.MAQ_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
                              data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
     if plot_type.value == CumuPlotType.MAQ_STD.value:
-        θ = throw_if_missing("θ", **kwargs)
-        σ = kwargs["σ"] if "σ" in kwargs else 1.0
+        θ = get_param_throw_if_missing("θ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
                              data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\sigma_t$", r"$\sigma_\infty = \sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
                              target=arima.maq_sigma(θ, σ))
     elif plot_type.value == CumuPlotType.AR1_OFFSET_MEAN.value:
-        φ = throw_if_missing("φ", **kwargs)
-        μ = throw_if_missing("μ", **kwargs)
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        μ = get_param_throw_if_missing("μ", **kwargs)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
                              data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = \frac{\mu^*}{1 - \varphi}$"],
                              target=arima.ar1_offset_mean(φ, μ))
     elif plot_type.value == CumuPlotType.AR1_OFFSET_STD.value:
-        φ = params[0]
-        σ = kwargs["σ"]  if "σ"  in kwargs else 1.0
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
                              data_type=DataType.CUM_STD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=["Accumulation", "Target"],
+                             legend_labels=[r"$\sigma_t$", r"$\sigma_t \to \frac{\sigma^2}{1 - \varphi^2}$"],
                              target=arima.ar1_offset_sigma(φ, σ))
     else:
         raise Exception(f"Cumulative plot type is invalid: {plot_type}")
@@ -90,8 +90,9 @@ def create_cumu_plot_config(plot_type, **kwargs):
 ##################################################################################################################
 ## Compare the cumulative value of a variable as a function of time with its target value (Uses CumPlotType config)
 def cumulative(df, plot_type, **kwargs):
-    title  = kwargs["title"]  if "title"  in kwargs else None
-    lw     = kwargs["lw"]     if "lw"     in kwargs else 2
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     plot_config = create_cumu_plot_config(plot_type, **kwargs)
     time, accum = plot_config.schema.get_data(df)
@@ -102,13 +103,12 @@ def cumulative(df, plot_type, **kwargs):
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
-    if title is None:
-        axis[0].set_title(title)
+    if title is not None:
+        axis.set_title(title, y=title_offset)
 
     axis.set_ylim([max(accum[1:]) - range, range + min(accum[1:])])
     axis.set_ylabel(plot_config.ylabel)
     axis.set_xlabel(plot_config.xlabel)
-    axis.set_title(title)
     axis.set_xlim([min_time, max_time])
     axis.semilogx(time, accum, label=plot_config.legend_labels[0], lw=lw)
     axis.semilogx(time, numpy.full((len(time)), plot_config.target), label=plot_config.legend_labels[1], lw=lw)

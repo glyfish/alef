@@ -65,17 +65,25 @@ def create_data_plot_type(plot_type):
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
 def curve(df, **kwargs):
-    title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
-    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
+    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
+    npts         = kwargs["npts"]         if "npts"         in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     plot_config = create_data_plot_type(plot_type)
     x, y = plot_config.data_type.get_data(df)
 
+    if npts is None or npts > len(y):
+        npts = len(y)
+
+    x = x[:npts]
+    y = y[:npts]
+
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
     if title is not None:
-        axis.set_title(title)
+        axis.set_title(title, y=title_offset)
 
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
@@ -95,10 +103,12 @@ def curve(df, **kwargs):
 ###############################################################################################
 # Plot multiple curves using the same axes  (Uses DataPlotType config)
 def comparison(dfs, **kwargs):
-    title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
-    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
-    labels    = kwargs["labels"]    if "labels"    in kwargs else None
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
+    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
+    labels       = kwargs["labels"]       if "labels"       in kwargs else None
+    npts         = kwargs["npts"]         if "npts"         in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     plot_config = create_data_plot_type(plot_type)
     nplot = len(dfs)
@@ -107,13 +117,19 @@ def comparison(dfs, **kwargs):
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
     if title is not None:
-        axis.set_title(title)
+        axis.set_title(title, y=title_offset)
 
     axis.set_xlabel(plot_config.xlabel)
     axis.set_ylabel(plot_config.ylabel)
 
     for i in range(nplot):
         x, y = plot_config.data_type.get_data(dfs[i])
+
+        if npts is None or npts > len(y):
+            npts = len(y)
+
+        x = x[:npts]
+        y = y[:npts]
 
         if plot_config.plot_type.value == PlotType.LOG.value:
             logStyle(axis, x, y)
@@ -145,10 +161,12 @@ def comparison(dfs, **kwargs):
 ###############################################################################################
 # Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
 def stack(dfs, **kwargs):
-    ylim      = kwargs["ylim"]      if "ylim"      in kwargs else None
-    title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else DataPlotType.GENERIC
-    labels    = kwargs["labels"]    if "labels"    in kwargs else None
+    ylim         = kwargs["ylim"]         if "ylim"         in kwargs else None
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
+    labels       = kwargs["labels"]       if "labels"       in kwargs else None
+    npts         = kwargs["npts"]         if "npts"         in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     nplot = len(dfs)
 
@@ -162,12 +180,17 @@ def stack(dfs, **kwargs):
     figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
 
     if title is not None:
-        axis[0].set_title(title)
+        axis[0].set_title(title, y=title_offset)
 
     for i in range(nplot):
         plot_config = create_data_plot_type(plot_type[i])
         x, y = plot_config.data_type.get_data(dfs[i])
-        npts = len(y)
+
+        if npts is None or npts > len(y):
+            npts = len(y)
+
+        x = x[:npts]
+        y = y[:npts]
 
         if i == nplot-1:
             axis[nplot-1].set_xlabel(plot_config.xlabel)

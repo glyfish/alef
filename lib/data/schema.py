@@ -4,19 +4,30 @@ from pandas import concat
 ##################################################################################################################
 # Specify DataTypes used in analysis
 class DataType(Enum):
-    GENERIC = 1         # Unknown data type
-    TIME_SERIES = 2     # Time Series
-    PSPEC = 3           # Power Spectrum
-    ACF = 4             # Autocorrelation function
-    VR_STAT = 5         # FBM variance ratio test statistic
-    DIFF_1 = 6          # First time series difference
-    DIFF_2 = 7          # Second time series difference
-    CUM_MEAN = 8        # Cumulative mean
-    CUM_STD = 9         # Cumulative standard deviation
-    MEAN = 10           # Mean as a function of time
-    STD = 11            # Standard deviation as a function of time
-    AR1_ACF = 12        # AR(1) Autocorrelation function
-    MAQ_ACF = 13        # MA(q) Autocorrelation function
+    GENERIC = 1             # Unknown data type
+    TIME_SERIES = 2         # Time Series
+    PSPEC = 3               # Power Spectrum
+    ACF = 4                 # Autocorrelation function
+    VR_STAT = 5             # FBM variance ratio test statistic
+    DIFF_1 = 6              # First time series difference
+    DIFF_2 = 7              # Second time series difference
+    CUM_MEAN = 8            # Cumulative mean
+    CUM_SD = 9              # Cumulative standard deviation
+    MEAN = 10               # Mean as a function of time
+    SD = 11                 # Standard deviation as a function of time
+    AR1_ACF = 12            # AR(1) Autocorrelation function
+    MAQ_ACF = 13            # MA(q) Autocorrelation function
+    FBM_MEAN = 14           # Fractional Brownian Motion mean
+    FBM_SD = 15             # Fractional Brownian Motion standard deviation
+    FBM_ACF = 16            # Fractional Brownian Motion autocorrelation function
+    BM_MEAN = 17            # Brownian Motion mean
+    BM_DRIFT_MEAN = 18      # Brownian Motion model mean with data
+    BM_SD = 19              # Brownian Motion model standard deviation with data
+    GBM_MEAN = 20           # Geometric Brownian Motion model mean with data
+    GBM_SD = 21             # Geometric Brownian Motion model standard deviation with data
+    LAGG_VAR = 22           # Lagged variance computed
+    VR = 23                 # Variance Ratio use in test for brownian motion
+
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -50,12 +61,14 @@ class DataSchema:
 ##################################################################################################################
 ## create shema for data type
 def create_schema(data_type):
-    if data_type.value == DataType.TIME_SERIES.value:
+    if data_type.value == DataType.GENERIC.value:
+        return DataSchema(xcol="x", ycol="y")
+    elif data_type.value == DataType.TIME_SERIES.value:
         return DataSchema(xcol="Time", ycol="S(t)")
     elif data_type.value == DataType.PSPEC.value:
         return DataSchema(xcol="Frequency", ycol="Power Spectrum")
     elif data_type.value == DataType.ACF.value:
-        return DataSchema(xcol="Lag", ycol="Autocorrelation")
+        return DataSchema(xcol="Lag", ycol="ACF")
     elif data_type.value == DataType.VR_STAT.value:
         return DataSchema(xcol="Lag", ycol="Variance Ratio")
     elif data_type.value == DataType.DIFF_1.value:
@@ -65,12 +78,20 @@ def create_schema(data_type):
     elif data_type.value == DataType.CUM_MEAN.value:
         return DataSchema(xcol="Time", ycol="Cumulative Mean")
     elif data_type.value == DataType.CUM_STD.value:
-        return DataSchema(xcol="Time", ycol="Cumulative Standard Deviation")
+        return DataSchema(xcol="Time", ycol="Cumulative STD")
     elif data_type.value == DataType.MEAN.value:
         return DataSchema(xcol="Time", ycol="Mean")
-    elif data_type.value == DataType.STD.value:
+    elif data_type.value == DataType.SD.value:
         return DataSchema(xcol="Time", ycol="Standard Deviation")
-    elif data_type.value == DataType.GENERIC.value:
-        return DataSchema(xcol="x", ycol="y")
+    elif data_type.value == DataType.AR1_ACF.value:
+        return DataSchema(xcol="Lag", ycol="AR(1) Autocorrelation")
+    elif data_type.value == DataType.MAQ_ACF.value:
+        return DataSchema(xcol="Lag", ycol="MA(q) Autocorrelation")
+    elif data_type.value == DataType.FBM_MEAN.value:
+        return DataSchema(xcol="FBM Mean Time", ycol="FBM Mean")
+    elif data_type.value == DataType.FBM_SD.value:
+        return DataSchema(xcol="FBM SD Time", ycol="FBM Standard Deviation"")
+    elif data_type.value == DataType.FBM_ACF.value:
+        return DataSchema(xcol="Time", ycol="FBM ACF")
     else:
         raise Exception(f"Data type is invalid: {data_type}")

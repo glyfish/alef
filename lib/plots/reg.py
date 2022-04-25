@@ -70,8 +70,9 @@ def create_reg_plot_type(plot_type, results, x):
 ###############################################################################################
 # Compare the result of a linear regression with teh acutal data (Uses RegPlotType config)
 def reg(y, x, results, **kwargs):
-    title = kwargs["title"] if "title" in kwargs else None
-    plot_type = kwargs["plot_type"]  if "plot_type"  in kwargs else RegressionPlotType.LINEAR
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else RegressionPlotType.LINEAR
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     β = results.params
 
@@ -89,7 +90,7 @@ def reg(y, x, results, **kwargs):
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
     if title is not None:
-        axis.set_title(title)
+        axis.set_title(title, y=title_offset)
 
     axis.set_ylabel(plot_config.ylabel)
     axis.set_xlabel(plot_config.xlabel)

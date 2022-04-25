@@ -91,6 +91,18 @@ def arp_drift(φ, μ, γ, n, σ):
 def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)
 
+def ar1_series(φ, σ, nsample, nseries):
+    series = []
+    for i in range(nseries):
+        series.append(ar1(φ[i], nsample, σ))
+    return series
+
+def ar1_ensemble(φ, σ, nsample, nsim):
+    series = []
+    for i in range(1, nsim):
+        series.append(ar1(φ, nsample, σ))
+    return series
+
 def arp(φ, n, σ=1.0):
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.array([1.0])

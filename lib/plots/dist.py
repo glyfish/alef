@@ -39,12 +39,13 @@ def create_dist_plot_type(plot_type):
 ###############################################################################################
 # Hypothesis test plot (Uses DistPlotType config)
 def htest(test_stats, plot_type, **kwargs):
-    title        = kwargs["title"]        if "title"       in kwargs else None
-    test_type    = kwargs["test_type"]    if "test_type"   in kwargs else HypothesisType.TWO_TAIL
-    npts         = kwargs["npts"]         if "npts"        in kwargs else 100
-    sig_level    = kwargs["sig_level"]    if "sig_level"   in kwargs else 0.05
-    labels       = kwargs["labels"]       if "labels"      in kwargs else None
-    dist_params  = kwargs["dist_params"]  if "dist_params" in kwargs else []
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    test_type    = kwargs["test_type"]    if "test_type"    in kwargs else HypothesisType.TWO_TAIL
+    npts         = kwargs["npts"]         if "npts"         in kwargs else 100
+    sig_level    = kwargs["sig_level"]    if "sig_level"    in kwargs else 0.05
+    labels       = kwargs["labels"]       if "labels"       in kwargs else None
+    dist_params  = kwargs["dist_params"]  if "dist_params"  in kwargs else []
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     plot_config = create_dist_plot_type(plot_type)
     if plot_config.dist_params is not None:
@@ -87,7 +88,7 @@ def htest(test_stats, plot_type, **kwargs):
     text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
     if title is not None:
-        axis.set_title(title)
+        axis.set_title(title, y=title_offset)
 
     axis.set_ylabel(plot_config.ylabel)
     axis.set_ylim([-0.05, 1.05])

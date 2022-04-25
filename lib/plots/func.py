@@ -28,12 +28,13 @@ class FuncPlotType(Enum):
 ##################################################################################################################
 ## Function compare plot config
 class FuncPlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, legend_labels=None, f=None):
+    def __init__(self, xlabel, ylabel, data_type, func_type, plot_type=PlotType.LINEAR, legend_labels=None):
         self.xlabel = xlabel
         self.ylabel = ylabel
+        self.data_schema = create_schema(data_type)
+        self.func_schema = create_schema(data_type)
         self.plot_type = plot_type
         self.legend_labels = legend_labels
-        self.f = f
 
 ##################################################################################################################
 ## plot function type
@@ -109,22 +110,19 @@ def create_func_plot_type(plot_type, params):
                               legend_labels=["Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
                               f=f)
     elif plot_type.value == FuncPlotType.AR1_ACF.value:
-        φ = params[0]
-        f = lambda t : φ**t
         return FuncPlotConfig(xlabel=r"$\tau$",
                               ylabel=r"$\rho_\tau$",
-                              plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\phi^\tau$"],
-                              f=f)
+                              data_type=DataType.ACF,
+                              func_type=DataType.AR1_ACF,
+                              plot_type=DataType.LINEAR,
+                              legend_labels=["Ensemble Average", r"$\varphi^\tau$"])
     elif plot_type.value == FuncPlotType.MAQ_ACF.value:
-        θ = params[0]
-        σ = params[1]
-        f = lambda t : arima.maq_acf(θ, σ, len(t))
         return FuncPlotConfig(xlabel=r"$\tau$",
                               ylabel=r"$\rho_\tau$",
-                              plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"],
-                              f=f)
+                              data_type=DataType.ACF,
+                              func_type=DataType.MAQ_ACF,
+                              plot_type=DataType.LINEAR,
+                              legend_labels=["Ensemble Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"])
     elif plot_type.value == FuncPlotType.LAGG_VAR.value:
         H = params[0]
         if len(params) > 1:
@@ -151,17 +149,20 @@ def create_func_plot_type(plot_type, params):
                               f=f)
     else:
         f = lambda t : t
-        return FuncPlotConfig(xlabel="x", ylabel="y", plot_type=PlotType.LINEAR, legend_labels=["Data", "f(x)"], f=f)
+        return FuncPlotConfig(xlabel="x",
+                              ylabel="y",
+                              plot_type=PlotType.LINEAR,
+                              legend_labels=["Data", "f(x)"],
+                              f=f)
 
 ###############################################################################################
 # Compare data to the value of a function (Uses PlotFuncType config)
-def fcompare(y, x=None, **kwargs):
-    title     = kwargs["title"]     if "title"     in kwargs else None
-    plot_type = kwargs["plot_type"] if "plot_type" in kwargs else PlotFuncType.LINEAR
-    lw        = kwargs["lw"]        if "lw"        in kwargs else 2
-    labels    = kwargs["labels"]    if "labels"    in kwargs else None
-    npts      = kwargs["npts"]      if "npts"      in kwargs else 10
-    params    = kwargs["params"]    if "params"    in kwargs else []
+def fcompare(df, **kwargs):
+    title        = kwargs["title"]        if "title"        in kwargs else None
+    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else PlotFuncType.LINEAR
+    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
+    labels       = kwargs["labels"]       if "labels"       in kwargs else None
+    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     plot_config = create_func_plot_type(plot_type, params)
 

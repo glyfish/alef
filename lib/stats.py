@@ -12,35 +12,35 @@ class RegType(Enum):
     YLOG = 4
 
 def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
+    nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
-    x, npts = samples.shape
     mean = numpy.zeros(npts)
-    for i in range(npts):
+    for i in range(len(x)):
         for j in range(nsim):
             mean[i] += samples[j,i] / float(nsim)
     return DataFunc.create_data_frame(x, mean, DataType.MEAN)
 
-def ensemble_std(samples, data_type=DataType.TIME_SERIES):
-    time, samples = _samples_from_dfs(dfs, data_type)
+def ensemble_std(dfs, data_type=DataType.TIME_SERIES):
+    nsim = len(dfs)
+    x, samples = _samples_from_dfs(dfs, data_type)
     mean = ensemble_mean(samples)
-    nsim, npts = samples.shape
     std = numpy.zeros(npts)
-    for i in range(npts):
+    for i in range(len(x)):
         for j in range(nsim):
             std[i] += (samples[j,i] - mean[i])**2 / float(nsim)
-    return DataFunc.create_data_frame(time, numpy.sqrt(std), DataType.STD)
+    return DataFunc.create_data_frame(x, numpy.sqrt(std), DataType.SD)
 
-def ensemble_acf(samples, nlags=None, data_type=DataType.TIME_SERIES):
+def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
+    nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
-    nsim, npts = samples.shape
-    if nlags is None:
-        nlags = npts
+    if nlags is None or nlags > len(x):
+        nlags = len(x)
     ac_avg = numpy.zeros(nlags)
     for j in range(nsim):
         ac = acf(samples[j], nlags).real
-        for i in range(npts):
+        for i in range(nlags):
             ac_avg[i] += ac[i]
-    return DataFunc.create_data_frame(x, ac_avg/float(nsim), DataType.ACF)
+    return DataFunc.create_data_frame(x[:nlags], ac_avg/float(nsim), DataType.ACF)
 
 def cumu_mean(x, y):
     ny = len(y)
@@ -59,7 +59,7 @@ def cumu_std(x, y):
     for i in range(1, ny):
         var[i] = (float(i)*var[i-1]+y[i]**2)/float(i+1)
     std = numpy.sqrt(var-mean**2)
-    return DataFunc.create_data_frame(x, std, DataType.CUM_STD)
+    return DataFunc.create_data_frame(x, std, DataType.CUM_SD)
 
 def cumu_cov(x, y):
     nsample = min(len(x), len(y))
@@ -147,5 +147,5 @@ def _samples_from_dfs(dfs, data_type):
     samples = []
     for df in dfs:
         x, y = schema.get_data(df)
-        samples.append(df)
+        samples.append(y)
     return x, samples
