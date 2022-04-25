@@ -77,8 +77,8 @@ def create_schema(data_type):
         return DataSchema(xcol="Time", ycol="Difference 2")
     elif data_type.value == DataType.CUM_MEAN.value:
         return DataSchema(xcol="Time", ycol="Cumulative Mean")
-    elif data_type.value == DataType.CUM_STD.value:
-        return DataSchema(xcol="Time", ycol="Cumulative STD")
+    elif data_type.value == DataType.CUM_SD.value:
+        return DataSchema(xcol="Time", ycol="Cumulative Standard Deviation")
     elif data_type.value == DataType.MEAN.value:
         return DataSchema(xcol="Time", ycol="Mean")
     elif data_type.value == DataType.SD.value:
@@ -90,7 +90,7 @@ def create_schema(data_type):
     elif data_type.value == DataType.FBM_MEAN.value:
         return DataSchema(xcol="FBM Mean Time", ycol="FBM Mean")
     elif data_type.value == DataType.FBM_SD.value:
-        return DataSchema(xcol="FBM SD Time", ycol="FBM Standard Deviation"")
+        return DataSchema(xcol="FBM SD Time", ycol="FBM Standard Deviation")
     elif data_type.value == DataType.FBM_ACF.value:
         return DataSchema(xcol="Time", ycol="FBM ACF")
     else:

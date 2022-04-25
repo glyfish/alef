@@ -14,11 +14,11 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 ## Specify PlotConfig for cumulative plot
 class CumuPlotType(Enum):
     AR1_MEAN = 1             # Accumulation mean for AR(1)
-    AR1_STD = 2              # Accumulation standard deviation for AR(1)
+    AR1_SD = 2               # Accumulation standard deviation for AR(1)
     MAQ_MEAN = 3             # Accumulation mean for MA(q)
-    MAQ_STD = 4              # Accumulation standard deviation for MA(q)
+    MAQ_SD = 4               # Accumulation standard deviation for MA(q)
     AR1_OFFSET_MEAN = 5      # AR1 with Offset model mean
-    AR1_OFFSET_STD = 6       # AR1 with Offset model standard deviation
+    AR1_OFFSET_SD = 6        # AR1 with Offset model standard deviation
 
 ##################################################################################################################
 ## Plot Configuration
@@ -41,14 +41,14 @@ def create_cumu_plot_config(plot_type, **kwargs):
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
-    if plot_type.value == CumuPlotType.AR1_STD.value:
+    if plot_type.value == CumuPlotType.AR1_SD.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_STD,
+                             data_type=DataType.CUM_SD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\sigma_\infty = \sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
+                             legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
                              target=arima.ar1_sigma(φ, σ))
     if plot_type.value == CumuPlotType.MAQ_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
@@ -57,14 +57,14 @@ def create_cumu_plot_config(plot_type, **kwargs):
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
-    if plot_type.value == CumuPlotType.MAQ_STD.value:
+    if plot_type.value == CumuPlotType.MAQ_SD.value:
         θ = get_param_throw_if_missing("θ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_STD,
+                             data_type=DataType.CUM_SD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\sigma_\infty = \sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
+                             legend_labels=[r"$\sigma_t$", r"$\sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
                              target=arima.maq_sigma(θ, σ))
     elif plot_type.value == CumuPlotType.AR1_OFFSET_MEAN.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
@@ -73,16 +73,16 @@ def create_cumu_plot_config(plot_type, **kwargs):
                              ylabel=r"$\mu_t$",
                              data_type=DataType.CUM_MEAN,
                              plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = \frac{\mu^*}{1 - \varphi}$"],
+                             legend_labels=[r"$\mu_t$", r"$\frac{\mu^*}{1 - \varphi}$"],
                              target=arima.ar1_offset_mean(φ, μ))
     elif plot_type.value == CumuPlotType.AR1_OFFSET_STD.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_STD,
+                             data_type=DataType.CUM_SD,
                              plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\sigma_t \to \frac{\sigma^2}{1 - \varphi^2}$"],
+                             legend_labels=[r"$\sigma_t$", r"$\frac{\sigma^2}{1 - \varphi^2}$"],
                              target=arima.ar1_offset_sigma(φ, σ))
     else:
         raise Exception(f"Cumulative plot type is invalid: {plot_type}")
