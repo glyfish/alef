@@ -32,83 +32,69 @@ class FuncPlotConfig:
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.data_schema = create_schema(data_type)
-        self.func_schema = create_schema(data_type)
+        self.func_schema = create_schema(func_type)
         self.plot_type = plot_type
         self.legend_labels = legend_labels
 
 ##################################################################################################################
 ## plot function type
-def create_func_plot_type(plot_type, params):
+def create_func_plot_type(plot_type):
     if plot_type.value == FuncPlotType.FBM_MEAN.value:
-        f = lambda t : numpy.full(len(t), 0.0)
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\mu_t$",
+                              data_type=DataType.MEAN,
+                              func_type=DataType.FBM_MEAN,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\mu=0$"],
-                              f=f)
-    elif plot_type.value == FuncPlotType.FBM_STD.value:
-        H = params[0]
-        if len(params) > 1:
-            σ = params[1]
-        else:
-            σ = 1.0
-        f = lambda t : σ*numpy.sqrt(fbm.var(H, t))
+                              legend_labels=["Average", r"$\mu=0$"])
+    elif plot_type.value == FuncPlotType.FBM_SD.value:
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\sigma_t$",
+                              data_type=DataType.SD,
+                              func_type=DataType.FBM_SD,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\sigma t^H$"],
-                              f=f)
+                              legend_labels=["Average", r"$\sigma t^H$"])
     elif plot_type.value == FuncPlotType.FBM_ACF.value:
-        H = params[0]
-        f = lambda t : fbm.acf(H, t)
         return FuncPlotConfig(xlabel=r"$\tau$",
                               ylabel=r"$\rho_\tau$",
+                              data_type=DataType.ACF,
+                              func_type=DataType.FBM_ACF,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"],
-                              f=f)
+                              legend_labels=["Average", r"$\frac{1}{2}[(\tau-1)^{2H} + (\tau+1)^{2H} - 2\tau^{2H})]$"])
     elif plot_type.value == FuncPlotType.BM_MEAN.value:
-        μ = params[0]
-        f = lambda t : numpy.full(len(t), μ)
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\mu_t$",
+                              data_type=DataType.MEAN,
+                              func_type=DataType.BM_MEAN,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", f"μ={μ}"],
-                              f=f)
+                              legend_labels=["Average", f"μ={μ}"])
     elif plot_type.value == FuncPlotType.BM_DRIFT_MEAN.value:
-        μ = params[0]
-        f = lambda t : μ*t
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\mu_t$",
+                              data_type=DataType.MEAN,
+                              func_type=DataType.BM_DRIFT_MEAN,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$μ_t=μt$"],
-                              f=f)
-    elif plot_type.value == FuncPlotType.BM_STD.value:
-        σ = params[0]
-        f = lambda t : σ*numpy.sqrt(t)
+                              legend_labels=["Average", r"$μ_t=μt$"])
+    elif plot_type.value == FuncPlotType.BM_SD.value:
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\sigma_t$",
+                              data_type=DataType.SD,
+                              func_type=DataType.BM_SD,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\sigma_t = \sigma \sqrt{t}$"],
-                              f=f)
+                              legend_labels=["Average", r"$\sigma_t = \sigma \sqrt{t}$"])
     elif plot_type.value == FuncPlotType.GBM_MEAN.value:
-        S0 = params[0]
-        μ = params[1]
-        f = lambda t : S0*numpy.exp(μ*t)
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\mu_t$",
+                              data_type=DataType.MEAN,
+                              func_type=DataType.GBM_MEAN,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\mu_t = S_0 e^{\mu t}$"],
-                              f=f)
-    elif plot_type.value == FuncPlotType.GBM_STD.value:
-        S0 = params[0]
-        μ = params[1]
-        σ = params[2]
-        f = lambda t : numpy.sqrt(S0**2*numpy.exp(2*μ*t)*(numpy.exp(t*σ**2)-1))
+                              legend_labels=["Average", r"$\mu_t = S_0 e^{\mu t}$"])
+    elif plot_type.value == FuncPlotType.GBM_SD.value:
         return FuncPlotConfig(xlabel=r"$t$",
                               ylabel=r"$\sigma_t$",
+                              data_type=DataType.SD,
+                              func_type=DataType.GBM_SD,
                               plot_type=PlotType.LINEAR,
-                              legend_labels=["Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"],
-                              f=f)
+                              legend_labels=["Average", r"$\sigma_t=S_0 e^{\mu t}\sqrt{e^{\sigma^2 t} - 1}$"])
     elif plot_type.value == FuncPlotType.AR1_ACF.value:
         return FuncPlotConfig(xlabel=r"$\tau$",
                               ylabel=r"$\rho_\tau$",
@@ -124,17 +110,12 @@ def create_func_plot_type(plot_type, params):
                               plot_type=DataType.LINEAR,
                               legend_labels=["Ensemble Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"])
     elif plot_type.value == FuncPlotType.LAGG_VAR.value:
-        H = params[0]
-        if len(params) > 1:
-            σ = params[1]
-        else:
-            σ = 1.0
-        f = lambda t : σ**2*fbm.var(H, t)
         return FuncPlotConfig(xlabel=r"$s$",
                               ylabel=r"$\sigma^2(s)$",
+                              data_type=DataType.TIME_SERIES,
+                              func_type=DataType.LAGG_VAR,
                               plot_type=PlotType.LOG,
-                              legend_labels=[r"$\sigma^2(s)$", r"$\sigma^2 t^{2H}$"],
-                              f=f)
+                              legend_labels=[r"$\sigma^2(s)$", r"$\sigma^2 t^{2H}$"])
     elif plot_type.value == FuncPlotType.VR.value:
         H = params[0]
         if len(params) > 1:
@@ -164,7 +145,7 @@ def fcompare(df, **kwargs):
     labels       = kwargs["labels"]       if "labels"       in kwargs else None
     title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
-    plot_config = create_func_plot_type(plot_type, params)
+    plot_config = create_func_plot_type(plot_type)
 
     if x is None:
         nx = len(y)

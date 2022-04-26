@@ -11,8 +11,8 @@ class DataType(Enum):
     VR_STAT = 5             # FBM variance ratio test statistic
     DIFF_1 = 6              # First time series difference
     DIFF_2 = 7              # Second time series difference
-    CUM_MEAN = 8            # Cumulative mean
-    CUM_SD = 9              # Cumulative standard deviation
+    CUMU_MEAN = 8           # Cumulative mean
+    CUMU_SD = 9             # Cumulative standard deviation
     MEAN = 10               # Mean as a function of time
     SD = 11                 # Standard deviation as a function of time
     AR1_ACF = 12            # AR(1) Autocorrelation function
@@ -33,9 +33,10 @@ class DataType(Enum):
 ## create shema for data type: The schema consists of the DataFrame columns used by the
 ## DataType
 class DataSchema:
-    def __init__(self, xcol, ycol):
+    def __init__(self, xcol, ycol, data_type):
         self.xcol = xcol
         self.ycol = ycol
+        self.data_type = data_type
 
     def get_data(self, df):
         meta_data = df.attrs
@@ -62,36 +63,36 @@ class DataSchema:
 ## create shema for data type
 def create_schema(data_type):
     if data_type.value == DataType.GENERIC.value:
-        return DataSchema(xcol="x", ycol="y")
+        return DataSchema("x", "y", data_type)
     elif data_type.value == DataType.TIME_SERIES.value:
-        return DataSchema(xcol="Time", ycol="S(t)")
+        return DataSchema("Time", "S(t)", data_type)
     elif data_type.value == DataType.PSPEC.value:
-        return DataSchema(xcol="Frequency", ycol="Power Spectrum")
+        return DataSchema("Frequency", "Power Spectrum", data_type)
     elif data_type.value == DataType.ACF.value:
-        return DataSchema(xcol="Lag", ycol="ACF")
+        return DataSchema("Lag", "ACF", data_type)
     elif data_type.value == DataType.VR_STAT.value:
-        return DataSchema(xcol="Lag", ycol="Variance Ratio")
+        return DataSchema("Lag", "Variance Ratio", data_type)
     elif data_type.value == DataType.DIFF_1.value:
-        return DataSchema(xcol="Time", ycol="Difference 1")
+        return DataSchema("Time", "Difference 1", data_type)
     elif data_type.value == DataType.DIFF_2.value:
-        return DataSchema(xcol="Time", ycol="Difference 2")
-    elif data_type.value == DataType.CUM_MEAN.value:
-        return DataSchema(xcol="Time", ycol="Cumulative Mean")
-    elif data_type.value == DataType.CUM_SD.value:
-        return DataSchema(xcol="Time", ycol="Cumulative Standard Deviation")
+        return DataSchema("Time", "Difference 2", data_type)
+    elif data_type.value == DataType.CUMU_MEAN.value:
+        return DataSchema("Time", "Cumulative Mean", data_type)
+    elif data_type.value == DataType.CUMU_SD.value:
+        return DataSchema("Time", "Cumulative Standard Deviation", data_type)
     elif data_type.value == DataType.MEAN.value:
-        return DataSchema(xcol="Time", ycol="Mean")
+        return DataSchema("Time", "Mean", data_type)
     elif data_type.value == DataType.SD.value:
-        return DataSchema(xcol="Time", ycol="Standard Deviation")
+        return DataSchema("Time", "Standard Deviation", data_type)
     elif data_type.value == DataType.AR1_ACF.value:
-        return DataSchema(xcol="Lag", ycol="AR(1) Autocorrelation")
+        return DataSchema("Lag", "AR(1) Autocorrelation", data_type)
     elif data_type.value == DataType.MAQ_ACF.value:
-        return DataSchema(xcol="Lag", ycol="MA(q) Autocorrelation")
+        return DataSchema("Lag", "MA(q) Autocorrelation", data_type)
     elif data_type.value == DataType.FBM_MEAN.value:
-        return DataSchema(xcol="FBM Mean Time", ycol="FBM Mean")
+        return DataSchema("FBM Mean Time", "FBM Mean", data_type)
     elif data_type.value == DataType.FBM_SD.value:
-        return DataSchema(xcol="FBM SD Time", ycol="FBM Standard Deviation")
+        return DataSchema("FBM SD Time", "FBM Standard Deviation", data_type)
     elif data_type.value == DataType.FBM_ACF.value:
-        return DataSchema(xcol="Time", ycol="FBM ACF")
+        return DataSchema("Time", "FBM ACF", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")

@@ -42,24 +42,22 @@ def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
             ac_avg[i] += ac[i]
     return DataFunc.create_data_frame(x[:nlags], ac_avg/float(nsim), DataType.ACF)
 
-def cumu_mean(x, y):
+def cumu_mean(y):
     ny = len(y)
     mean = numpy.zeros(ny)
     mean[0] = y[0]
     for i in range(1, ny):
         mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
-    return DataFunc.create_data_frame(x, mean, DataType.CUM_MEAN)
+    return mean
 
-def cumu_std(x, y):
-    mean_df = cumu_mean(x, y)
-    _, mean = create_schema(DataType.CUM_MEAN).get_data(mean_df)
+def cumu_sd(y):
+    mean = cumu_mean(y)
     ny = len(y)
     var = numpy.zeros(ny)
     var[0] = y[0]**2
     for i in range(1, ny):
         var[i] = (float(i)*var[i-1]+y[i]**2)/float(i+1)
-    std = numpy.sqrt(var-mean**2)
-    return DataFunc.create_data_frame(x, std, DataType.CUM_SD)
+    return numpy.sqrt(var-mean**2)
 
 def cumu_cov(x, y):
     nsample = min(len(x), len(y))

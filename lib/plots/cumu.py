@@ -37,7 +37,7 @@ def create_cumu_plot_config(plot_type, **kwargs):
     if plot_type.value == CumuPlotType.AR1_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
-                             data_type=DataType.CUM_MEAN,
+                             data_type=DataType.CUMU_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
@@ -46,14 +46,14 @@ def create_cumu_plot_config(plot_type, **kwargs):
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_SD,
+                             data_type=DataType.CUMU_SD,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
                              target=arima.ar1_sigma(φ, σ))
     if plot_type.value == CumuPlotType.MAQ_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
-                             data_type=DataType.CUM_MEAN,
+                             data_type=DataType.CUMU_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
                              target = 0.0)
@@ -62,7 +62,7 @@ def create_cumu_plot_config(plot_type, **kwargs):
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_SD,
+                             data_type=DataType.CUMU_SD,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
                              target=arima.maq_sigma(θ, σ))
@@ -71,7 +71,7 @@ def create_cumu_plot_config(plot_type, **kwargs):
         μ = get_param_throw_if_missing("μ", **kwargs)
         return CumPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\mu_t$",
-                             data_type=DataType.CUM_MEAN,
+                             data_type=DataType.CUMU_MEAN,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\mu_t$", r"$\frac{\mu^*}{1 - \varphi}$"],
                              target=arima.ar1_offset_mean(φ, μ))
@@ -80,7 +80,7 @@ def create_cumu_plot_config(plot_type, **kwargs):
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
                              ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUM_SD,
+                             data_type=DataType.CUMU_SD,
                              plot_type=PlotType.XLOG,
                              legend_labels=[r"$\sigma_t$", r"$\frac{\sigma^2}{1 - \varphi^2}$"],
                              target=arima.ar1_offset_sigma(φ, σ))
