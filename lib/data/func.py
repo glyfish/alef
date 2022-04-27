@@ -25,11 +25,10 @@ class DataFunc:
         self.fy = fy
         self.params = params
         self.fx = lambda x: x if fx is None else fx
-        self.source_data_type = source_data_type
+        self.source_schema = create_schema(source_data_type)
 
     def apply(self, df):
-        source_schema = create_schema(self.source_data_type)
-        x, y = source_schema.get_data(df)
+        x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
         df_result = self.data_frame(x_result, y_result)
@@ -42,15 +41,15 @@ class DataFunc:
         })
         meta_data = {
             self.schema.ycol: {"npts": len(y),
-                                "DataType": self.schema.data_type,
-                                "Parameters": self.params}
+                               "DataType": self.schema.data_type,
+                               "Parameters": self.params}
         }
         df.attrs = meta_data
         return df
 
     @staticmethod
-    def apply_func_type(df, data_type, **kwargs):
-        data_func = create_data_func(data_type, **kwargs)
+    def apply_func_type(df, func_type, **kwargs):
+        data_func = create_data_func(func_type, **kwargs)
         return data_func.apply(df)
 
     @staticmethod
@@ -104,8 +103,12 @@ def create_data_func(data_type, **kwargs):
         return _create_gbm_mean(schema, **kwargs)
     elif data_type.value == DataType.GBM_SD.value:
         return _create_gbm_sd(schema, **kwargs)
+    elif data_type.value == DataType.AGG_VAR.value:
+        return _create_agg_var(schema, **kwargs)
+    elif data_type.value == DataType.VR.value:
+        return _create_vr(schema, **kwargs)
     else:
-        raise Exception(f"Data type is invalid: {data_type}")
+        raise Exception(f"DataType is invalid: {data_type}")
 
 
 ###################################################################################################
@@ -157,6 +160,7 @@ def _create_cumu_mean(schema, **kwargs):
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy)
+
 # DataType.CUMU_SD
 def _create_cumu_sd(schema, **kwargs):
         fy = lambda x, y : stats.cumu_sd(y)
@@ -280,5 +284,31 @@ def _create_gbm_sd(schema, **kwargs):
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
                     params={"npts": npts, "σ": σ, "μ": μ, "S0": S0},
+                    fy=fy,
+                    fx=fx)
+
+# DataType.AGG_VAR
+def _create_agg_var(schema, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    H = get_param_throw_if_missing("H", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/npts)]
+    fy = lambda x, y : σ**2*fbm.var(H, t)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.SD,
+                    params={"npts": npts, "H": H, "σ": σ},
+                    fy=fy,
+                    fx=fx)
+
+# DataType.VR
+def _create_vr(schema, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    H = get_param_throw_if_missing("H", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/npts)]
+    fy = lambda x, y :  σ**2*t**(2*H - 1.0)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.SD,
+                    params={"npts": npts, "H": H, "σ": σ},
                     fy=fy,
                     fx=fx)

@@ -36,54 +36,54 @@ class CumuPlotConfig:
 def create_cumu_plot_config(plot_type, **kwargs):
     if plot_type.value == CumuPlotType.AR1_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\mu_t$",
-                             data_type=DataType.CUMU_MEAN,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
-                             target = 0.0)
+                              ylabel=r"$\mu_t$",
+                              data_type=DataType.CUMU_MEAN,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
+                              target = 0.0)
     if plot_type.value == CumuPlotType.AR1_SD.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUMU_SD,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
-                             target=arima.ar1_sigma(φ, σ))
+                              ylabel=r"$\sigma_t$",
+                              data_type=DataType.CUMU_SD,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
+                              target=arima.ar1_sigma(φ, σ))
     if plot_type.value == CumuPlotType.MAQ_MEAN.value:
         return CumuPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\mu_t$",
-                             data_type=DataType.CUMU_MEAN,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
-                             target = 0.0)
+                              ylabel=r"$\mu_t$",
+                              data_type=DataType.CUMU_MEAN,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
+                              target = 0.0)
     if plot_type.value == CumuPlotType.MAQ_SD.value:
         θ = get_param_throw_if_missing("θ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUMU_SD,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
-                             target=arima.maq_sigma(θ, σ))
+                              ylabel=r"$\sigma_t$",
+                              data_type=DataType.CUMU_SD,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
+                              target=arima.maq_sigma(θ, σ))
     elif plot_type.value == CumuPlotType.AR1_OFFSET_MEAN.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
         μ = get_param_throw_if_missing("μ", **kwargs)
-        return CumPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\mu_t$",
-                             data_type=DataType.CUMU_MEAN,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\mu_t$", r"$\frac{\mu^*}{1 - \varphi}$"],
-                             target=arima.ar1_offset_mean(φ, μ))
-    elif plot_type.value == CumuPlotType.AR1_OFFSET_STD.value:
+        return CumuPlotConfig(xlabel=r"$t$",
+                              ylabel=r"$\mu_t$",
+                              data_type=DataType.CUMU_MEAN,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\mu_t$", r"$\frac{\mu^*}{1 - \varphi}$"],
+                              target=arima.ar1_offset_mean(φ, μ))
+    elif plot_type.value == CumuPlotType.AR1_OFFSET_SD.value:
         φ = get_param_throw_if_missing("φ", **kwargs)
         σ = get_param_default_if_missing("σ", 1.0, **kwargs)
         return CumuPlotConfig(xlabel=r"$t$",
-                             ylabel=r"$\sigma_t$",
-                             data_type=DataType.CUMU_SD,
-                             plot_type=PlotType.XLOG,
-                             legend_labels=[r"$\sigma_t$", r"$\frac{\sigma^2}{1 - \varphi^2}$"],
-                             target=arima.ar1_offset_sigma(φ, σ))
+                              ylabel=r"$\sigma_t$",
+                              data_type=DataType.CUMU_SD,
+                              plot_type=PlotType.XLOG,
+                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1 - \varphi^2}}$"],
+                              target=arima.ar1_offset_sigma(φ, σ))
     else:
         raise Exception(f"Cumulative plot type is invalid: {plot_type}")
 

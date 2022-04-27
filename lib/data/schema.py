@@ -8,25 +8,25 @@ class DataType(Enum):
     TIME_SERIES = 2         # Time Series
     PSPEC = 3               # Power Spectrum
     ACF = 4                 # Autocorrelation function
-    VR_STAT = 5             # FBM variance ratio test statistic
-    DIFF_1 = 6              # First time series difference
-    DIFF_2 = 7              # Second time series difference
-    CUMU_MEAN = 8           # Cumulative mean
-    CUMU_SD = 9             # Cumulative standard deviation
-    MEAN = 10               # Mean as a function of time
-    SD = 11                 # Standard deviation as a function of time
-    AR1_ACF = 12            # AR(1) Autocorrelation function
-    MAQ_ACF = 13            # MA(q) Autocorrelation function
-    FBM_MEAN = 14           # Fractional Brownian Motion mean
-    FBM_SD = 15             # Fractional Brownian Motion standard deviation
-    FBM_ACF = 16            # Fractional Brownian Motion autocorrelation function
-    BM_MEAN = 17            # Brownian Motion mean
-    BM_DRIFT_MEAN = 18      # Brownian Motion model mean with data
-    BM_SD = 19              # Brownian Motion model standard deviation with data
-    GBM_MEAN = 20           # Geometric Brownian Motion model mean with data
-    GBM_SD = 21             # Geometric Brownian Motion model standard deviation with data
-    LAGG_VAR = 22           # Lagged variance computed
-    VR = 23                 # Variance Ratio use in test for brownian motion
+    DIFF_1 = 5              # First time series difference
+    DIFF_2 = 6              # Second time series difference
+    CUMU_MEAN = 7           # Cumulative mean
+    CUMU_SD = 8             # Cumulative standard deviation
+    MEAN = 9                # Mean as a function of time
+    SD = 10                 # Standard deviation as a function of time
+    AR1_ACF = 11            # AR(1) Autocorrelation function
+    MAQ_ACF = 12            # MA(q) Autocorrelation function
+    FBM_MEAN = 13           # Fractional Brownian Motion mean
+    FBM_SD = 14             # Fractional Brownian Motion standard deviation
+    FBM_ACF = 15            # Fractional Brownian Motion autocorrelation function
+    BM_MEAN = 16            # Brownian Motion mean
+    BM_DRIFT_MEAN = 17      # Brownian Motion model mean with data
+    BM_SD = 18              # Brownian Motion model standard deviation
+    GBM_MEAN = 19           # Geometric Brownian Motion model mean
+    GBM_SD = 20             # Geometric Brownian Motion model standard deviation
+    AGG_VAR = 21            # Aggregated variance
+    VR = 22                 # Variance Ratio use in test for brownian motion
+    VR_STAT = 23            # FBM variance ratio test statistic
 
 
 ##################################################################################################################
@@ -48,6 +48,10 @@ class DataSchema:
             y = df[ycol]
             npts = len(y[~numpy.isnan(y)])
         return df[xcol][:npts], df[ycol][:npts]
+
+    def get_meta_data(self, df):
+        meta_data = df.attrs
+        return meta_data[self.ycol]
 
     def is_in(self, df):
         cols = df.columns
@@ -85,14 +89,28 @@ def create_schema(data_type):
     elif data_type.value == DataType.SD.value:
         return DataSchema("Time", "Standard Deviation", data_type)
     elif data_type.value == DataType.AR1_ACF.value:
-        return DataSchema("Lag", "AR(1) Autocorrelation", data_type)
+        return DataSchema("AR(1) Lag", "AR(1) Autocorrelation", data_type)
     elif data_type.value == DataType.MAQ_ACF.value:
-        return DataSchema("Lag", "MA(q) Autocorrelation", data_type)
+        return DataSchema("MA(q) Lag", "MA(q) Autocorrelation", data_type)
     elif data_type.value == DataType.FBM_MEAN.value:
         return DataSchema("FBM Mean Time", "FBM Mean", data_type)
     elif data_type.value == DataType.FBM_SD.value:
         return DataSchema("FBM SD Time", "FBM Standard Deviation", data_type)
     elif data_type.value == DataType.FBM_ACF.value:
-        return DataSchema("Time", "FBM ACF", data_type)
+        return DataSchema("FBM ACF Time", "FBM ACF", data_type)
+    elif data_type.value == DataType.BM_MEAN.value:
+        return DataSchema("BM Mean Time", "BM Mean", data_type)
+    elif data_type.value == DataType.BM_DRIFT_MEAN.value:
+        return DataSchema("BM Drift Mean Time", "BM Drift Mean", data_type)
+    elif data_type.value == DataType.BM_SD.value:
+        return DataSchema("BM SD Time", "BM Standard Deviation", data_type)
+    elif data_type.value == DataType.GBM_MEAN.value:
+        return DataSchema("GBM Mean Time", "GBM Mean", data_type)
+    elif data_type.value == DataType.GBM_SD.value:
+        return DataSchema("GBM STD Time", "GBM Standard Deviation", data_type)
+    elif data_type.value == DataType.AGG_VAR.value:
+        return DataSchema("Agg Time", "Aggregated Variance", data_type)
+    elif data_type.value == DataType.VR.value:
+        return DataSchema("VR Time", "Variance Ratio", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")

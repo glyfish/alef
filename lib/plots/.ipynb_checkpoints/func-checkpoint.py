@@ -6,7 +6,6 @@ from lib.models import fbm
 from lib.models import arima
 from lib import stats
 
-from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ##################################################################################################################
@@ -20,7 +19,6 @@ class FuncPlotType(Enum):
     BM_DRIFT_MEAN = 6         # BM model mean with data
     BM_SD = 7                 # BM model standard deviation with data
     GBM_MEAN = 8              # GBM model mean with data
-    GBM_SD = 9                # GBM model mean with data
     AR1_ACF = 10              # AR1 model ACF autocorrelation function with data
     MAQ_ACF = 11              # MA(q) model ACF autocorrelation function with data
     LAGG_VAR = 12             # Lagged variance computed from a time
@@ -101,14 +99,14 @@ def create_func_plot_type(plot_type):
                               ylabel=r"$\rho_\tau$",
                               data_type=DataType.ACF,
                               func_type=DataType.AR1_ACF,
-                              plot_type=PlotType.LINEAR,
+                              plot_type=DataType.LINEAR,
                               legend_labels=["Ensemble Average", r"$\varphi^\tau$"])
     elif plot_type.value == FuncPlotType.MAQ_ACF.value:
         return FuncPlotConfig(xlabel=r"$\tau$",
                               ylabel=r"$\rho_\tau$",
                               data_type=DataType.ACF,
                               func_type=DataType.MAQ_ACF,
-                              plot_type=PlotType.LINEAR,
+                              plot_type=DataType.LINEAR,
                               legend_labels=["Ensemble Average", r"$\rho_\tau = \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$"])
     elif plot_type.value == FuncPlotType.AGG_VAR.value:
         return FuncPlotConfig(xlabel=r"$s$",

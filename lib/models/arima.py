@@ -86,7 +86,7 @@ def arp_drift(φ, μ, γ, n, σ):
         samples[i] = ε[i] + γ*i + μ
         for j in range(0, p):
             samples[i] += φ[j] * samples[i-(j+1)]
-    return _create_arma_simulation_data_frame(samples, φ, δ, μ, γ, n, σ)
+    return _create_arma_simulation_data_frame(samples, φ, [], μ, γ, n, σ)
 
 def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)

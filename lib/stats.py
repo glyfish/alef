@@ -20,7 +20,7 @@ def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
             mean[i] += samples[j,i] / float(nsim)
     return DataFunc.create_data_frame(x, mean, DataType.MEAN)
 
-def ensemble_std(dfs, data_type=DataType.TIME_SERIES):
+def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
     mean = ensemble_mean(samples)
