@@ -185,29 +185,54 @@ def pacf(samples, nlags):
 
 ###############################################################################################
 ## ARIMA parameter estimation
-def ar_model(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
+def ar_model(df, order):
+    schema = create_schema(DataType.TIME_SERIES)
+    return tsa.arima.model.ARIMA(df[schema.ycol], order=(order, 0, 0))
 
-def ar_fit(samples, order):
-    return ar_model(samples, order).fit()
+def ar_fit(df, order):
+    result = ar_model(df, order).fit()
+    _get_param_est_results(df, result)
+    return result
 
-def ar_offset_model(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')
+def ar_offset_model(df, order):
+    schema = create_schema(DataType.TIME_SERIES)
+    return tsa.arima.model.ARIMA(df[schema.ycol], order=(order, 0, 0), trend='c')
 
-def ar_offset_fit(samples, order):
-    return ar_offset_model(samples, order).fit()
+def ar_offset_fit(df, order):
+    result = ar_offset_model(df, order).fit()
+    _get_param_est_results(df, result)
+    return result
 
-def ma_model(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(0, 0, order))
+def ma_model(df, order):
+    schema = create_schema(DataType.TIME_SERIES)
+    return tsa.arima.model.ARIMA(df[schema.ycol], order=(0, 0, order))
 
-def ma_fit(samples, order):
-    return ma_model(samples, order).fit()
+def ma_fit(df, order):
+    result = ma_model(df, order).fit()
+    _get_param_est_results(df, result)
+    return result
 
-def ma_offset_model(samples, order):
-    return tsa.arima.model.ARIMA(samples, order=(0, 0, order), trend='c')
+def ma_offset_model(df, order):
+    schema = create_schema(DataType.TIME_SERIES)
+    return tsa.arima.model.ARIMA(df[schema.ycol], order=(0, 0, order), trend='c')
 
-def ma_offset_fit(samples, order):
-    return ar_offset_model(samples, order).fit()
+def ma_offset_fit(df, order):
+    result = ma_offset_model(samples, order).fit()
+    _get_param_est_results(df, result)
+    return result
+
+def _get_param_est_results(df, result):
+    schema = create_schema(DataType.TIME_SERIES)
+    nparams = len(result.params)
+    params = []
+    for i in range(1, nparams-1):
+        params.append([result.params.iloc[i], result.bse.iloc[i]])
+    const = [result.params.iloc[0], result.bse.iloc[0]]
+    sigma2 = [result.params.iloc[nparams-1], result.bse.iloc[nparams-1]]
+    meta_data = df.attrs
+    meta_data[schema.ycol]["Estimates"] = {"Const": const, "Parameters": params, "Sigma2": sigma2}
+    df.attrs = meta_data
+
 
 ###############################################################################################
 ## ADF Test

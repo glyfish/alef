@@ -63,6 +63,20 @@ class DataSchema:
         df.attrs = df1.attrs | df2.attrs
         return df.loc[:,~df.columns.duplicated()]
 
+    @staticmethod
+    def create_data_frame(x, y, data_type):
+        schema = create_schema(data_type)
+        df = DataFrame({
+            schema.xcol: x,
+            schema.ycol: y
+        })
+        meta_data = {
+            schema.ycol: {"npts": len(y),
+                          "DataType": data_type}
+        }
+        df.attrs = meta_data
+        return df
+
 ##################################################################################################################
 ## create shema for data type
 def create_schema(data_type):

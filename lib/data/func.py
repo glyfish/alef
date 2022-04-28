@@ -52,20 +52,6 @@ class DataFunc:
         data_func = create_data_func(func_type, **kwargs)
         return data_func.apply(df)
 
-    @staticmethod
-    def create_data_frame(x, y, data_type):
-        schema = create_schema(data_type)
-        df = DataFrame({
-            schema.xcol: x,
-            schema.ycol: y
-        })
-        meta_data = {
-            schema.ycol: {"npts": len(y),
-                          "DataType": data_type}
-        }
-        df.attrs = meta_data
-        return df
-
 ## create definition for data type
 def create_data_func(data_type, **kwargs):
     schema = create_schema(data_type)

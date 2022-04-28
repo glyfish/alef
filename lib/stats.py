@@ -2,7 +2,6 @@ import numpy
 from pandas import DataFrame
 import statsmodels.api as sm
 from lib.data.schema import (DataType, create_schema)
-from lib.data.func import (DataFunc)
 from enum import Enum
 
 class RegType(Enum):
@@ -18,7 +17,7 @@ def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
     for i in range(len(x)):
         for j in range(nsim):
             mean[i] += samples[j,i] / float(nsim)
-    return DataFunc.create_data_frame(x, mean, DataType.MEAN)
+    return DataSchema.create_data_frame(x, mean, DataType.MEAN)
 
 def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
     nsim = len(dfs)
@@ -28,7 +27,7 @@ def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
     for i in range(len(x)):
         for j in range(nsim):
             std[i] += (samples[j,i] - mean[i])**2 / float(nsim)
-    return DataFunc.create_data_frame(x, numpy.sqrt(std), DataType.SD)
+    return DataSchema.create_data_frame(x, numpy.sqrt(std), DataType.SD)
 
 def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
     nsim = len(dfs)
@@ -40,7 +39,7 @@ def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
         ac = acf(samples[j], nlags).real
         for i in range(nlags):
             ac_avg[i] += ac[i]
-    return DataFunc.create_data_frame(x[:nlags], ac_avg/float(nsim), DataType.ACF)
+    return DataSchema.create_data_frame(x[:nlags], ac_avg/float(nsim), DataType.ACF)
 
 def cumu_mean(y):
     ny = len(y)
