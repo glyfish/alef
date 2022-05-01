@@ -38,3 +38,21 @@ def bm_geometric(μ, σ, s0, n, Δt=1):
     gbm_drift = μ - 0.5*σ**2
     samples = bm_with_drift(gbm_drift, σ, n, Δt)
     return s0*numpy.exp(samples)
+
+def ensemble(nsim, npts, Δt = 1.0):
+    samples = numpy.array([bm.bm(npts, Δt)])
+    for i in range(1, nsim):
+        samples = numpy.append(samples, numpy.array([bm(npts, Δt)]), axis=0)
+    return samples
+
+def ensemble_with_drift(nsim, npts, μ, σ):
+    samples = numpy.array([bm.bm_with_drift(μ, σ, npts, Δt)])
+    for i in range(1, nsim):
+        samples = numpy.append(samples, numpy.array([bm.bm_with_drift(μ, σ, npts, Δt)]), axis=0)
+    return samples
+
+def ensemble_geometric(nsim, npts, μ, σ, s0):
+    samples = numpy.array([bm.bm_geometric(μ, σ, s0, npts, Δt)])
+    for i in range(1, nsim):
+        samples = numpy.append(samples, numpy.array([bm.bm_geometric(μ, σ, s0, npts, Δt)]), axis=0)
+    return samples

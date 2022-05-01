@@ -4,75 +4,86 @@ from matplotlib import pyplot
 
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, calculate_ticks)
 
-# Specify PlotConfig for curve, comparison and stack plots
-class DataPlotType(Enum):
-    GENERIC = 1         # Unknown data type
-    TIME_SERIES = 2     # Time Series
-    PSPEC = 3           # Power Spectrum
-    ACF = 4             # Autocorrelation function
-    VR_STAT = 5         # FBM variance ratio test statistic
-    DIFF_1 = 6          # First time series difference
-    DIFF_2 = 7          # Second time series difference
-    VAR = 8             # Variance
-    COV = 9             # Covariance
-    MEAN = 10           # Mean
-    STD = 11            # Standard deviation
+# Specify CompPlotType
+class CompPlotType(Enum):
+    GENERIC = 1             # Generic comparison plot
+    ACF_PACF = 2            # ACF-PACF comparison plot
 
-# Configurations used in plots
-class DataPlotConfig:
-    def __init__(self, xlabel, ylabel, data_type, plot_type=PlotType.LINEAR):
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.plot_type = plot_type
-        self.data_type = data_type
+# Plot Configurations
+class CompPlotConfig:
+    def __init__(self, xlabel, ylabels, schemas, plot_type=PlotType.LINEAR):
+        self.xlabel=xlabel
+        self.ylabels=ylabels
+        self.plot_type=plot_type
+        self.schemas=schemas
 
-## plot data type
-def create_data_plot_type(plot_type):
-    if plot_type.value == DataPlotType.TIME_SERIES.value:
-        data_type=create_schema(DataType.TIME_SERIES)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.PSPEC.value:
-        data_type = create_schema(DataType.PSPEC)
-        return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", data_type=data_type, plot_type=PlotType.LOG)
-    elif plot_type.value == DataPlotType.ACF.value:
-        data_type = create_schema(DataType.ACF)
-        return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.VR_STAT.value:
-        data_type = create_schema(DataType.VR_STAT)
-        return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.DIFF_1.value:
-        data_type = create_schema(DataType.DIFF_1)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.DIFF_2.value:
-        data_type = create_schema(DataType.DIFF_2)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.VAR.value:
-        data_type = create_schema(DataType.VAR)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.COV.value:
-        data_type = create_schema(DataType.COV)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.MEAN.value:
-        data_type = create_schema(DataType.MEAN)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", data_type=data_type, plot_type=PlotType.LINEAR)
-    elif plot_type.value == DataPlotType.STD.value:
-        data_type = create_schema(DataType.STD)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+## plot data type takes multiple data types
+def create_comp_plot_type(plot_type):
+    if plot_type.value == CompPlotType.GENERIC.value:
+        schemas = [create_schema(DataType.TIME_SERIES), create_schema(DataType.GENERIC)]
+        return CompPlotConfig(xlabel=r"$t$",
+                              ylabels=[r"$S_t$", r"$y$"],
+                              schemas=schemas,
+                              plot_type=PlotType.LINEAR)
+    if plot_type.value == CompPlotType.ACF_PACF.value:
+        schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
+        return CompPlotConfig(xlabel=r"$\tau$",
+                              ylabels=[r"$\rho_\tau$", r"$\varphi_\tau$"],
+                              schemas=schemas,
+                              plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
 
 ###############################################################################################
-# Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
-def curve(df, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+# Plot two curves with different data_types using different y axis scales, same xaxis
+# and data in the same DataFrame
+def twinx(df, **kwargs):
+    title        = get_param_default_if_missing("title", None, **kwargs)
+    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    plot_type    = get_param_default_if_missing("plot_type", CompPlotType.GENERIC, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    nticks       = get_param_default_if_missing("nticks", 5, **kwargs)
+    legend_loc   = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
 
-    plot_config = create_data_plot_type(plot_type)
-    x, y = plot_config.data_type.get_data(df)
+    plot_config = create_comp_plot_type(plot_type)
+
+    if len(plot_config.schemas) < 2:
+        raise Exception(f"Must have at least two schemas: {plot_type}")
+
+    figure, axis1 = pyplot.subplots(figsize=(13, 10))
+
+    if title is not None:
+        axis1.set_title(title, y=title_offset)
+
+    axis1.set_xlabel(plot_config.xlabel)
+
+    # first plot left axis1
+    schema = plot_config.schemas[0]
+    axis1.set_ylabel(plot_config.ylabels[0])
+    _plot_curve(axis1, df, schema, plot_config, labels[0], **kwargs)
+
+    # second plot right axis2
+    schema = plot_config.schemas[1]
+    axis2 = axis1.twinx()
+    axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
+    axis2.set_ylabel(plot_config.ylabels[1])
+    _plot_curve(axis2, df, schema, plot_config, labels[1], **kwargs)
+
+    axis1.set_yticks(calculate_ticks(axis1, nticks))
+    axis2.set_yticks(calculate_ticks(axis2, nticks))
+    axis2.grid(False)
+
+    figure.legend(loc=legend_loc, bbox_to_anchor=(0.2, 0.2, 0.6, 0.6))
+
+###############################################################################################
+# plot curve on specified axis
+def _plot_curve(axis, df, schema, plot_config, label, **kwargs):
+    lw   = get_param_default_if_missing("lw", 2, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+
+    x, y = schema.get_data(df)
 
     if npts is None or npts > len(y):
         npts = len(y)
@@ -80,39 +91,42 @@ def curve(df, **kwargs):
     x = x[:npts]
     y = y[:npts]
 
-    figure, axis = pyplot.subplots(figsize=(13, 10))
-
-    if title is not None:
-        axis.set_title(title, y=title_offset)
-
-    axis.set_xlabel(plot_config.xlabel)
-    axis.set_ylabel(plot_config.ylabel)
-
     if plot_config.plot_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
-        axis.loglog(x, y, lw=lw)
+        if label is None:
+            axis.loglog(x, y, lw=lw)
+        else:
+            axis.loglog(x, y, label=label, lw=lw)
     elif plot_config.plot_type.value == PlotType.XLOG.value:
         logXStyle(axis, x, y)
-        axis.semilogx(x, y, lw=lw)
+        if label is None:
+            axis.semilogx(x, y, lw=lw)
+        else:
+            axis.semilogx(x, y, label=label, lw=lw)
     elif plot_config.plot_type.value == PlotType.YLOG.value:
         logYStyle(axis, x, y)
-        axis.semilogy(x, y, lw=lw)
+        if label is None:
+            axis.semilogy(x, y, lw=lw)
+        else:
+            axis.semilogy(x, y, label=label, lw=lw)
     else:
-        axis.plot(x, y, lw=lw)
+        if label is None:
+            axis.plot(x, y, lw=lw)
+        else:
+            axis.plot(x, y, label=label, lw=lw)
 
 ###############################################################################################
 # Plot multiple curves of the same DataType using the same axes  (Uses DataPlotType config)
-def comparison(dfs, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
-    labels       = kwargs["labels"]       if "labels"       in kwargs else None
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+def comparison(df, **kwargs):
+    title        = get_param_default_if_missing("title", None, **kwargs)
+    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    plot_type    = get_param_default_if_missing("plot_type", CompPlotType.GENERIC, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    lw           = get_param_default_if_missing("lw", 2, **kwargs)
+    npts         = get_param_default_if_missing("npts", None, **kwargs)
 
     plot_config = create_data_plot_type(plot_type)
-    nplot = len(dfs)
-    ncol = int(nplot/6) + 1
+    nplot = len(plot_config.schemas)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
@@ -219,4 +233,3 @@ def stack(dfs, **kwargs):
             axis[i].semilogy(x, y, lw=1)
         else:
             axis[i].plot(x, y, lw=1)
-        

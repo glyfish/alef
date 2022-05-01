@@ -110,6 +110,7 @@ def fft_noise(H, n, Δt=1, dB=None):
 
     return Z[:n].real
 
+# generate fractional brownian motion using the FFT method
 def generate_fft(H, n, Δt=1, dB=None):
     if dB is None:
         dB = bm.noise(2*n)
@@ -120,6 +121,13 @@ def generate_fft(H, n, Δt=1, dB=None):
     for i in range(1, n):
         Z[i] = Z[i - 1] + dZ[i]
     return Z
+
+# generate an ensemble of simulations
+def ensemble(nsims, npts, H, Δt=1.0):
+    samples = numpy.array([fbm.generate_fft(H, npts, Δt)])
+    for i in range(1, nsims):
+        samples = numpy.append(samples, numpy.array([generate_fft(H, npts, Δt)]), axis=0)
+    return samples
 
 ###############################################################################################
 # Transformations
@@ -258,7 +266,6 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, table
     _var_test_report(results, report, tablefmt)
     return results
 
-
 # print test report
 def _var_test_report(results, report, tablefmt):
     if not report:
@@ -266,8 +273,6 @@ def _var_test_report(results, report, tablefmt):
     table = results.table(tablefmt)
     print(table[0])
     print(table[1])
-
-
 
 # lag variance
 def lag_var(samples, s):

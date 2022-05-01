@@ -1,5 +1,58 @@
 from enum import Enum
-from pandas import concat
+from pandas import (DataFrame, concat)
+
+##################################################################################################################
+# Meta Data Schema
+class MetaData:
+    def __init__(self, npts, data_type, params, desc, xlabel, ylabel):
+        self.npts = npts
+        self.schema = create_schema(data_type)
+        self.params = params
+        self.desc = desc
+        self.xlabel = xlabel
+        self.ylabel = ylabel
+        self.data =  {
+          "npts": npts,
+          "DataType": data_type,
+          "Parameters": params,
+          "Description": desc,
+          "ylabel": ylabel,
+          "xlabel": xlabel
+        }
+
+    @staticmethod
+    def from_dict(meta_data):
+        return MetaData(meta_data["npts"],
+                        meta_data["DataType"],
+                        meta_data["Parameters"],
+                        meta_data["Description"],
+                        meta_data["xlabel"],
+                        meta_data["ylabel"])
+
+    @staticmethod
+    def get(df, data_type):
+        schema = create_schema(data_type)
+        return MetaData.from_dict(df.attrs[schema.ycol])
+
+##################################################################################################################
+# Parameter Estimates
+class ParamEst:
+    def __init__(self, est, err):
+            self.est = est
+            self.err = err
+            self.data = [est, err]
+
+class ARMAEst:
+    def __init__(self, type, const, sigma2, params):
+        self.type = type
+        self.const = const
+        self.params = params
+        self.data = {"Type": type, "Const": const, "Parameters": params, "Sigma2": sigma2 }
+
+class OLSEst:
+    def __init__(self, const, params):
+        aelf.const = const
+        self.params = params
 
 ##################################################################################################################
 # Specify DataTypes used in analysis
@@ -27,7 +80,7 @@ class DataType(Enum):
     AGG_VAR = 21            # Aggregated variance
     VR = 22                 # Variance Ratio use in test for brownian motion
     VR_STAT = 23            # FBM variance ratio test statistic
-
+    PACF = 24
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -51,7 +104,7 @@ class DataSchema:
 
     def get_meta_data(self, df):
         meta_data = df.attrs
-        return meta_data[self.ycol]
+        return MetaData.from_dict(meta_data[self.ycol])
 
     def is_in(self, df):
         cols = df.columns
@@ -64,17 +117,13 @@ class DataSchema:
         return df.loc[:,~df.columns.duplicated()]
 
     @staticmethod
-    def create_data_frame(x, y, data_type):
-        schema = create_schema(data_type)
+    def create_data_frame(x, y, meta_data):
+        schema = meta_data.schema
         df = DataFrame({
             schema.xcol: x,
             schema.ycol: y
         })
-        meta_data = {
-            schema.ycol: {"npts": len(y),
-                          "DataType": data_type}
-        }
-        df.attrs = meta_data
+        df.attrs[schema.ycol] = meta_data.data
         return df
 
 ##################################################################################################################
@@ -87,7 +136,9 @@ def create_schema(data_type):
     elif data_type.value == DataType.PSPEC.value:
         return DataSchema("Frequency", "Power Spectrum", data_type)
     elif data_type.value == DataType.ACF.value:
-        return DataSchema("Lag", "ACF", data_type)
+        return DataSchema("ACF Lag", "ACF", data_type)
+    elif data_type.value == DataType.PACF.value:
+        return DataSchema("PACF Lag", "PACF", data_type)
     elif data_type.value == DataType.VR_STAT.value:
         return DataSchema("Lag", "Variance Ratio", data_type)
     elif data_type.value == DataType.DIFF_1.value:
@@ -128,3 +179,6 @@ def create_schema(data_type):
         return DataSchema("VR Time", "Variance Ratio", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")
+
+##################################################################################################################
+# Specify meta_data schema

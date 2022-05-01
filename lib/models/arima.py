@@ -11,7 +11,7 @@ import statsmodels.tsa as tsa
 from tabulate import tabulate
 
 from lib.models import bm
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (MetaData, DataType, DataSchema, create_schema)
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
@@ -128,19 +128,19 @@ def _create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
     q = len(δ)
     t = numpy.linspace(0, n-1, n)
     schema = create_schema(DataType.TIME_SERIES)
-    df = DataFrame({
-        schema.xcol: t,
-        schema.ycol: xt
-    })
     meta_data = {
-        schema.ycol: {"npts": n, "DataType": DataType.TIME_SERIES, "Label": "SIM"},
-        "Description": f"ARIMA({p},0,{q}) Series Simulation",
+        "npts": n,
+        "DataType": DataType.TIME_SERIES,
         "Parameters": {"φ": φ,  "δ": δ, "σ": σ, "μ": μ, "γ": γ},
-        "Date": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        "name": f"ARMA-Simulation-{str(uuid.uuid4())}",
-        "tags": "ARMA Simulation"
+        "Description": f"ARIMA({p},0,{q}) Simulation",
+        "xlabel": r"$t$",
+        "ylabel": r"$S_t$"
     }
-    df.attrs = meta_data
+    df = DataSchema.create_data_frame(t, xt, MetaData.from_dict(meta_data))
+    attrs = df.attrs
+    attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    attrs["Name"] = f"ARMA-Simulation-{str(uuid.uuid4())}"
+    df.attrs = attrs
     return df
 
 ### ARIMA(p,d,q) simulator
@@ -191,7 +191,7 @@ def ar_model(df, order):
 
 def ar_fit(df, order):
     result = ar_model(df, order).fit()
-    _get_param_est_results(df, result)
+    _add_param_est_results_to_meta_data(df, result, "AR")
     return result
 
 def ar_offset_model(df, order):
@@ -200,7 +200,7 @@ def ar_offset_model(df, order):
 
 def ar_offset_fit(df, order):
     result = ar_offset_model(df, order).fit()
-    _get_param_est_results(df, result)
+    _add_param_est_results_to_meta_data(df, result, "AR")
     return result
 
 def ma_model(df, order):
@@ -209,7 +209,7 @@ def ma_model(df, order):
 
 def ma_fit(df, order):
     result = ma_model(df, order).fit()
-    _get_param_est_results(df, result)
+    _add_param_est_results_to_meta_data(df, result, "MA")
     return result
 
 def ma_offset_model(df, order):
@@ -218,10 +218,10 @@ def ma_offset_model(df, order):
 
 def ma_offset_fit(df, order):
     result = ma_offset_model(samples, order).fit()
-    _get_param_est_results(df, result)
+    _add_param_est_results_to_meta_data(df, result, "MA")
     return result
 
-def _get_param_est_results(df, result):
+def _add_param_est_results_to_meta_data(df, result, type):
     schema = create_schema(DataType.TIME_SERIES)
     nparams = len(result.params)
     params = []
@@ -230,9 +230,8 @@ def _get_param_est_results(df, result):
     const = [result.params.iloc[0], result.bse.iloc[0]]
     sigma2 = [result.params.iloc[nparams-1], result.bse.iloc[nparams-1]]
     meta_data = df.attrs
-    meta_data[schema.ycol]["Estimates"] = {"Const": const, "Parameters": params, "Sigma2": sigma2}
+    meta_data[schema.ycol][f"Estimates"] = {"Type": type, "Const": const, "Parameters": params, "Sigma2": sigma2}
     df.attrs = meta_data
-
 
 ###############################################################################################
 ## ADF Test

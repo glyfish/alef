@@ -1,7 +1,7 @@
 import numpy
 from pandas import DataFrame
 import statsmodels.api as sm
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType, DataSchema, MetaData, create_schema)
 from enum import Enum
 
 class RegType(Enum):
@@ -11,25 +11,31 @@ class RegType(Enum):
     YLOG = 4
 
 def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
+    if len(dfs) == 0:
+        raise Exception(f"no data frames")
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
     mean = numpy.zeros(npts)
     for i in range(len(x)):
         for j in range(nsim):
             mean[i] += samples[j,i] / float(nsim)
-    return DataSchema.create_data_frame(x, mean, DataType.MEAN)
+    return _create_ensemble_avg_data_frame(x, mean, dfs[0], data_type, DataType.MEAN, "Ensemble Mean", r"$\mu$")
 
 def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
+    if len(dfs) == 0:
+        raise Exception(f"no data frames")
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
     mean = ensemble_mean(samples)
-    std = numpy.zeros(npts)
+    sd = numpy.zeros(npts)
     for i in range(len(x)):
         for j in range(nsim):
-            std[i] += (samples[j,i] - mean[i])**2 / float(nsim)
-    return DataSchema.create_data_frame(x, numpy.sqrt(std), DataType.SD)
+            sd[i] += (samples[j,i] - mean[i])**2 / float(nsim)
+    return _create_ensemble_avg_data_frame(x, numpy.sqrt(sd), dfs[0], data_type, DataType.SD, "Ensemble SD", r"$\sigma$")
 
 def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
+    if len(dfs) == 0:
+        raise Exception(f"no data frames")
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
     if nlags is None or nlags > len(x):
@@ -39,7 +45,7 @@ def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
         ac = acf(samples[j], nlags).real
         for i in range(nlags):
             ac_avg[i] += ac[i]
-    return DataSchema.create_data_frame(x[:nlags], ac_avg/float(nsim), DataType.ACF)
+    return _create_ensemble_avg_data_frame(x[:nlags], ac_avg/float(nsim), dfs[0], data_type, DataType.ACF, "Ensemble ACF", r"$\rho$")
 
 def cumu_mean(y):
     ny = len(y)
@@ -146,3 +152,16 @@ def _samples_from_dfs(dfs, data_type):
         x, y = schema.get_data(df)
         samples.append(y)
     return x, samples
+
+def _create_ensemble_avg_data_frame(x, y, df, source_data_type, data_type, desc, ylabel):
+    source_schema = create_schema(source_data_type)
+    source_meta_data = source_schema.get_meta_data(df)
+    meta_data = MetaData(
+        npts=len(y),
+        data_type=data_type,
+        params=source_meta_data.params,
+        desc=f"{source_meta_data.desc} {desc}",
+        xlabel=source_meta_data.xlabel,
+        ylabel=ylabel,
+    )
+    return DataSchema.create_data_frame(x, y, meta_data)
