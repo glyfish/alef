@@ -13,23 +13,34 @@ class MultiDataPlotType(Enum):
 
 # Plot Configurations
 class MultiDataPlotConfig:
-    def __init__(self, schemas, plot_type=PlotType.LINEAR):
+    def __init__(self, df, schemas, plot_type=PlotType.LINEAR):
         self.plot_type = plot_type
         self.schemas = schemas
+        self.title = self._get_title(df)
 
     def __repr__(self):
-        return f"MultiDataPlotConfig(plot_type=({self.est}), schemas=({self.schemas}))"
+        return f"MultiDataPlotConfig({self._props()})"
 
     def __str__(self):
+        return self._props()
+
+    def _props(self):
         return f"plot_type=({self.est}), schemas=({self.schemas})"
 
+    def _get_title(self, df):
+        meta_datas = [schema.get_meta_data(df) for schema in self.schemas]
+        var_desc  = "-".join([meta_data.desc for meta_data in meta_datas])
+        source_meta_data = meta_datas[0].source_schema.get_meta_data(df)
+        return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
+
 ## plot data type takes multiple data types
-def create_multi_data_plot_type(plot_type):
+def create_multi_data_plot_type(plot_type, df):
     if plot_type.value == MultiDataPlotType.ACF_PACF.value:
         schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
-        return MultiDataPlotConfig(schemas=schemas, plot_type=PlotType.LINEAR)
+        return MultiDataPlotConfig(df, schemas=schemas, plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
+
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
@@ -40,20 +51,21 @@ def twinx(df, plot_type, **kwargs):
     legend_loc   = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
     ylim         = get_param_default_if_missing("ylim", None, **kwargs)
 
-    plot_config = create_multi_data_plot_type(plot_type)
+    plot_config = create_multi_data_plot_type(plot_type, df)
 
-    if len(plot_config.schemas) < 2:
-        raise Exception(f"Must have at least two schemas: {plot_type}")
+    if len(plot_config.schemas) != 2:
+        raise Exception(f"Must have only two schemas: {plot_type}")
 
     figure, axis1 = pyplot.subplots(figsize=(13, 10))
 
-    if title is not None:
+    if title is None:
+        axis1.set_title(plot_config.title, y=title_offset)
+    else:
         axis1.set_title(title, y=title_offset)
 
     # first plot left axis1
     schema = plot_config.schemas[0]
     meta_data = schema.get_meta_data(df)
-    print(meta_data)
     axis1.set_ylabel(meta_data.ylabel)
     axis1.set_xlabel(meta_data.xlabel)
     _plot_curve(axis1, df, schema, plot_config, **kwargs)

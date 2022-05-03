@@ -34,9 +34,12 @@ class DataFunc:
             self.fx=fx
 
     def __repr__(self):
-        return f"DataFunc(schema=({self.schema}), fy=({self.fy}), fx=({self.fx}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema}))"
+        return f"DataFunc({self._props()})"
 
     def __str__(self):
+        return self._props()
+
+    def _props(self):
         return f"schema=({self.schema}), fy=({self.fy}), fx=({self.fx}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema})"
 
     def apply(self, df):

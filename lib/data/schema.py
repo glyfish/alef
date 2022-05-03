@@ -1,3 +1,4 @@
+import numpy
 from enum import Enum
 from pandas import (DataFrame, concat)
 
@@ -27,10 +28,13 @@ class MetaData:
         }
 
     def __repr__(self):
-        return f"MetaData(npts=({self.npts}), schema=({self.schema}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema}))"
+        return f"MetaData({self._props()})"
 
     def __str__(self):
-        return f"npts=({self.npts}), schema=({self.schema}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema})"
+        return self._props()
+
+    def _props(self):
+        return f"npts=({self.npts}), schema=({self.schema}), params=({self.params}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema})"
 
     def append_est(self, est):
         self.ests.append(est)
@@ -41,10 +45,35 @@ class MetaData:
         self.data["Tests"].append(test.data)
 
     def params_str(self):
-        return self.data["Parameters"]
+        params_keys = self.params
+        set_param_keys = []
+        for key in params_keys:
+            value = self.params[key]
+            if isinstance(value, list) and len(value) > 0:
+                set_param_keys.append(key)
+            if isinstance(value, numpy.ndarray) and len(value) > 0:
+                set_param_keys.append(key)
+            if isinstance(value, int) and value > 0:
+                set_param_keys.append(key)
+            if isinstance(value, float) and value > 0.0:
+                set_param_keys.append(key)
+            if isinstance(value, str) and value != "":
+                set_param_keys.append(key)
+        if len(set_param_keys) == 0:
+            return ""
+        params_strs = []
+        for key in set_param_keys:
+            value = self.params[key]
+            if isinstance(value, numpy.ndarray):
+                value_str = numpy.array2string(value, precision=2, separator=',', suppress_small=True)
+            else:
+                value_str = f"{value}"
+            params_strs.append(f"{key}={value_str}")
+        return ", ".join(params_strs)
 
     @staticmethod
     def from_dict(meta_data):
+        source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
         return MetaData(
             npts=meta_data["npts"],
             data_type=meta_data["DataType"],
@@ -54,7 +83,7 @@ class MetaData:
             ylabel=meta_data["ylabel"],
             ests=meta_data["Estimates"],
             tests=meta_data["Tests"],
-            source_schema=meta_data["SourceSchema"]
+            source_schema=source_schema
         )
 
     @staticmethod
@@ -92,9 +121,12 @@ class ParamEst:
             self.data = [est, err]
 
     def __repr__(self):
-        return f"ParamEst(est=({self.est}), err=({self.err}), data=({self.data}))"
+        return f"ParamEst({self._props()})"
 
     def __str__(self):
+        return self._props()
+
+    def _props(self):
         return f"est=({self.est}), err=({self.err}), data=({self.data})"
 
     @staticmethod
@@ -112,9 +144,12 @@ class ARMAEst:
                      "Sigma2": sigma2.data}
 
     def __repr__(self):
-        return f"ARMAEst(type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data}))"
+        return f"ARMAEst({_props()})"
 
     def __str__(self):
+        return _props()
+
+    def _props():
         return f"type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data})"
 
     @staticmethod
@@ -134,9 +169,12 @@ class OLSEst:
         self.data = {"Const": const.data, "Parameters": params.data}
 
     def __repr__(self):
-        return f"OLSEst(type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data}))"
+        return f"OLSEst({self._props()})"
 
     def __str__(self):
+        return self._props()
+
+    def _props(self):
         return f"type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data})"
 
     @staticmethod
@@ -184,10 +222,13 @@ class DataSchema:
         self.data_type = data_type
 
     def __repr__(self):
-        return f"DataSchema(xcol=({self.xcol}), ycol=({self.ycol}), desc=({self.data_type}))"
+        return f"DataSchema({self._props()})"
 
     def __str__(self):
-        return f"xcol=({self.xcol}), ycol=({self.ycol}), desc=({self.data_type})"
+        return self._props()
+
+    def _props(self):
+        return  f"xcol=({self.xcol}), ycol=({self.ycol}), data_type=({self.data_type})"
 
     def get_data(self, df):
         meta_data = df.attrs
