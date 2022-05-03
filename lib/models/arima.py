@@ -11,7 +11,8 @@ import statsmodels.tsa as tsa
 from tabulate import tabulate
 
 from lib.models import bm
-from lib.data.schema import (MetaData, DataType, DataSchema, create_schema)
+from lib.data.schema import (MetaData, DataType, DataSchema, create_schema,
+                             EstType, ARMAEst, ParamEst)
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
@@ -191,7 +192,7 @@ def ar_model(df, order):
 
 def ar_fit(df, order):
     result = ar_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, "AR")
+    _add_param_est_results_to_meta_data(df, result, EstType.AR)
     return result
 
 def ar_offset_model(df, order):
@@ -200,7 +201,7 @@ def ar_offset_model(df, order):
 
 def ar_offset_fit(df, order):
     result = ar_offset_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, "AR")
+    _add_param_est_results_to_meta_data(df, result, EstType.AR)
     return result
 
 def ma_model(df, order):
@@ -209,7 +210,7 @@ def ma_model(df, order):
 
 def ma_fit(df, order):
     result = ma_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, "MA")
+    _add_param_est_results_to_meta_data(df, result, EstType.MA)
     return result
 
 def ma_offset_model(df, order):
@@ -218,7 +219,7 @@ def ma_offset_model(df, order):
 
 def ma_offset_fit(df, order):
     result = ma_offset_model(samples, order).fit()
-    _add_param_est_results_to_meta_data(df, result, "MA")
+    _add_param_est_results_to_meta_data(df, result, EstType.MA)
     return result
 
 def _add_param_est_results_to_meta_data(df, result, type):
@@ -226,12 +227,11 @@ def _add_param_est_results_to_meta_data(df, result, type):
     nparams = len(result.params)
     params = []
     for i in range(1, nparams-1):
-        params.append([result.params.iloc[i], result.bse.iloc[i]])
-    const = [result.params.iloc[0], result.bse.iloc[0]]
-    sigma2 = [result.params.iloc[nparams-1], result.bse.iloc[nparams-1]]
-    meta_data = df.attrs
-    meta_data[schema.ycol][f"Estimates"] = {"Type": type, "Const": const, "Parameters": params, "Sigma2": sigma2}
-    df.attrs = meta_data
+        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
+    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
+    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
+    est = ARMAEst(type, const, sigma2, params)
+    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
 
 ###############################################################################################
 ## ADF Test

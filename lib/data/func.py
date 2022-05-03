@@ -33,6 +33,12 @@ class DataFunc:
         else:
             self.fx=fx
 
+    def __repr__(self):
+        return f"DataFunc(schema=({self.schema}), fy=({self.fy}), fx=({self.fx}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema}))"
+
+    def __str__(self):
+        return f"schema=({self.schema}), fy=({self.fy}), fx=({self.fx}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema})"
+
     def apply(self, df):
         x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
@@ -47,7 +53,8 @@ class DataFunc:
             params=self.params,
             desc=self.desc,
             xlabel=self.xlabel,
-            ylabel=self.ylabel
+            ylabel=self.ylabel,
+            source_schema = self.source_schema
         )
 
     def create_data_frame(self, x, y):
@@ -198,7 +205,7 @@ def _create_cumu_sd(schema, **kwargs):
                         fy=fy,
                         ylabel=r"$\sigma_t$",
                         xlabel=r"$t$",
-                        desc="Cumulative Standard Deviation")
+                        desc="Cumulative SD")
 
 
 # DataType.AR1_ACF
@@ -213,7 +220,7 @@ def _create_ar1_acf(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
-                    desc="AR(1) Autocorrelation Function",
+                    desc="AR(1) ACF",
                     fx=fx)
 
 # DataType.MAQ_ACF
@@ -229,7 +236,7 @@ def _create_maq_acf(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
-                    desc="MA(q) Autocorrelation Function",
+                    desc="MA(q) ACF",
                     fx=fx)
 
 # DataType.FBM_MEAN
@@ -259,7 +266,7 @@ def _create_fbm_sd(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
-                    desc="FBM Standard Deviation",
+                    desc="FBM SD",
                     fx=fx)
 
 # DataType.FBM_ACF
@@ -274,7 +281,7 @@ def _create_fbm_acf(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
-                    desc="FBM Autocorrelation Function",
+                    desc="FBM ACF",
                     fx=fx)
 
 # DataType.BM_MEAN
@@ -352,7 +359,7 @@ def _create_gbm_sd(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
-                    desc="Geometric BM Standard Deviation",
+                    desc="Geometric BM SD",
                     fx=fx)
 
 # DataType.AGG_VAR

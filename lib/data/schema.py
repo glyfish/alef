@@ -4,55 +4,147 @@ from pandas import (DataFrame, concat)
 ##################################################################################################################
 # Meta Data Schema
 class MetaData:
-    def __init__(self, npts, data_type, params, desc, xlabel, ylabel):
+    def __init__(self, npts, data_type, params, desc, xlabel, ylabel, ests=[], tests=[], source_schema=None):
         self.npts = npts
         self.schema = create_schema(data_type)
         self.params = params
         self.desc = desc
         self.xlabel = xlabel
         self.ylabel = ylabel
+        self.ests = ests
+        self.tests = tests
+        self.source_schema = source_schema
         self.data =  {
           "npts": npts,
           "DataType": data_type,
           "Parameters": params,
           "Description": desc,
           "ylabel": ylabel,
-          "xlabel": xlabel
+          "xlabel": xlabel,
+          "SourceSchema": source_schema,
+          "Estimates": [est.data for est in ests],
+          "Tests": [test.data for test in tests]
         }
+
+    def __repr__(self):
+        return f"MetaData(npts=({self.npts}), schema=({self.schema}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema}))"
+
+    def __str__(self):
+        return f"npts=({self.npts}), schema=({self.schema}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema})"
+
+    def append_est(self, est):
+        self.ests.append(est)
+        self.data["Estimates"].append(est.data)
+
+    def append_test(self, test):
+        self.tests.append(test)
+        self.data["Tests"].append(test.data)
+
+    def params_str(self):
+        return self.data["Parameters"]
 
     @staticmethod
     def from_dict(meta_data):
-        return MetaData(meta_data["npts"],
-                        meta_data["DataType"],
-                        meta_data["Parameters"],
-                        meta_data["Description"],
-                        meta_data["xlabel"],
-                        meta_data["ylabel"])
+        return MetaData(
+            npts=meta_data["npts"],
+            data_type=meta_data["DataType"],
+            params=meta_data["Parameters"],
+            desc=meta_data["Description"],
+            xlabel=meta_data["xlabel"],
+            ylabel=meta_data["ylabel"],
+            ests=meta_data["Estimates"],
+            tests=meta_data["Tests"],
+            source_schema=meta_data["SourceSchema"]
+        )
 
     @staticmethod
     def get(df, data_type):
         schema = create_schema(data_type)
         return MetaData.from_dict(df.attrs[schema.ycol])
 
+    @staticmethod
+    def set(df, data_type, meta_data):
+        schema = create_schema(data_type)
+        df.attrs[schema.ycol]  = meta_data.data
+
+    @staticmethod
+    def add_estimate(df, data_type, est):
+        meta_data = MetaData.get(df, data_type)
+        meta_data.append_est(est)
+        MetaData.set(df, data_type, meta_data)
+
+    def add_test(df, data_type, test):
+        meta_data = MetaData.get(df, data_type)
+        meta_data.append_test(test)
+        MetaData.set(df, data_type, meta_data)
+
 ##################################################################################################################
 # Parameter Estimates
+class EstType(Enum):
+    AR = "AR"          # Autoregressive model parameters
+    MA = "MA"          # Moving average model parameters
+    OLS = "OLS"        # Ordinar least squares linear model parameters
+
 class ParamEst:
     def __init__(self, est, err):
             self.est = est
             self.err = err
             self.data = [est, err]
 
+    def __repr__(self):
+        return f"ParamEst(est=({self.est}), err=({self.err}), data=({self.data}))"
+
+    def __str__(self):
+        return f"est=({self.est}), err=({self.err}), data=({self.data})"
+
+    @staticmethod
+    def from_array(meta_data):
+        return ParamEst(meta_data[0], meta_data[1])
+
 class ARMAEst:
     def __init__(self, type, const, sigma2, params):
         self.type = type
         self.const = const
         self.params = params
-        self.data = {"Type": type, "Const": const, "Parameters": params, "Sigma2": sigma2 }
+        self.data = {"Type": type,
+                     "Const": const.data,
+                     "Parameters": [p.data for p in params],
+                     "Sigma2": sigma2.data}
+
+    def __repr__(self):
+        return f"ARMAEst(type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data}))"
+
+    def __str__(self):
+        return f"type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data})"
+
+    @staticmethod
+    def from_dict(meta_data):
+        return ARMAEst(
+            type=meta_data["Type"],
+            const=ParamEst.from_array(meta_data["Const"]),
+            sigma2=ParamEst.from_array(meta_data["Sigma2"]),
+            params=[ParamEst.from_array(est) for est in  meta_data["Parameters"]]
+        )
 
 class OLSEst:
     def __init__(self, const, params):
-        aelf.const = const
+        self.type = EstType.OLS
+        self.const = const
         self.params = params
+        self.data = {"Const": const.data, "Parameters": params.data}
+
+    def __repr__(self):
+        return f"OLSEst(type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data}))"
+
+    def __str__(self):
+        return f"type=({self.type}), const=({self.const}), params=({self.params}), data=({self.data})"
+
+    @staticmethod
+    def from_dict(meta_data):
+        return ARMAEst(
+            const=ParamEst.from_array(meta_data["Const"]),
+            params=[ParamEst.from_array(est) for est in  meta_data["Parameters"]]
+        )
 
 ##################################################################################################################
 # Specify DataTypes used in analysis
@@ -80,7 +172,7 @@ class DataType(Enum):
     AGG_VAR = 21            # Aggregated variance
     VR = 22                 # Variance Ratio use in test for brownian motion
     VR_STAT = 23            # FBM variance ratio test statistic
-    PACF = 24
+    PACF = 24               # Partial Autocorrelation function
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -90,6 +182,12 @@ class DataSchema:
         self.xcol = xcol
         self.ycol = ycol
         self.data_type = data_type
+
+    def __repr__(self):
+        return f"DataSchema(xcol=({self.xcol}), ycol=({self.ycol}), desc=({self.data_type}))"
+
+    def __str__(self):
+        return f"xcol=({self.xcol}), ycol=({self.ycol}), desc=({self.data_type})"
 
     def get_data(self, df):
         meta_data = df.attrs
@@ -179,6 +277,3 @@ def create_schema(data_type):
         return DataSchema("VR Time", "Variance Ratio", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")
-
-##################################################################################################################
-# Specify meta_data schema

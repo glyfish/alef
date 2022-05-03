@@ -1,53 +1,46 @@
 import numpy
 from enum import Enum
 from matplotlib import pyplot
+import matplotlib.ticker
 
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, calculate_ticks)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 # Specify CompPlotType
-class CompPlotType(Enum):
-    GENERIC = 1             # Generic comparison plot
+class MultiDataPlotType(Enum):
     ACF_PACF = 2            # ACF-PACF comparison plot
 
 # Plot Configurations
-class CompPlotConfig:
-    def __init__(self, xlabel, ylabels, schemas, plot_type=PlotType.LINEAR):
-        self.xlabel=xlabel
-        self.ylabels=ylabels
-        self.plot_type=plot_type
-        self.schemas=schemas
+class MultiDataPlotConfig:
+    def __init__(self, schemas, plot_type=PlotType.LINEAR):
+        self.plot_type = plot_type
+        self.schemas = schemas
+
+    def __repr__(self):
+        return f"MultiDataPlotConfig(plot_type=({self.est}), schemas=({self.schemas}))"
+
+    def __str__(self):
+        return f"plot_type=({self.est}), schemas=({self.schemas})"
 
 ## plot data type takes multiple data types
-def create_comp_plot_type(plot_type):
-    if plot_type.value == CompPlotType.GENERIC.value:
-        schemas = [create_schema(DataType.TIME_SERIES), create_schema(DataType.GENERIC)]
-        return CompPlotConfig(xlabel=r"$t$",
-                              ylabels=[r"$S_t$", r"$y$"],
-                              schemas=schemas,
-                              plot_type=PlotType.LINEAR)
-    if plot_type.value == CompPlotType.ACF_PACF.value:
+def create_multi_data_plot_type(plot_type):
+    if plot_type.value == MultiDataPlotType.ACF_PACF.value:
         schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
-        return CompPlotConfig(xlabel=r"$\tau$",
-                              ylabels=[r"$\rho_\tau$", r"$\varphi_\tau$"],
-                              schemas=schemas,
-                              plot_type=PlotType.LINEAR)
+        return MultiDataPlotConfig(schemas=schemas, plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
-# and data in the same DataFrame
-def twinx(df, **kwargs):
+# with data in the same DataFrame
+def twinx(df, plot_type, **kwargs):
     title        = get_param_default_if_missing("title", None, **kwargs)
     title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
-    plot_type    = get_param_default_if_missing("plot_type", CompPlotType.GENERIC, **kwargs)
-    labels       = get_param_default_if_missing("labels", None, **kwargs)
-    nticks       = get_param_default_if_missing("nticks", 5, **kwargs)
     legend_loc   = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
+    ylim         = get_param_default_if_missing("ylim", None, **kwargs)
 
-    plot_config = create_comp_plot_type(plot_type)
+    plot_config = create_multi_data_plot_type(plot_type)
 
     if len(plot_config.schemas) < 2:
         raise Exception(f"Must have at least two schemas: {plot_type}")
@@ -57,33 +50,49 @@ def twinx(df, **kwargs):
     if title is not None:
         axis1.set_title(title, y=title_offset)
 
-    axis1.set_xlabel(plot_config.xlabel)
-
     # first plot left axis1
     schema = plot_config.schemas[0]
-    axis1.set_ylabel(plot_config.ylabels[0])
-    _plot_curve(axis1, df, schema, plot_config, labels[0], **kwargs)
+    meta_data = schema.get_meta_data(df)
+    print(meta_data)
+    axis1.set_ylabel(meta_data.ylabel)
+    axis1.set_xlabel(meta_data.xlabel)
+    _plot_curve(axis1, df, schema, plot_config, **kwargs)
 
     # second plot right axis2
     schema = plot_config.schemas[1]
+    meta_data = schema.get_meta_data(df)
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
-    axis2.set_ylabel(plot_config.ylabels[1])
-    _plot_curve(axis2, df, schema, plot_config, labels[1], **kwargs)
+    axis2.set_ylabel(meta_data.ylabel)
+    _plot_curve(axis2, df, schema, plot_config, **kwargs)
 
-    axis1.set_yticks(calculate_ticks(axis1, nticks))
-    axis2.set_yticks(calculate_ticks(axis2, nticks))
+    if ylim is not None:
+        axis1.set_ylim(ylim)
+
+    twinx_ticks(axis1, axis2)
     axis2.grid(False)
 
     figure.legend(loc=legend_loc, bbox_to_anchor=(0.2, 0.2, 0.6, 0.6))
 
 ###############################################################################################
+# compute twinz ticks so grids align
+def twinx_ticks(axis1, axis2):
+    y1_lim = axis1.get_ylim()
+    y2_lim = axis2.get_ylim()
+    f = lambda x : y2_lim[0] + (x - y1_lim[0])*(y2_lim[1] - y2_lim[0])/(y1_lim[1] - y1_lim[0])
+    ticks = f(axis1.get_yticks())
+    axis2.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(ticks))
+    axis2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2f'))
+
+###############################################################################################
 # plot curve on specified axis
-def _plot_curve(axis, df, schema, plot_config, label, **kwargs):
+def _plot_curve(axis, df, schema, plot_config, **kwargs):
     lw   = get_param_default_if_missing("lw", 2, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
     x, y = schema.get_data(df)
+    meta_data = schema.get_meta_data(df)
+    label = meta_data.desc + " (" + meta_data.ylabel + ")"
 
     if npts is None or npts > len(y):
         npts = len(y)
@@ -116,71 +125,13 @@ def _plot_curve(axis, df, schema, plot_config, label, **kwargs):
             axis.plot(x, y, label=label, lw=lw)
 
 ###############################################################################################
-# Plot multiple curves of the same DataType using the same axes  (Uses DataPlotType config)
-def comparison(df, **kwargs):
+# Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
+def stack(dfs, plot_type, **kwargs):
     title        = get_param_default_if_missing("title", None, **kwargs)
     title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
-    plot_type    = get_param_default_if_missing("plot_type", CompPlotType.GENERIC, **kwargs)
     labels       = get_param_default_if_missing("labels", None, **kwargs)
-    lw           = get_param_default_if_missing("lw", 2, **kwargs)
+    ylim         = get_param_default_if_missing("ylim", None, **kwargs)
     npts         = get_param_default_if_missing("npts", None, **kwargs)
-
-    plot_config = create_data_plot_type(plot_type)
-    nplot = len(plot_config.schemas)
-
-    figure, axis = pyplot.subplots(figsize=(13, 10))
-
-    if title is not None:
-        axis.set_title(title, y=title_offset)
-
-    axis.set_xlabel(plot_config.xlabel)
-    axis.set_ylabel(plot_config.ylabel)
-
-    for i in range(nplot):
-        x, y = plot_config.data_type.get_data(dfs[i])
-
-        if npts is None or npts > len(y):
-            npts = len(y)
-
-        x = x[:npts]
-        y = y[:npts]
-
-        if plot_config.plot_type.value == PlotType.LOG.value:
-            logStyle(axis, x, y)
-            if labels is None:
-                axis.loglog(x, y, lw=lw)
-            else:
-                axis.loglog(x, y, label=labels[i], lw=lw)
-        elif plot_config.plot_type.value == PlotType.XLOG.value:
-            logXStyle(axis, x, y)
-            if labels is None:
-                axis.semilogx(x, y, lw=lw)
-            else:
-                axis.semilogx(x, y, label=labels[i], lw=lw)
-        elif plot_config.plot_type.value == PlotType.YLOG.value:
-            logYStyle(axis, x, y)
-            if labels is None:
-                axis.semilogy(x, y, lw=lw)
-            else:
-                axis.semilogy(x, y, label=labels[i], lw=lw)
-        else:
-            if labels is None:
-                axis.plot(x, y, lw=lw)
-            else:
-                axis.plot(x, y, label=labels[i], lw=lw)
-
-    if nplot <= 12 and labels is not None:
-        axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
-
-###############################################################################################
-# Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
-def stack(dfs, **kwargs):
-    ylim         = kwargs["ylim"]         if "ylim"         in kwargs else None
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    labels       = kwargs["labels"]       if "labels"       in kwargs else None
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
 
     nplot = len(dfs)
 
@@ -197,7 +148,7 @@ def stack(dfs, **kwargs):
         axis[0].set_title(title, y=title_offset)
 
     for i in range(nplot):
-        plot_config = create_data_plot_type(plot_type[i])
+        plot_config = create_multi_data_plot_type(plot_type[i])
         x, y = plot_config.data_type.get_data(dfs[i])
 
         if npts is None or npts > len(y):

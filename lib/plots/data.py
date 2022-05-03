@@ -4,6 +4,7 @@ from matplotlib import pyplot
 
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 # Specify PlotConfig for curve, comparison and stack plots
 class DataPlotType(Enum):
@@ -21,58 +22,59 @@ class DataPlotType(Enum):
 
 # Configurations used in plots
 class DataPlotConfig:
-    def __init__(self, xlabel, ylabel, data_type, plot_type=PlotType.LINEAR):
+    def __init__(self, xlabel, ylabel, schema, plot_type=PlotType.LINEAR):
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.plot_type = plot_type
-        self.data_type = data_type
+        self.schema = schema
 
 ## plot data type
 def create_data_plot_type(plot_type):
     if plot_type.value == DataPlotType.TIME_SERIES.value:
-        data_type=create_schema(DataType.TIME_SERIES)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema=create_schema(DataType.TIME_SERIES)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$S_t$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.PSPEC.value:
-        data_type = create_schema(DataType.PSPEC)
-        return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", data_type=data_type, plot_type=PlotType.LOG)
+        schema = create_schema(DataType.PSPEC)
+        return DataPlotConfig(xlabel=r"$\omega$", ylabel=r"$\rho_\omega$", schema=schema, plot_type=PlotType.LOG)
     elif plot_type.value == DataPlotType.ACF.value:
-        data_type = create_schema(DataType.ACF)
-        return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.ACF)
+        return DataPlotConfig(xlabel=r"$\tau$", ylabel=r"$\rho_\tau$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VR_STAT.value:
-        data_type = create_schema(DataType.VR_STAT)
-        return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.VR_STAT)
+        return DataPlotConfig(xlabel=r"$s$", ylabel=r"$Z(s)$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_1.value:
-        data_type = create_schema(DataType.DIFF_1)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.DIFF_1)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta S_t$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.DIFF_2.value:
-        data_type = create_schema(DataType.DIFF_2)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.DIFF_2)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\Delta^2 S_t$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.VAR.value:
-        data_type = create_schema(DataType.VAR)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.VAR)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t^2$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.COV.value:
-        data_type = create_schema(DataType.COV)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.COV)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"Cov($S_t S_s$)", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.MEAN.value:
-        data_type = create_schema(DataType.MEAN)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.MEAN)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\mu_t$", schema=schema, plot_type=PlotType.LINEAR)
     elif plot_type.value == DataPlotType.STD.value:
-        data_type = create_schema(DataType.STD)
-        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", data_type=data_type, plot_type=PlotType.LINEAR)
+        schema = create_schema(DataType.STD)
+        return DataPlotConfig(xlabel=r"$t$", ylabel=r"$\sigma_t$", schema=schema, plot_type=PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
 
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
 def curve(df, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+    title        = get_param_default_if_missing("title", None, **kwargs)
+    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    plot_type    = get_param_default_if_missing("plot_type", DataPlotType.GENERIC, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    lw           = get_param_default_if_missing("lw", 2, **kwargs)
+    npts         = get_param_default_if_missing("npts", None, **kwargs)
 
     plot_config = create_data_plot_type(plot_type)
-    x, y = plot_config.data_type.get_data(df)
+    x, y = plot_config.schema.get_data(df)
 
     if npts is None or npts > len(y):
         npts = len(y)
@@ -103,12 +105,12 @@ def curve(df, **kwargs):
 ###############################################################################################
 # Plot multiple curves of the same DataType using the same axes  (Uses DataPlotType config)
 def comparison(dfs, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
-    labels       = kwargs["labels"]       if "labels"       in kwargs else None
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+    title        = get_param_default_if_missing("title", None, **kwargs)
+    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    plot_type    = get_param_default_if_missing("plot_type", DataPlotType.GENERIC, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    lw           = get_param_default_if_missing("lw", 2, **kwargs)
+    npts         = get_param_default_if_missing("npts", None, **kwargs)
 
     plot_config = create_data_plot_type(plot_type)
     nplot = len(dfs)
@@ -123,7 +125,7 @@ def comparison(dfs, **kwargs):
     axis.set_ylabel(plot_config.ylabel)
 
     for i in range(nplot):
-        x, y = plot_config.data_type.get_data(dfs[i])
+        x, y = plot_config.schema.get_data(dfs[i])
 
         if npts is None or npts > len(y):
             npts = len(y)
@@ -161,12 +163,12 @@ def comparison(dfs, **kwargs):
 ###############################################################################################
 # Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
 def stack(dfs, **kwargs):
-    ylim         = kwargs["ylim"]         if "ylim"         in kwargs else None
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else DataPlotType.GENERIC
-    labels       = kwargs["labels"]       if "labels"       in kwargs else None
-    npts         = kwargs["npts"]         if "npts"         in kwargs else None
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+    title        = get_param_default_if_missing("title", None, **kwargs)
+    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    plot_type    = get_param_default_if_missing("plot_type", DataPlotType.GENERIC, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    ylim         = get_param_default_if_missing("ylim", None, **kwargs)
+    npts         = get_param_default_if_missing("npts", None, **kwargs)
 
     nplot = len(dfs)
 
@@ -184,7 +186,7 @@ def stack(dfs, **kwargs):
 
     for i in range(nplot):
         plot_config = create_data_plot_type(plot_type[i])
-        x, y = plot_config.data_type.get_data(dfs[i])
+        x, y = plot_config.schema.get_data(dfs[i])
 
         if npts is None or npts > len(y):
             npts = len(y)
@@ -219,4 +221,3 @@ def stack(dfs, **kwargs):
             axis[i].semilogy(x, y, lw=1)
         else:
             axis[i].plot(x, y, lw=1)
-        

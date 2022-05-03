@@ -337,7 +337,7 @@ class VarianceRatioTestReport:
         self.critical_values = critical_values
 
     def __repr__(self):
-        f"VarianceRatioTestReport(status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values})"
+        return f"VarianceRatioTestReport(status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values})"
 
     def __str__(self):
         return f"status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values}"
