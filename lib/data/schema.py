@@ -213,6 +213,8 @@ class DataType(Enum):
     VR = 22                 # Variance Ratio use in test for brownian motion
     VR_STAT = 23            # FBM variance ratio test statistic
     PACF = 24               # Partial Autocorrelation function
+    BM_NOISE = 25           # Brownian motion noise increments computed from brwnian motion
+    BM = 26                 # Brownian motion computed from brownian motion noise
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -318,5 +320,9 @@ def create_schema(data_type):
         return DataSchema("Agg Time", "Aggregated Variance", data_type)
     elif data_type.value == DataType.VR.value:
         return DataSchema("VR Time", "Variance Ratio", data_type)
+    elif data_type.value == DataType.BM_NOISE.value:
+        return DataSchema("BM Noise Time", "BM Noise", data_type)
+    elif data_type.value == DataType.BM.value:
+        return DataSchema("Time", "BM", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")

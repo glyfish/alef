@@ -19,7 +19,7 @@ def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
     for i in range(len(x)):
         for j in range(nsim):
             mean[i] += samples[j,i] / float(nsim)
-    return _create_ensemble_avg_data_frame(x, mean, dfs[0], data_type, DataType.MEAN, "Ensemble Mean", r"$\mu$")
+    return _create_ensemble_avg_data_frame(x, mean, nsim, dfs[0], data_type, DataType.MEAN, "Ensemble Mean", r"$\mu$")
 
 def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
     if len(dfs) == 0:
@@ -31,7 +31,7 @@ def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
     for i in range(len(x)):
         for j in range(nsim):
             sd[i] += (samples[j,i] - mean[i])**2 / float(nsim)
-    return _create_ensemble_avg_data_frame(x, numpy.sqrt(sd), dfs[0], data_type, DataType.SD, "Ensemble SD", r"$\sigma$")
+    return _create_ensemble_avg_data_frame(x, numpy.sqrt(sd), nsim, dfs[0], data_type, DataType.SD, "Ensemble SD", r"$\sigma$")
 
 def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
     if len(dfs) == 0:
@@ -45,7 +45,7 @@ def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
         ac = acf(samples[j], nlags).real
         for i in range(nlags):
             ac_avg[i] += ac[i]
-    return _create_ensemble_avg_data_frame(x[:nlags], ac_avg/float(nsim), dfs[0], data_type, DataType.ACF, "Ensemble ACF", r"$\rho$")
+    return _create_ensemble_avg_data_frame(x[:nlags], ac_avg/float(nsim), nsim, dfs[0], data_type, DataType.ACF, "Ensemble ACF", r"$\rho$")
 
 def cumu_mean(y):
     ny = len(y)
@@ -153,9 +153,10 @@ def _samples_from_dfs(dfs, data_type):
         samples.append(y)
     return x, samples
 
-def _create_ensemble_avg_data_frame(x, y, df, source_data_type, data_type, desc, ylabel):
+def _create_ensemble_avg_data_frame(x, y, nsim, df, source_data_type, data_type, desc, ylabel):
     source_schema = create_schema(source_data_type)
     source_meta_data = source_schema.get_meta_data(df)
+    source_meta_data["Parameters"]["nsim"] = nsim
     meta_data = MetaData(
         npts=len(y),
         data_type=data_type,

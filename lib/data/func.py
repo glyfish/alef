@@ -3,6 +3,7 @@ from pandas import DataFrame
 
 from lib import stats
 from lib.models import fbm
+from lib.models import bm
 from lib.models import arima
 
 from lib.data.schema import (DataType, DataSchema, create_schema, MetaData)
@@ -111,6 +112,10 @@ def create_data_func(data_type, **kwargs):
         return _create_agg_var(schema, **kwargs)
     elif data_type.value == DataType.VR.value:
         return _create_vr(schema, **kwargs)
+    elif data_type.value == DataType.BM_NOISE.value:
+        return _create_bm_noise(schema, **kwargs)
+    elif data_type.value == DataType.BM.value:
+        return _create_bm(schema, **kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
 
@@ -395,4 +400,29 @@ def _create_vr(schema, **kwargs):
                     ylabel=r"$\text{VR}(s)$",
                     xlabel=r"$s$",
                     desc="Variance Ratio",
+                    fx=fx)
+
+# DataType.BM_NOISE
+def _create_bm_noise(schema, **kwargs):
+    fx = lambda x : x[1:]
+    fy = lambda x, y : bm.to_noise(y)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$\Delta S_t$",
+                    xlabel=r"$t$",
+                    desc="BM Noise",
+                    fx=fx)
+
+# DataType.BM
+def _create_bm(schema, **kwargs):
+    fy = lambda x, y : bm.to_noise(y)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$S_t$",
+                    xlabel=r"$t$",
+                    desc="BM",
                     fx=fx)

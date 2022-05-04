@@ -100,7 +100,7 @@ def ar1_series(φ, σ, nsample, nseries):
 
 def ar1_ensemble(φ, σ, nsample, nsim):
     series = []
-    for i in range(1, nsim):
+    for i in range(nsim):
         series.append(ar1(φ, nsample, σ))
     return series
 
@@ -132,7 +132,7 @@ def _create_arma_simulation_data_frame(xt, φ, θ, μ, γ, n, σ):
     meta_data = {
         "npts": n,
         "DataType": DataType.TIME_SERIES,
-        "Parameters": {"φ": φ,  "θ": θ, "σ": σ, "μ": μ, "γ": γ},
+        "Parameters": {"φ": φ, "θ": θ, "σ": σ, "μ": μ, "γ": γ},
         "Description": f"ARIMA({p},0,{q})",
         "xlabel": r"$t$",
         "ylabel": r"$S_t$"

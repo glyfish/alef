@@ -13,10 +13,10 @@ class MultiDataPlotType(Enum):
 
 # Plot Configurations
 class MultiDataPlotConfig:
-    def __init__(self, df, schemas, plot_type=PlotType.LINEAR):
+    def __init__(self, df, schemas, title, plot_type=PlotType.LINEAR):
         self.plot_type = plot_type
         self.schemas = schemas
-        self.title = self._get_title(df)
+        self.title = title
 
     def __repr__(self):
         return f"MultiDataPlotConfig({self._props()})"
@@ -27,8 +27,9 @@ class MultiDataPlotConfig:
     def _props(self):
         return f"plot_type=({self.est}), schemas=({self.schemas})"
 
-    def _get_title(self, df):
-        meta_datas = [schema.get_meta_data(df) for schema in self.schemas]
+    @staticmethod
+    def _get_func_title(df, schemas):
+        meta_datas = [schema.get_meta_data(df) for schema in schemas]
         var_desc  = "-".join([meta_data.desc for meta_data in meta_datas])
         source_meta_data = meta_datas[0].source_schema.get_meta_data(df)
         return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
@@ -37,10 +38,10 @@ class MultiDataPlotConfig:
 def create_multi_data_plot_type(plot_type, df):
     if plot_type.value == MultiDataPlotType.ACF_PACF.value:
         schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
-        return MultiDataPlotConfig(df, schemas=schemas, plot_type=PlotType.LINEAR)
+        title = MultiDataPlotConfig._get_func_title(df, schemas)
+        return MultiDataPlotConfig(df, schemas, title, PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
-
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
