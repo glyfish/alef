@@ -111,29 +111,29 @@ def arp(φ, n, σ=1.0):
     return _create_arma_simulation_data_frame(xt, φ, [], 0.0, 0.0, n, σ)
 
 ## MA(q) simulator
-def maq(δ, n, σ=1.0):
+def maq(θ, n, σ=1.0):
     φ_sim = numpy.array([1.0])
-    δ_sim = numpy.r_[1, δ]
-    xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return _create_arma_simulation_data_frame(xt, [], δ, 0.0, 0.0, n, σ)
+    θ_sim = numpy.r_[1, θ]
+    xt = sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
+    return _create_arma_simulation_data_frame(xt, [], θ, 0.0, 0.0, n, σ)
 
 ## ARMA(p,q) simulator
-def arma(φ, δ, n, σ=1):
+def arma(φ, θ, n, σ=1):
     φ_sim = numpy.r_[1, -φ]
-    δ_sim = numpy.r_[1, δ]
-    xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return _create_arma_simulation_data_frame(xt, φ, δ, 0.0, 0.0, n, σ)
+    θ_sim = numpy.r_[1, θ]
+    xt = sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
+    return _create_arma_simulation_data_frame(xt, θ, δ, 0.0, 0.0, n, σ)
 
-def _create_arma_simulation_data_frame(xt, φ, δ, μ, γ, n, σ):
+def _create_arma_simulation_data_frame(xt, φ, θ, μ, γ, n, σ):
     p = len(φ)
-    q = len(δ)
+    q = len(θ)
     t = numpy.linspace(0, n-1, n)
     schema = create_schema(DataType.TIME_SERIES)
     meta_data = {
         "npts": n,
         "DataType": DataType.TIME_SERIES,
-        "Parameters": {"φ": φ,  "δ": δ, "σ": σ, "μ": μ, "γ": γ},
-        "Description": f"ARIMA({p},0,{q}) Simulation",
+        "Parameters": {"φ": φ,  "θ": θ, "σ": σ, "μ": μ, "γ": γ},
+        "Description": f"ARIMA({p},0,{q})",
         "xlabel": r"$t$",
         "ylabel": r"$S_t$"
     }

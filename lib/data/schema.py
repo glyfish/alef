@@ -74,6 +74,8 @@ class MetaData:
     @staticmethod
     def from_dict(meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
+        ests = meta_data["Estimates"] if "Estimates" in meta_data.keys() else []
+        tests = meta_data["Tests"] if "Tests" in meta_data.keys() else []
         return MetaData(
             npts=meta_data["npts"],
             data_type=meta_data["DataType"],
@@ -81,8 +83,8 @@ class MetaData:
             desc=meta_data["Description"],
             xlabel=meta_data["xlabel"],
             ylabel=meta_data["ylabel"],
-            ests=meta_data["Estimates"],
-            tests=meta_data["Tests"],
+            ests=ests,
+            tests=tests,
             source_schema=source_schema
         )
 
