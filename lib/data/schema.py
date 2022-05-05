@@ -12,9 +12,9 @@ class MetaData:
         self.desc = desc
         self.xlabel = xlabel
         self.ylabel = ylabel
-        self.ests = ests
-        self.tests = tests
         self.source_schema = source_schema
+        self.ests = {}
+        self.tests = {}
         self.data =  {
           "npts": npts,
           "DataType": data_type,
@@ -23,9 +23,14 @@ class MetaData:
           "ylabel": ylabel,
           "xlabel": xlabel,
           "SourceSchema": source_schema,
-          "Estimates": [est.data for est in ests],
-          "Tests": [test.data for test in tests]
+          "Estimates": {},
+          "Tests": {}
         }
+        for est in ests:
+            self.insert_est(est)
+
+        for test in tests:
+            self.insert_est(test)
 
     def __repr__(self):
         return f"MetaData({self._props()})"
@@ -36,13 +41,13 @@ class MetaData:
     def _props(self):
         return f"npts=({self.npts}), schema=({self.schema}), params=({self.params}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema})"
 
-    def append_est(self, est):
-        self.ests.append(est)
-        self.data["Estimates"].append(est.data)
+    def insert_estimate(self, est):
+        self.ests[est.type.value] = est
+        self.data["Estimates"][est.type.value] = est.data
 
-    def append_test(self, test):
-        self.tests.append(test)
-        self.data["Tests"].append(test.data)
+    def insert_test(self, test):
+        self.ests[test.type.value] = test
+        self.data["Tests"][test.type.value] = test.data
 
     def params_str(self):
         params_keys = self.params
@@ -101,20 +106,21 @@ class MetaData:
     @staticmethod
     def add_estimate(df, data_type, est):
         meta_data = MetaData.get(df, data_type)
-        meta_data.append_est(est)
+        meta_data.insert_estimate(est)
         MetaData.set(df, data_type, meta_data)
 
     def add_test(df, data_type, test):
         meta_data = MetaData.get(df, data_type)
-        meta_data.append_test(test)
+        meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)
 
 ##################################################################################################################
 # Parameter Estimates
 class EstType(Enum):
-    AR = "AR"          # Autoregressive model parameters
-    MA = "MA"          # Moving average model parameters
-    OLS = "OLS"        # Ordinar least squares linear model parameters
+    AR = "AR"            # Autoregressive model parameters
+    MA = "MA"            # Moving average model parameters
+    PERGRAM = "PERGRAM"  # Periodogram esimate of FBM Hurst parameter using OLS
+    VAR_AGG = "VAR_AGG"  # variance Aggregation esimate of FBM Hurst parameter using OLS
 
 class ParamEst:
     def __init__(self, est, err):
@@ -164,8 +170,8 @@ class ARMAEst:
         )
 
 class OLSEst:
-    def __init__(self, const, params):
-        self.type = EstType.OLS
+    def __init__(self, type, const, params):
+        self.type = type
         self.const = const
         self.params = params
         self.data = {"Const": const.data, "Parameters": params.data}

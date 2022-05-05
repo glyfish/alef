@@ -10,7 +10,6 @@ import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from tabulate import tabulate
 
-from lib.models import bm
 from lib.data.schema import (MetaData, DataType, DataSchema, create_schema,
                              EstType, ARMAEst, ParamEst)
 
@@ -58,12 +57,15 @@ def ar1_offset_sigma(φ, σ):
 
 ###############################################################################################
 ## AR(p) simulators
+def noise(n):
+    return numpy.random.normal(0.0, 1.0, n)
+
 def ar(φ, x0, n, σ):
     p = len(φ)
     samples = numpy.zeros(n)
     for i in range(0, q):
         samples[i] = x0[i]
-    ε = σ*bm.noise(n)
+    ε = σ*noise(n)
     for i in range(p, n):
         samples[i] = ε[i]
         for j in range(0, p):
@@ -82,7 +84,7 @@ def arp_offset(φ, μ, n, σ):
 def arp_drift(φ, μ, γ, n, σ):
     p = len(φ)
     samples = numpy.zeros(n)
-    ε = σ*bm.noise(n)
+    ε = σ*noise(n)
     for i in range(p, n):
         samples[i] = ε[i] + γ*i + μ
         for j in range(0, p):

@@ -2,6 +2,8 @@
 ## Brownian motion simulators
 import numpy
 from lib.data.schema import (MetaData, DataType, DataSchema, create_schema)
+from datetime import datetime
+import uuid
 
 def to_noise(samples):
     nsim, npts = samples.shape
@@ -62,7 +64,7 @@ def ensemble_geometric(nsim, npts, μ, σ, s0):
         samples.append(bm.bm_geometric(μ, σ, s0, npts, Δt))
     return samples
 
-def _create_bm_simulation_data_frame(xt, n, μ, σ, s0, desc):
+def _create_bm_simulation_data_frame(xt, n, μ, σ, S0, desc):
     t = numpy.linspace(0, n-1, n)
     schema = create_schema(DataType.TIME_SERIES)
     meta_data = {
