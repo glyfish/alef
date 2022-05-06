@@ -10,8 +10,10 @@ import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from tabulate import tabulate
 
-from lib.data.schema import (MetaData, DataType, DataSchema, create_schema,
-                             EstType, ARMAEst, ParamEst)
+from lib.data.schema import (DataType, DataSchema, create_schema)
+from lib.data.est import (EstType, ARMAEst, ParamEst)
+from lib.data.tests import (TestType)
+from lib.data.meta_data import (MetaData)
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF

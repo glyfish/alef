@@ -6,7 +6,8 @@ from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
 
-from lib.data.schema import (DataType, DataSchema, create_schema, MetaData)
+from lib.data.meta_data import (MetaData)
+from lib.data.schema import (DataType, DataSchema, create_schema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ###################################################################################################

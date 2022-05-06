@@ -1,8 +1,10 @@
 import numpy
 from pandas import DataFrame
 import statsmodels.api as sm
-from lib.data.schema import (DataType, DataSchema, MetaData, create_schema)
 from enum import Enum
+
+from lib.data.meta_data import (MetaData)
+from lib.data.schema import (DataType, DataSchema, create_schema)
 
 class RegType(Enum):
     LINEAR = 1

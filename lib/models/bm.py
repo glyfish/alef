@@ -1,9 +1,11 @@
 ###############################################################################################
 ## Brownian motion simulators
 import numpy
-from lib.data.schema import (MetaData, DataType, DataSchema, create_schema)
 from datetime import datetime
 import uuid
+
+from lib.data.meta_data import (MetaData)
+from lib.data.schema import (DataType, DataSchema, create_schema)
 
 def to_noise(samples):
     nsim, npts = samples.shape
