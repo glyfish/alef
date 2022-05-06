@@ -61,10 +61,6 @@ class DataSchema:
             npts = len(y[~numpy.isnan(y)])
         return df[xcol][:npts], df[ycol][:npts]
 
-    def get_meta_data(self, df):
-        meta_data = df.attrs
-        return MetaData.from_dict(meta_data[self.ycol])
-
     def is_in(self, df):
         cols = df.columns
         return (self.xcol in cols) and (self.ycol in cols)
@@ -85,8 +81,10 @@ class DataSchema:
         df.attrs[schema.ycol] = meta_data.data
         return df
 
-    # def create_series_data_frame(y, meta_data):
-
+    @staticmethod
+    def get_data_type(df, data_type):
+        schema = create_schema(data_type)
+        return schema.get_data(df)
 
 ##################################################################################################################
 ## create shema for data type

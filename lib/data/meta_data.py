@@ -102,8 +102,11 @@ class MetaData:
         )
 
     @staticmethod
-    def get(df, data_type):
+    def get_data_type(df, data_type):
         schema = create_schema(data_type)
+        return MetaData.get(df, schema)
+
+    def get(df, schema):
         return MetaData.from_dict(df.attrs[schema.ycol])
 
     @staticmethod

@@ -3,6 +3,7 @@ from enum import Enum
 from matplotlib import pyplot
 import matplotlib.ticker
 
+from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
@@ -29,9 +30,9 @@ class MultiDataPlotConfig:
 
     @staticmethod
     def _get_func_title(df, schemas):
-        meta_datas = [schema.get_meta_data(df) for schema in schemas]
+        meta_datas = [MetaData.get(df, schema) for schema in schemas]
         var_desc  = "-".join([meta_data.desc for meta_data in meta_datas])
-        source_meta_data = meta_datas[0].source_schema.get_meta_data(df)
+        source_meta_data = MetaData.get(df, meta_datas[0].source_schema)
         return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
 
 ## plot data type takes multiple data types
@@ -66,14 +67,14 @@ def twinx(df, plot_type, **kwargs):
 
     # first plot left axis1
     schema = plot_config.schemas[0]
-    meta_data = schema.get_meta_data(df)
+    meta_data = MetaData.get(df, schema)
     axis1.set_ylabel(meta_data.ylabel)
     axis1.set_xlabel(meta_data.xlabel)
     _plot_curve(axis1, df, schema, plot_config, **kwargs)
 
     # second plot right axis2
     schema = plot_config.schemas[1]
-    meta_data = schema.get_meta_data(df)
+    meta_data = MetaData.get(df, schema)
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
     axis2.set_ylabel(meta_data.ylabel)
@@ -104,7 +105,7 @@ def _plot_curve(axis, df, schema, plot_config, **kwargs):
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
     x, y = schema.get_data(df)
-    meta_data = schema.get_meta_data(df)
+    meta_data = MetaData.get(df, schema)
     label = meta_data.desc + " (" + meta_data.ylabel + ")"
 
     if npts is None or npts > len(y):

@@ -70,6 +70,16 @@ class DataFunc:
         data_func = create_data_func(func_type, **kwargs)
         return data_func.apply(df)
 
+    @staticmethod
+    def create_series(x0, xmax, func_type, **kwargs):
+        Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+        data_func = create_data_func(func_type, **kwargs)
+        npts = (xmax - x0) / Δx
+        x = numpy.linspace(x0, xmax, npts)
+        y = data_func.fy(x, None)
+        return data_func.create_data_frame(x, y)
+
+###################################################################################################
 ## create definition for data type
 def create_data_func(data_type, **kwargs):
     schema = create_schema(data_type)

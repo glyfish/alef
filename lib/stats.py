@@ -17,10 +17,11 @@ def ensemble_mean(dfs, data_type=DataType.TIME_SERIES):
         raise Exception(f"no data frames")
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
+    npts = len(x)
     mean = numpy.zeros(npts)
-    for i in range(len(x)):
+    for i in range(npts):
         for j in range(nsim):
-            mean[i] += samples[j,i] / float(nsim)
+            mean[i] += samples[j][i] / float(nsim)
     return _create_ensemble_avg_data_frame(x, mean, nsim, dfs[0], data_type, DataType.MEAN, "Ensemble Mean", r"$\mu$")
 
 def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
@@ -28,11 +29,13 @@ def ensemble_sd(dfs, data_type=DataType.TIME_SERIES):
         raise Exception(f"no data frames")
     nsim = len(dfs)
     x, samples = _samples_from_dfs(dfs, data_type)
-    mean = ensemble_mean(samples)
+    mean_df = ensemble_mean(samples)
+    _, mean = DataSchema.get_data_type(DataType.MEAN)
+    npts = len(x)
     sd = numpy.zeros(npts)
-    for i in range(len(x)):
+    for i in range(npts):
         for j in range(nsim):
-            sd[i] += (samples[j,i] - mean[i])**2 / float(nsim)
+            sd[i] += (samples[j][i] - mean[i])**2 / float(nsim)
     return _create_ensemble_avg_data_frame(x, numpy.sqrt(sd), nsim, dfs[0], data_type, DataType.SD, "Ensemble SD", r"$\sigma$")
 
 def ensemble_acf(dfs, nlags=None, data_type=DataType.TIME_SERIES):
@@ -157,7 +160,7 @@ def _samples_from_dfs(dfs, data_type):
 
 def _create_ensemble_avg_data_frame(x, y, nsim, df, source_data_type, data_type, desc, ylabel):
     source_schema = create_schema(source_data_type)
-    source_meta_data = source_schema.get_meta_data(df)
+    source_meta_data = MetaData.get(df, source_schema)
     source_meta_data["Parameters"]["nsim"] = nsim
     meta_data = MetaData(
         npts=len(y),
