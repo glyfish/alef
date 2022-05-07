@@ -122,13 +122,6 @@ def generate_fft(H, n, Δt=1, dB=None):
         Z[i] = Z[i - 1] + dZ[i]
     return Z
 
-# generate an ensemble of simulations
-def ensemble(nsims, npts, H, Δt=1.0):
-    samples = numpy.array([fbm.generate_fft(H, npts, Δt)])
-    for i in range(1, nsims):
-        samples = numpy.append(samples, numpy.array([generate_fft(H, npts, Δt)]), axis=0)
-    return samples
-
 ###############################################################################################
 # Transformations
 def to_geometric(s0, samples):

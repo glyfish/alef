@@ -116,11 +116,11 @@ class MetaData:
 
     @staticmethod
     def add_estimate(df, data_type, est):
-        meta_data = MetaData.get(df, data_type)
+        meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_estimate(est)
         MetaData.set(df, data_type, meta_data)
 
     def add_test(df, data_type, test):
-        meta_data = MetaData.get(df, data_type)
+        meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)

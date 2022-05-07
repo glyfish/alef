@@ -5,32 +5,32 @@ from pandas import (DataFrame, concat)
 ##################################################################################################################
 # Specify DataTypes used in analysis
 class DataType(Enum):
-    GENERIC = 1             # Unknown data type
-    TIME_SERIES = 2         # Time Series
-    PSPEC = 3               # Power Spectrum
-    ACF = 4                 # Autocorrelation function
-    DIFF_1 = 5              # First time series difference
-    DIFF_2 = 6              # Second time series difference
-    CUMU_MEAN = 7           # Cumulative mean
-    CUMU_SD = 8             # Cumulative standard deviation
-    MEAN = 9                # Mean as a function of time
-    SD = 10                 # Standard deviation as a function of time
-    AR1_ACF = 11            # AR(1) Autocorrelation function
-    MAQ_ACF = 12            # MA(q) Autocorrelation function
-    FBM_MEAN = 13           # Fractional Brownian Motion mean
-    FBM_SD = 14             # Fractional Brownian Motion standard deviation
-    FBM_ACF = 15            # Fractional Brownian Motion autocorrelation function
-    BM_MEAN = 16            # Brownian Motion mean
-    BM_DRIFT_MEAN = 17      # Brownian Motion model mean with data
-    BM_SD = 18              # Brownian Motion model standard deviation
-    GBM_MEAN = 19           # Geometric Brownian Motion model mean
-    GBM_SD = 20             # Geometric Brownian Motion model standard deviation
-    AGG_VAR = 21            # Aggregated variance
-    VR = 22                 # Variance Ratio use in test for brownian motion
-    VR_STAT = 23            # FBM variance ratio test statistic
-    PACF = 24               # Partial Autocorrelation function
-    BM_NOISE = 25           # Brownian motion noise increments computed from brwnian motion
-    BM = 26                 # Brownian motion computed from brownian motion noise
+    GENERIC = "GENERIC"                  # Unknown data type
+    TIME_SERIES = "TIME_SERIES"          # Time Series
+    PSPEC = "PSPEC"                      # Power Spectrum
+    ACF = "ACF"                          # Autocorrelation function
+    DIFF_1 = "DIFF_1"                    # First time series difference
+    DIFF_2 = "DIFF_2"                    # Second time series difference
+    CUMU_MEAN = "CUMU_MEAN"              # Cumulative mean
+    CUMU_SD = "CUMU_SD"                  # Cumulative standard deviation
+    MEAN = "MEAN"                        # Mean as a function of time
+    SD = "SD"                            # Standard deviation as a function of time
+    AR1_ACF = "AR1_ACF"                  # AR(1) Autocorrelation function
+    MAQ_ACF = "MAQ_ACF"                  # MA(q) Autocorrelation function
+    FBM_MEAN = "FBM_MEAN"                # Fractional Brownian Motion mean
+    FBM_SD = "FBM_SD"                    # Fractional Brownian Motion standard deviation
+    FBM_ACF = "FBM_ACF"                  # Fractional Brownian Motion autocorrelation function
+    BM_MEAN = "BM_MEAN"                  # Brownian Motion mean
+    BM_DRIFT_MEAN = "BM_DRIFT_MEAN"      # Brownian Motion model mean with data
+    BM_SD = "BM_SD"                      # Brownian Motion model standard deviation
+    GBM_MEAN = "GBM_MEAN"                # Geometric Brownian Motion model mean
+    GBM_SD = "GBM_SD"                    # Geometric Brownian Motion model standard deviation
+    AGG_VAR = "AGG_VAR"                  # Aggregated variance
+    VR = "VR"                            # Variance Ratio use in test for brownian motion
+    VR_STAT = "VR_STAT"                  # FBM variance ratio test statistic
+    PACF = "PACF"                        # Partial Autocorrelation function
+    BM_NOISE = "BM_NOISE"                # Brownian motion noise increments computed from brwnian motion
+    BM = "BM"                            # Brownian motion computed from brownian motion noise
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -61,6 +61,13 @@ class DataSchema:
             npts = len(y[~numpy.isnan(y)])
         return df[xcol][:npts], df[ycol][:npts]
 
+    def get_data_from_list(self, dfs):
+        data = []
+        for df in dfs:
+            x, y = schema.get_data(df)
+            data.append(y)
+        return x, data
+
     def is_in(self, df):
         cols = df.columns
         return (self.xcol in cols) and (self.ycol in cols)
@@ -85,6 +92,11 @@ class DataSchema:
     def get_data_type(df, data_type):
         schema = create_schema(data_type)
         return schema.get_data(df)
+
+    @staticmethod
+    def get_data_type_from_list(dfs, data_type):
+        schema = create_schema(data_type)
+        return schema.get_data_from_list(df)
 
 ##################################################################################################################
 ## create shema for data type

@@ -72,7 +72,7 @@ def ar(φ, x0, n, σ):
         samples[i] = ε[i]
         for j in range(0, p):
             samples[i] += φ[j] * samples[i-(j+1)]
-    return _create_arma_simulation_data_frame(samples, φ, δ, 0.0, 0.0, n, σ)
+    return samples
 
 # AR(1) with offset using Ornstein-Uhlenbeck parameterization
 def ou(λ, μ, n, σ=1.0):
@@ -91,7 +91,7 @@ def arp_drift(φ, μ, γ, n, σ):
         samples[i] = ε[i] + γ*i + μ
         for j in range(0, p):
             samples[i] += φ[j] * samples[i-(j+1)]
-    return _create_arma_simulation_data_frame(samples, φ, [], μ, γ, n, σ)
+    return samples
 
 def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)
@@ -102,51 +102,22 @@ def ar1_series(φ, σ, nsample, nseries):
         series.append(ar1(φ[i], nsample, σ))
     return series
 
-def ar1_ensemble(φ, σ, nsample, nsim):
-    series = []
-    for i in range(nsim):
-        series.append(ar1(φ, nsample, σ))
-    return series
-
 def arp(φ, n, σ=1.0):
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.array([1.0])
-    xt = sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
-    return _create_arma_simulation_data_frame(xt, φ, [], 0.0, 0.0, n, σ)
+    return sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
 
 ## MA(q) simulator
 def maq(θ, n, σ=1.0):
     φ_sim = numpy.array([1.0])
     θ_sim = numpy.r_[1, θ]
-    xt = sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
-    return _create_arma_simulation_data_frame(xt, [], θ, 0.0, 0.0, n, σ)
+    return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
 
 ## ARMA(p,q) simulator
 def arma(φ, θ, n, σ=1):
     φ_sim = numpy.r_[1, -φ]
     θ_sim = numpy.r_[1, θ]
-    xt = sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
-    return _create_arma_simulation_data_frame(xt, θ, δ, 0.0, 0.0, n, σ)
-
-def _create_arma_simulation_data_frame(xt, φ, θ, μ, γ, n, σ):
-    p = len(φ)
-    q = len(θ)
-    t = numpy.linspace(0, n-1, n)
-    schema = create_schema(DataType.TIME_SERIES)
-    meta_data = {
-        "npts": n,
-        "DataType": DataType.TIME_SERIES,
-        "Parameters": {"φ": φ, "θ": θ, "σ": σ, "μ": μ, "γ": γ},
-        "Description": f"ARIMA({p},0,{q})",
-        "xlabel": r"$t$",
-        "ylabel": r"$S_t$"
-    }
-    df = DataSchema.create_data_frame(t, xt, MetaData.from_dict(meta_data))
-    attrs = df.attrs
-    attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    attrs["Name"] = f"ARMA-Simulation-{str(uuid.uuid4())}"
-    df.attrs = attrs
-    return df
+    return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
 
 ### ARIMA(p,d,q) simulator
 def diff(samples):

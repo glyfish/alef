@@ -8,13 +8,15 @@ from lib.models import arima
 
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema, create_schema)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types)
 
 ###################################################################################################
 # Data Function consist of the input schema and function used to compute resulting data columns
 #
 # xcol: name of data doamin in DataFrame
 # ycol: name of data range in DataFrame
+#
 # fy: Function used to compute ycol from source DataType, fy is assumed to have the form
 #     fy(fx(x),y) -> ycol
 # fx: Function used to compute xcol from source DataType xcol, fx is assumed to have the form
@@ -24,12 +26,12 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 class DataFunc:
     def __init__(self, schema, source_data_type, params, fy, ylabel, xlabel, desc, fx=None):
         self.schema=schema
-        self.fy=fy
         self.params=params
         self.source_schema=create_schema(source_data_type)
         self.ylabel=ylabel
         self.xlabel=xlabel
         self.desc=desc
+        self.fy=fy
         if fx is None:
             self.fx=lambda x: x
         else:
@@ -42,7 +44,7 @@ class DataFunc:
         return self._props()
 
     def _props(self):
-        return f"schema=({self.schema}), fy=({self.fy}), fx=({self.fx}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema})"
+        return f"schema=({self.schema}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema})"
 
     def apply(self, df):
         x, y = self.source_schema.get_data(df)
@@ -50,6 +52,12 @@ class DataFunc:
         y_result = self.fy(x_result, y)
         df_result = self.create_data_frame(x_result, y_result)
         return DataSchema.concatinate(df, df_result)
+
+    def apply_list(self, dfs):
+        x, y = self.source_schema.get_data_from_list(dfs)
+        x_result = self.fx(x)
+        y_result = self.fy(x_result, y)
+        return self.create_data_frame(x_result, y_result)
 
     def meta_data(self, x, y):
         return MetaData(
@@ -71,16 +79,12 @@ class DataFunc:
         return data_func.apply(df)
 
     @staticmethod
-    def create_series(x0, xmax, func_type, **kwargs):
-        Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-        data_func = create_data_func(func_type, **kwargs)
-        npts = (xmax - x0) / Δx
-        x = numpy.linspace(x0, xmax, npts)
-        y = data_func.fy(x, None)
-        return data_func.create_data_frame(x, y)
+    def apply_func_type_to_list(dfs, func_type, **kwargs):
+        data_func = create_list_data_func(data_func, **kwargs)
+        return data_func.apply_list(dfs)
 
 ###################################################################################################
-## create definition for data type
+## create function definition for data type
 def create_data_func(data_type, **kwargs):
     schema = create_schema(data_type)
     if data_type.value == DataType.PSPEC.value:
@@ -247,6 +251,7 @@ def _create_maq_acf(schema, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    verify_type(θ, list)
     fx = lambda x : x[:nlags]
     fy = lambda x, y : arima.maq_acf(θ, σ, len(x))
     return DataFunc(schema=schema,
@@ -255,7 +260,7 @@ def _create_maq_acf(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
-                    desc="MA(q) ACF",
+                    desc=f"MA({len(θ)}) ACF",
                     fx=fx)
 
 # DataType.FBM_MEAN
@@ -437,3 +442,52 @@ def _create_bm(schema, **kwargs):
                     xlabel=r"$t$",
                     desc="BM",
                     fx=fx)
+
+###################################################################################################
+## create function definition applied to lists of data frames for data type
+def create_list_data_func(data_type, **kwargs):
+    schema = create_schema(data_type)
+    if data_type.value == DataType.MEAN.value:
+        return _create_list_mean(schema, **kwargs)
+    if data_type.value == DataType.SD.value:
+        return _create_list_sd(schema, **kwargs)
+    if data_type.value == DataType.ACF.value:
+        return _create_list_acf(schema, **kwargs)
+    else
+        raise Exception(f"DataType is invalid: {data_type}")
+
+###################################################################################################
+## Create dataFunc objects for specified data type
+# DataType.MEAN
+def _create_list_mean(schema, **kwargs):
+    fy = lambda x, y : stats.ensemble_mean(y, DataType.TIME_SERIES)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$\mu_t$",
+                    xlabel=r"$t$",
+                    desc="Ensemble Mean")
+
+# DataType.SD
+def _create_list_sd(schema, **kwargs):
+    fy = lambda x, y : stats.ensemble_sd(y, DataType.TIME_SERIES)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$\sigma_t$",
+                    xlabel=r"$t$",
+                    desc="Ensemble SD")
+
+# DataType.ACF
+def _create_list_acf(schema, **kwargs):
+    nlags = get_param_default_if_missing("nlags", None, **kwargs)
+    fy = lambda x, y : stats.ensemble_acf(y, nlags, DataType.TIME_SERIES)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$\rho_\tau$",
+                    xlabel=r"$\tau$",
+                    desc="Ensemble ACF")
