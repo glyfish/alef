@@ -85,17 +85,20 @@ class DataSource:
         return df
 
     @staticmethod
-    def ensemble(source_type, nsim, **kwargs):
-        data_source = create_data_source(source_type, **kwargs)
-        series = []
+    def create_ensemble(source_type, nsim, **kwargs):
+        ensemble = []
         for i in range(nsim):
-            series.append(data_source.create())
-        return series
+            ensemble.append(create_data_source(source_type, **kwargs))
+        return ensemble
+
+    @staticmethod
+    def create_source_type(source_type, **kwargs):
+        return create_data_source(source_type, **kwargs)
 
     @staticmethod
     def create_space(xmax, x0=0.0, Δx=1.0):
         npts = int((xmax - x0) / Δx)
-        return numpy.linspace(x0, xmax, npts)
+        return numpy.linspace(x0, xmax, npts+1)
 
     @staticmethod
     def create_parameter_scan(source_type, *args):

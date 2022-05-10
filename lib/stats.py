@@ -16,11 +16,11 @@ def ensemble_mean(samples, data_type=DataType.TIME_SERIES):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
-    npts = len(x)
+    npts = len(samples)
     mean = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
-            mean[i] += samples[j][i] / float(nsim)
+            mean[i] += samples[j][i]/float(nsim)
     return mean
 
 def ensemble_sd(samples, data_type=DataType.TIME_SERIES):
@@ -28,25 +28,25 @@ def ensemble_sd(samples, data_type=DataType.TIME_SERIES):
         raise Exception(f"no data")
     nsim = len(samples)
     mean = ensemble_mean(samples)
-    npts = len(x)
+    npts = len(samples)
     var = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
-            var[i] += (samples[j][i] - mean[i])**2 / float(nsim)
+            var[i] += (samples[j][i] - mean[i])**2/float(nsim)
     return numpy.sqrt(var)
 
 def ensemble_acf(samples, nlags=None, data_type=DataType.TIME_SERIES):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
-    if nlags is None or nlags > len(x):
-        nlags = len(x)
+    if nlags is None or nlags > len(samples):
+        nlags = len(samples)
     ac_avg = numpy.zeros(nlags)
     for j in range(nsim):
         ac = acf(samples[j], nlags).real
         for i in range(nlags):
             ac_avg[i] += ac[i]
-    return ac_avg
+    return ac_avg/float(nsim)
 
 def cumu_mean(y):
     ny = len(y)

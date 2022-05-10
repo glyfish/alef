@@ -80,7 +80,7 @@ class DataFunc:
 
     @staticmethod
     def apply_func_type_to_list(dfs, func_type, **kwargs):
-        data_func = create_list_data_func(data_func, **kwargs)
+        data_func = create_list_data_func(func_type, **kwargs)
         return data_func.apply_list(dfs)
 
 ###################################################################################################
@@ -484,10 +484,12 @@ def _create_list_sd(schema, **kwargs):
 def _create_list_acf(schema, **kwargs):
     nlags = get_param_default_if_missing("nlags", None, **kwargs)
     fy = lambda x, y : stats.ensemble_acf(y, nlags, DataType.TIME_SERIES)
+    fx = lambda x : x[:nlags]
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
-                    desc="Ensemble ACF")
+                    desc="Ensemble ACF",
+                    fx=fx)

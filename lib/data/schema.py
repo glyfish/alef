@@ -64,7 +64,7 @@ class DataSchema:
     def get_data_from_list(self, dfs):
         data = []
         for df in dfs:
-            x, y = schema.get_data(df)
+            x, y = self.get_data(df)
             data.append(y)
         return x, data
 
