@@ -12,7 +12,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 
 ###################################################################################################
-# Data Function consist of the input schema and function used to compute resulting data columns
+# DataFunc consist of the input schema and function used to compute resulting data columns
 #
 # xcol: name of data doamin in DataFrame
 # ycol: name of data range in DataFrame
@@ -453,7 +453,7 @@ def create_list_data_func(data_type, **kwargs):
         return _create_list_sd(schema, **kwargs)
     if data_type.value == DataType.ACF.value:
         return _create_list_acf(schema, **kwargs)
-    else
+    else:
         raise Exception(f"DataType is invalid: {data_type}")
 
 ###################################################################################################

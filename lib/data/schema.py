@@ -98,6 +98,10 @@ class DataSchema:
         schema = create_schema(data_type)
         return schema.get_data_from_list(df)
 
+    @staticmethod
+    def create(data_type):
+        return create_schema(data_type)
+
 ##################################################################################################################
 ## create shema for data type
 def create_schema(data_type):

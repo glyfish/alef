@@ -5,11 +5,16 @@ from pandas import (DataFrame)
 ##################################################################################################################
 # Parameter Estimates
 class EstType(Enum):
-    AR = "AR"            # Autoregressive model parameters
-    MA = "MA"            # Moving average model parameters
-    PERGRAM = "PERGRAM"  # Periodogram esimate of FBM Hurst parameter using OLS
-    VAR_AGG = "VAR_AGG"  # variance Aggregation esimate of FBM Hurst parameter using OLS
+    AR = "AR"                     # Autoregressive model parameters
+    AR_OFFSET = "AR_OFFSET"       # Autoregressive model with constant offset parameters
+    MA = "MA"                     # Moving average model parameters
+    MA_OFFSET = "MA_OFFSET"       # Moving average model  with constant offset parameters
+    PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
+    VAR_AGG = "VAR_AGG"           # variance Aggregation esimate of FBM Hurst parameter using OLS
 
+
+##################################################################################################################
+# Estimated parameter
 class ParamEst:
     def __init__(self, est, err):
             self.est = est
@@ -29,6 +34,8 @@ class ParamEst:
     def from_array(meta_data):
         return ParamEst(meta_data[0], meta_data[1])
 
+##################################################################################################################
+# ARMA estimated parameters
 class ARMAEst:
     def __init__(self, type, const, sigma2, params):
         self.type = type
@@ -52,6 +59,7 @@ class ARMAEst:
     def key(self):
         return f"{self.type.value}({self.order})"
 
+
     @staticmethod
     def from_dict(meta_data):
         return ARMAEst(
@@ -61,6 +69,8 @@ class ARMAEst:
             params=[ParamEst.from_array(est) for est in  meta_data["Parameters"]]
         )
 
+##################################################################################################################
+# OLS estimated parameters
 class OLSEst:
     def __init__(self, type, const, params):
         self.type = type
@@ -87,27 +97,44 @@ class OLSEst:
             params=[ParamEst.from_array(est) for est in  meta_data["Parameters"]]
         )
 
+##################################################################################################################
+# Create estimates
+def create_estimates_from_dict(dict):
+    result = {}
+    for key in dict.keys():
+        result[key] = create_estimate_from_dict(dict[key])
+    return result
+
+def create_estimate_from_dict(dict):
+    est_type = dict["Type"]
+    if est_type.value == EstType.AR.value:
+        return ARMAEst.from_dict(dict)
+    elif est_type.value == EstType.AR_OFFSET.value:
+        return ARMAEst.from_dict(dict)
+    elif est_type.value == EstType.MA.value:
+        return ARMAEst.from_dict(dict)
+    elif est_type.value == EstType.MA_OFFSET.value:
+        return ARMAEst.from_dict(dict)
+    elif est_type.value == EstType.PERGRAM.value:
+        return OLSEst.from_dict(dict)
+    elif est_type.value == EstType.VAR_AGG.value:
+        return OLSEst.from_dict(dict)
+    else:
+        raise Exception(f"Esitmate type is invalid: {est_type}")
+
 def create_dict_from_estimates(ests):
     result = {}
     for key in ests.keys():
         result[key] = ests[key].data
     return result
 
-def create_esimates_from_dict(dict):
-    result = {}
-    for key in dict.keys():
-        result[key] = create_esimate_from_dict(dict[key])
-    return result
-
-def create_esimate_from_dict(dict):
-    est_type = dict["Type"]
-    if est_type.value == EstType.AR.value:
-        return ARMAEst.from_dict(dict)
-    if est_type.value == EstType.MA.value:
-        return ARMAEst.from_dict(dict)
-    if est_type.value == EstType.PERGRAM.value:
-        return OLSEst.from_dict(dict)
-    if est_type.value == EstType.VAR_AGG.value:
-        return OLSEst.from_dict(dict)
-    else:
-        raise Exception(f"Esitmate type is invalid: {est_type}")
+def arma_estimate_from_result(result, type):
+    schema = create_schema(DataType.TIME_SERIES)
+    nparams = len(result.params)
+    params = []
+    for i in range(1, nparams-1):
+        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
+    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
+    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
+    return ARMAEst(type, const, sigma2, params)
+    MetaData.add_estimate(df, DataType.TIME_SERIES, est)

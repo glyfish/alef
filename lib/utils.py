@@ -11,8 +11,8 @@ def get_param_default_if_missing(param, default, **kwargs):
 
 def verify_type(param, expected_type):
     if not isinstance(param, expected_type):
-        raise Exception(f"{param} is type {param.type()}. Expected {expected_type}")
+        raise Exception(f"{param} is type {type(param)}. Expected {expected_type}")
 
 def verify_types(param, expected_types):
     if not isinstance(param, expected_types):
-        raise Exception(f"{param} is type {param.type()}. Expected {expected_types}")
+        raise Exception(f"{param} is type {type(param)}. Expected {expected_types}")

@@ -2,9 +2,11 @@ import numpy
 from enum import Enum
 from pandas import (DataFrame)
 
-from lib.data.est import (create_esimates_from_dict, create_dict_from_estimates)
+from lib.models import arima
+from lib.data.est import (EstType, create_estimates_from_dict, arma_estimate_from_result,
+                          create_dict_from_estimates)
 from lib.data.tests import (create_tests_from_dict, create_dict_from_tests)
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType, DataSchema, create_schema)
 
 ##################################################################################################################
 # Meta Data Schema
@@ -80,7 +82,7 @@ class MetaData:
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
 
         if "Estimates" in meta_data:
-            ests = create_esimates_from_dict(meta_data["Estimates"])
+            ests = create_estimates_from_dict(meta_data["Estimates"])
         else:
             ests = {}
 
@@ -106,6 +108,7 @@ class MetaData:
         schema = create_schema(data_type)
         return MetaData.get(df, schema)
 
+    @staticmethod
     def get(df, schema):
         return MetaData.from_dict(df.attrs[schema.ycol])
 
@@ -120,7 +123,64 @@ class MetaData:
         meta_data.insert_estimate(est)
         MetaData.set(df, data_type, meta_data)
 
+    @staticmethod
     def add_test(df, data_type, test):
         meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)
+
+##################################################################################################################
+# Perform estimate
+def perform_est(df, est_type, **kwargs):
+    _, samples = DataSchema.get_data_type(df, DataType.TIME_SERIES)
+    result, est = _perform_est_for_type(samples)
+    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
+    return result
+
+def _perform_est_for_type(samples, **kwargs):
+    if est_type.value == EstType.AR.value:
+        return  _ar_estimate(samples, **kwargs)
+    elif est_type.value == EstType.AR_OFFSET.value:
+        return _ar_offset_estimate(samples, **kwargs)
+    elif est_type.value == EstType.MA.value:
+        return _ma_estimate(samples, **kwargs)
+    elif est_type.value == EstType.MA_OFFSET.value:
+        return _ma_offset_estimate(samples, **kwargs)
+    # elif est_type.value == EstType.PERGRAM.value:
+    #   _periodogram_estimate(samples)
+    # elif est_type.value == EstType.VAR_AGG.value:
+    #   _variance_aggregation_estimate(samples)
+    else:
+        raise Exception(f"Esitmate type is invalid: {est_type}")
+
+##################################################################################################################
+# Perform esimate for specified esimate types
+# EstType.AR
+def _ar_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = ar_fit(samples, order)
+    return result, arma_estimate_from_result(result, EstType.AR)
+
+# EstType.AR_OFFSET
+def _ar_offset_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = ar_offset_fit(samples, order)
+    return result, arma_estimate_from_result(result, EstType.AR_OFFSET)
+
+# EstType.MA
+def _ma_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = ma_fit(samples, order)
+    return result, arma_estimate_from_result(result, EstType.MA)
+
+# EstType.MA_OFFSET
+def _ma_offset_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = ma_offset_fit(samples, order)
+    return result, arma_estimate_from_result(result, EstType.MA_OFFSET)
+
+# EstType.PERGRAM
+# def _periodogram_estimate(samples):
+
+# EstType.VAR_AGG
+# def _variance_aggregation_estimate(samples):

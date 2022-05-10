@@ -10,11 +10,6 @@ import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from tabulate import tabulate
 
-from lib.data.schema import (DataType, DataSchema, create_schema)
-from lib.data.est import (EstType, ARMAEst, ParamEst)
-from lib.data.tests import (TestType)
-from lib.data.meta_data import (MetaData)
-
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
 def maq_sigma(θ, σ):
@@ -96,12 +91,6 @@ def arp_drift(φ, μ, γ, n, σ):
 def ar1(φ, n, σ=1.0):
     return arp(numpy.array([φ]), n, σ)
 
-def ar1_series(φ, σ, nsample, nseries):
-    series = []
-    for i in range(nseries):
-        series.append(ar1(φ[i], nsample, σ))
-    return series
-
 def arp(φ, n, σ=1.0):
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.array([1.0])
@@ -161,52 +150,29 @@ def pacf(samples, nlags):
 
 ###############################################################################################
 ## ARIMA parameter estimation
-def ar_model(df, order):
-    schema = create_schema(DataType.TIME_SERIES)
-    return tsa.arima.model.ARIMA(df[schema.ycol], order=(order, 0, 0))
+def ar_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
 
-def ar_fit(df, order):
-    result = ar_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, EstType.AR)
-    return result
+def ar_fit(samples, order):
+    return ar_model(df, order).fit()
 
-def ar_offset_model(df, order):
-    schema = create_schema(DataType.TIME_SERIES)
-    return tsa.arima.model.ARIMA(df[schema.ycol], order=(order, 0, 0), trend='c')
+def ar_offset_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')
 
-def ar_offset_fit(df, order):
-    result = ar_offset_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, EstType.AR)
-    return result
+def ar_offset_fit(samples, order):
+    return ar_offset_model(samples, order).fit()
 
-def ma_model(df, order):
-    schema = create_schema(DataType.TIME_SERIES)
-    return tsa.arima.model.ARIMA(df[schema.ycol], order=(0, 0, order))
+def ma_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(0, 0, order))
 
-def ma_fit(df, order):
-    result = ma_model(df, order).fit()
-    _add_param_est_results_to_meta_data(df, result, EstType.MA)
-    return result
+def ma_fit(samples, order):
+    return ma_model(samples, order).fit()
 
-def ma_offset_model(df, order):
-    schema = create_schema(DataType.TIME_SERIES)
-    return tsa.arima.model.ARIMA(df[schema.ycol], order=(0, 0, order), trend='c')
+def ma_offset_model(samples, order):
+    return tsa.arima.model.ARIMA(samples, order=(0, 0, order), trend='c')
 
 def ma_offset_fit(df, order):
-    result = ma_offset_model(samples, order).fit()
-    _add_param_est_results_to_meta_data(df, result, EstType.MA)
-    return result
-
-def _add_param_est_results_to_meta_data(df, result, type):
-    schema = create_schema(DataType.TIME_SERIES)
-    nparams = len(result.params)
-    params = []
-    for i in range(1, nparams-1):
-        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
-    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
-    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
-    est = ARMAEst(type, const, sigma2, params)
-    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
+    return ma_offset_model(samples, order).fit()
 
 ###############################################################################################
 ## ADF Test

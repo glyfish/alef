@@ -19,7 +19,7 @@ def create_dict_from_tests(tests):
 def create_tests_from_dict(dict):
     result = {}
     for key in dict.keys():
-        result[key] = create_esimate_from_dict(dict[key])
+        result[key] = create_test_from_dict(dict[key])
     return result
 
 def create_test_from_dict(dict):
