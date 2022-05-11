@@ -97,7 +97,7 @@ class DataSource:
 
     @staticmethod
     def create_space(xmax, x0=0.0, Δx=1.0):
-        npts = int((xmax - x0) / Δx)
+        npts = int((xmax-x0)/Δx)
         return numpy.linspace(x0, xmax, npts+1)
 
     @staticmethod
