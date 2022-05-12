@@ -8,6 +8,7 @@ from lib import stats
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.schema import (DataType, create_schema)
 from lib.data.func import (create_data_func)
+from lib.data.meta_data import (MetaData)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ##################################################################################################################
@@ -23,81 +24,92 @@ class CumuPlotType(Enum):
 ##################################################################################################################
 ## Plot Configuration
 class CumuPlotConfig:
-    def __init__(self, xlabel, ylabel, data_type, plot_type=PlotType.LINEAR, legend_labels=None, target=None):
-        self.xlabel = xlabel
-        self.ylabel = ylabel
+    def __init__(self, df, data_type, target_type, plot_type=PlotType.LINEAR, xlabel=None, ylabel=None, legend_labels=None):
         self.schema = create_schema(data_type)
+        self.target_schema = create_schema(target_type)
         self.plot_type = plot_type
-        self.legend_labels = legend_labels
-        self.target = target
+        self._xlabel = xlabel
+        self._ylabel = ylabel
+        self._legend_labels = legend_labels
+        self._meta_data = MetaData.get(df, self.schema)
+        self._target_meta_data = MetaData.get(df, self.target_schema)
+
+    def __repr__(self):
+        return f"CumuPlotConfig({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"schema=({self.schema}), target_schema=({self.target_schema}), plot_type=({self.plot_type}), xlabel=({self.xlabel()}), ylabel=({self.ylabel()}), legend_labels=({self.legend_labels()}), title=({self.title()})"
+
+    def xlabel(self):
+        if self._xlabel is None:
+            return self._meta_data.xlabel
+        else:
+            return self._xlabel
+
+    def ylabel(self):
+        if self._xlabel is None:
+            return self._meta_data.xlabel
+        else:
+            return self._xlabel
+
+    def legend_labels(self):
+        if self._legend_labels is None:
+            return [self._meta_data.ylabel, self._target_meta_data.ylabel]
+        else:
+            return self._legend_labels
+
+    def title(self):
+        return f"{self._meta_data.desc} {self._target_meta_data.desc} {self._meta_data.params_str()}"
 
 ##################################################################################################################
 # Create Cumlative plot type
-def create_cumu_plot_config(plot_type, **kwargs):
+def create_cumu_plot_config(plot_type, df):
     if plot_type.value == CumuPlotType.AR1_MEAN.value:
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\mu_t$",
-                              data_type=DataType.CUMU_MEAN,
+        return CumuPlotConfig(data_type=DataType.CUMU_MEAN,
                               plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
-                              target = 0.0)
+                              target_type = DataType.ARMA_MEAN)
     if plot_type.value == CumuPlotType.AR1_SD.value:
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\sigma_t$",
-                              data_type=DataType.CUMU_SD,
+        return CumuPlotConfig(data_type=DataType.CUMU_SD,
                               plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1-\varphi^2}}$"],
-                              target=arima.ar1_sigma(φ, σ))
+                              target=DataType.AR1_SD)
     if plot_type.value == CumuPlotType.MAQ_MEAN.value:
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\mu_t$",
-                              data_type=DataType.CUMU_MEAN,
+        return CumuPlotConfig(data_type=DataType.CUMU_MEAN,
                               plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\mu_t$", r"$\mu_\infty = 0$"],
-                              target = 0.0)
+                              target_type = DataType.ARMA_MEAN)
     if plot_type.value == CumuPlotType.MAQ_SD.value:
-        θ = get_param_throw_if_missing("θ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\sigma_t$",
-                              data_type=DataType.CUMU_SD,
+        return CumuPlotConfig(data_type=DataType.CUMU_SD,
                               plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$"],
-                              target=arima.maq_sigma(θ, σ))
+                              target_type=DataType.MAQ_SD)
     elif plot_type.value == CumuPlotType.AR1_OFFSET_MEAN.value:
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        μ = get_param_throw_if_missing("μ", **kwargs)
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\mu_t$",
-                              data_type=DataType.CUMU_MEAN,
-                              plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\mu_t$", r"$\frac{\mu^*}{1 - \varphi}$"],
-                              target=arima.ar1_offset_mean(φ, μ))
+        return CumuPlotConfig(data_type=DataType.CUMU_MEAN,
+                              plot_type=PlotType.XLOG)
+                              target_type=DataType.AR1_OFFSET_MEAN,
     elif plot_type.value == CumuPlotType.AR1_OFFSET_SD.value:
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        return CumuPlotConfig(xlabel=r"$t$",
-                              ylabel=r"$\sigma_t$",
-                              data_type=DataType.CUMU_SD,
+        return CumuPlotConfig(data_type=DataType.CUMU_SD,
                               plot_type=PlotType.XLOG,
-                              legend_labels=[r"$\sigma_t$", r"$\sqrt{\frac{\sigma^2}{1 - \varphi^2}}$"],
-                              target=arima.ar1_offset_sigma(φ, σ))
+                              target_type=DataType.AR1_OFFSET_SD)
     else:
         raise Exception(f"Cumulative plot type is invalid: {plot_type}")
 
 ##################################################################################################################
 ## Compare the cumulative value of a variable as a function of time with its target value (Uses CumPlotType config)
 def cumulative(df, plot_type, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    lw           = kwargs["lw"]           if "lw"           in kwargs else 2
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
+    legend_labels  = get_param_default_if_missing("legend_labels", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
 
-    plot_config = create_cumu_plot_config(plot_type, **kwargs)
+    plot_config = create_cumu_plot_config(plot_type)
+
     time, accum = plot_config.schema.get_data(df)
+    target_time, target = plot_config.target_schema.get_data(df)
 
-    range = max(1.0, (max(accum[1:]) - min(accum[1:])))
+    range = max(1.0, (max(accum[1:])-min(accum[1:])))
     max_time = len(time)
     min_time = max(1.0, min(time))
 
@@ -110,6 +122,21 @@ def cumulative(df, plot_type, **kwargs):
     axis.set_ylabel(plot_config.ylabel)
     axis.set_xlabel(plot_config.xlabel)
     axis.set_xlim([min_time, max_time])
-    axis.semilogx(time, accum, label=plot_config.legend_labels[0], lw=lw)
-    axis.semilogx(time, numpy.full((len(time)), plot_config.target), label=plot_config.legend_labels[1], lw=lw)
+
+    if plot_config.plot_type.value == PlotType.LOG.value:
+        logStyle(axis, time, accum)
+        axis.loglog(time, accum, label=plot_config.legend_labels[0], lw=lw)
+        axis.loglog(target_time, target, label=plot_config.legend_labels[1], lw=lw)
+    elif plot_config.plot_type.value == PlotType.XLOG.value:
+        logXStyle(axis, time, accum)
+        axis.semilogx(time, accum, label=plot_config.legend_labels[0], lw=lw)
+        axis.semilogx(time, target, label=plot_config.legend_labels[1], lw=lw)
+    elif plot_config.plot_type.value == PlotType.YLOG.value:
+        logYStyle(axis, time, accum)
+        axis.semilogy(time, accum, label=plot_config.legend_labels[0], lw=lw)
+        axis.semilogy(time, target, label=plot_config.legend_labels[1], lw=lw)
+    else:
+        axis.plot(time, accum, label=plot_config.legend_labels[0], lw=lw)
+        axis.plot(time, target, label=plot_config.legend_labels[1], lw=lw)
+
     axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))

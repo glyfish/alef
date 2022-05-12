@@ -131,6 +131,16 @@ def create_data_func(data_type, **kwargs):
         return _create_bm_noise(schema, **kwargs)
     elif data_type.value == DataType.BM.value:
         return _create_bm(schema, **kwargs)
+    elif data_type.value == DataType.ARMA_MEAN.value:
+        return _create_arma_mean(schema, **kwargs)
+    elif data_type.value == DataType.AR1_SD.value:
+        return _create_ar1_sd(schema, **kwargs)
+    elif data_type.value == DataType.MAQ_SD.value:
+        return _create_maq_sd(schema, **kwargs)
+    elif data_type.value == DataType.AR1_OFFSET_MEAN.value:
+        return _create_ar1_offset_mean(schema, **kwargs)
+    elif data_type.value == DataType.AR1_OFFSET_SD.value:
+        return _create_ar1_offset_sd(schema, **kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
 
@@ -442,6 +452,69 @@ def _create_bm(schema, **kwargs):
                     xlabel=r"$t$",
                     desc="BM",
                     fx=fx)
+
+    # DataType.ARMA_MEAN
+    def _create_arma_mean(schema, **kwargs):
+        fy = lambda x, y : numpy.full(len(x), 0.0)
+        return DataFunc(schema=schema,
+                        source_data_type=DataType.TIME_SERIES,
+                        params={},
+                        fy=fy,
+                        ylabel=r"$\mu_t \to 0$",
+                        xlabel=r"$t$",
+                        desc="ARMA(p,q) Mean")
+
+    # DataType.AR1_SD
+    def _create_ar1_sd(schema, **kwargs):
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+        fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
+        return DataFunc(schema=schema,
+                        source_data_type=DataType.TIME_SERIES,
+                        params={"φ": φ, "σ": σ},
+                        fy=fy,
+                        ylabel=r"$\sigma_t \to \sqrt{\frac{\sigma^2}{1-\varphi^2}}$",
+                        xlabel=r"$t$",
+                        desc="AR(1) SD")
+
+    # DataType.MAQ_SD
+    def _create_maq_sd(schema, **kwargs):
+        θ = get_param_throw_if_missing("θ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+        fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
+        return DataFunc(schema=schema,
+                        source_data_type=DataType.TIME_SERIES,
+                        params={"θ": θ, "σ": σ},
+                        fy=fy,
+                        ylabel=r"$\sigma_t \to \sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$",
+                        xlabel=r"$t$",
+                        desc="MA(q) SD")
+
+    # DataType.AR1_OFFSET_MEAN
+    def _create_ar1_offset_mean(schema, **kwargs):
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        μ = get_param_throw_if_missing("μ", **kwargs)
+        fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
+        return DataFunc(schema=schema,
+                        source_data_type=DataType.TIME_SERIES,
+                        params={"φ": φ, r"$μ^*$": μ},
+                        fy=fy,
+                        ylabel=r"$\mu_t \to \frac{\mu^*}{1 - \varphi}$",
+                        xlabel=r"$t$",
+                        desc="AR(1) with Offset Mean")
+
+    # DataType.AR1_OFFSET_SD
+    def _create_ar1_offset_sd(schema, **kwargs):
+        φ = get_param_throw_if_missing("φ", **kwargs)
+        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+        fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, μ))
+        return DataFunc(schema=schema,
+                        source_data_type=DataType.TIME_SERIES,
+                        params={"φ": φ, "σ": σ},
+                        fy=fy,
+                        ylabel=r"$\sigma_t \to \sqrt{\frac{\sigma^2}{1 - \varphi^2}}$",
+                        xlabel=r"$t$",
+                        desc="AR(1) with Offset Mean")
 
 ###################################################################################################
 ## create function definition applied to lists of data frames for data type

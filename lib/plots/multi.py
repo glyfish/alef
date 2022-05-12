@@ -14,10 +14,12 @@ class MultiDataPlotType(Enum):
 
 # Plot Configurations
 class MultiDataPlotConfig:
-    def __init__(self, df, schemas, title, plot_type=PlotType.LINEAR):
+    def __init__(self, df, schemas, plot_type=PlotType.LINEAR, xlabel=None, ylabel=None):
         self.plot_type = plot_type
         self.schemas = schemas
-        self.title = title
+        self._xlabel = xlabel
+        self._ylabel = ylabel
+        self.meta_datas = [MetaData.get(df, schema) for schema in schemas]
 
     def __repr__(self):
         return f"MultiDataPlotConfig({self._props()})"
@@ -26,12 +28,22 @@ class MultiDataPlotConfig:
         return self._props()
 
     def _props(self):
-        return f"plot_type=({self.est}), schemas=({self.schemas})"
+        return f"plot_type=({self.est}), schemas=({self.schemas}), xlabel=({self.xlabel()}), ylabel=({self.ylabel()})"
 
-    @staticmethod
-    def _get_func_title(df, schemas):
-        meta_datas = [MetaData.get(df, schema) for schema in schemas]
-        var_desc  = "-".join([meta_data.desc for meta_data in meta_datas])
+    def xlabel(self):
+        if self._xlabel is None:
+            return self._meta_data.xlabel
+        else:
+            return self._xlabel
+
+    def ylabel(self):
+        if self._xlabel is None:
+            return self._meta_data.xlabel
+        else:
+            return self._xlabel
+
+    def twinx_title(self):
+        var_desc  = "-".join([meta_data.desc for meta_data in self.meta_datas])
         source_meta_data = MetaData.get(df, meta_datas[0].source_schema)
         return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
 
@@ -39,8 +51,7 @@ class MultiDataPlotConfig:
 def create_multi_data_plot_type(plot_type, df):
     if plot_type.value == MultiDataPlotType.ACF_PACF.value:
         schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
-        title = MultiDataPlotConfig._get_func_title(df, schemas)
-        return MultiDataPlotConfig(df, schemas, title, PlotType.LINEAR)
+        return MultiDataPlotConfig(df, schemas, PlotType.LINEAR)
     else:
         raise Exception(f"Data plot type is invalid: {plot_type}")
 
@@ -48,10 +59,13 @@ def create_multi_data_plot_type(plot_type, df):
 # Plot two curves with different data_types using different y axis scales, same xaxis
 # with data in the same DataFrame
 def twinx(df, plot_type, **kwargs):
-    title        = get_param_default_if_missing("title", None, **kwargs)
-    title_offset = get_param_default_if_missing("title_offset", 1.0, **kwargs)
-    legend_loc   = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
-    ylim         = get_param_default_if_missing("ylim", None, **kwargs)
+    title         = get_param_default_if_missing("title", None, **kwargs)
+    title_offset  = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    xlabel        = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel1       = get_param_default_if_missing("ylabel1", None, **kwargs)
+    ylabel2       = get_param_default_if_missing("ylabel2", None, **kwargs)
+    legend_loc    = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
+    ylim          = get_param_default_if_missing("ylim", None, **kwargs)
 
     plot_config = create_multi_data_plot_type(plot_type, df)
 
@@ -61,7 +75,7 @@ def twinx(df, plot_type, **kwargs):
     figure, axis1 = pyplot.subplots(figsize=(13, 10))
 
     if title is None:
-        axis1.set_title(plot_config.title, y=title_offset)
+        axis1.set_title(plot_config.twinx_title(), y=title_offset)
     else:
         axis1.set_title(title, y=title_offset)
 

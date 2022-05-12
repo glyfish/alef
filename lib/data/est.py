@@ -12,7 +12,6 @@ class EstType(Enum):
     PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
     VAR_AGG = "VAR_AGG"           # variance Aggregation esimate of FBM Hurst parameter using OLS
 
-
 ##################################################################################################################
 # Estimated parameter
 class ParamEst:
@@ -127,14 +126,3 @@ def create_dict_from_estimates(ests):
     for key in ests.keys():
         result[key] = ests[key].data
     return result
-
-def arma_estimate_from_result(result, type):
-    schema = create_schema(DataType.TIME_SERIES)
-    nparams = len(result.params)
-    params = []
-    for i in range(1, nparams-1):
-        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
-    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
-    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
-    return ARMAEst(type, const, sigma2, params)
-    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
