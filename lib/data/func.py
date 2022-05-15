@@ -1,5 +1,6 @@
 from enum import Enum
 from pandas import DataFrame
+import numpy
 
 from lib import stats
 from lib.models import fbm
@@ -24,18 +25,19 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # source: DataType input into f used to compute xcol and ycol
 #
 class DataFunc:
-    def __init__(self, schema, source_data_type, params, fy, ylabel, xlabel, desc, fx=None):
-        self.schema=schema
-        self.params=params
-        self.source_schema=create_schema(source_data_type)
-        self.ylabel=ylabel
-        self.xlabel=xlabel
-        self.desc=desc
-        self.fy=fy
+    def __init__(self, schema, source_data_type, params, fy, ylabel, xlabel, desc, formula=None, fx=None):
+        self.schema = schema
+        self.params = params
+        self.source_schema = create_schema(source_data_type)
+        self.ylabel = ylabel
+        self.xlabel = xlabel
+        self.desc = desc
+        self.fy = fy
+        self.formula = formula
         if fx is None:
-            self.fx=lambda x: x
+            self.fx = lambda x: x
         else:
-            self.fx=fx
+            self.fx = fx
 
     def __repr__(self):
         return f"DataFunc({self._props()})"
@@ -44,20 +46,29 @@ class DataFunc:
         return self._props()
 
     def _props(self):
-        return f"schema=({self.schema}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc}), source_schema=({self.source_schema})"
+        return f"schema=({self.schema}), " \
+               f"params=({self.params}), " \
+               f"xlabel=({self.xlabel}), " \
+               f"ylabel=({self.ylabel}), " \
+               f"desc=({self.desc}), " \
+               f"source_schema=({self.source_schema}) " \
+               f"formula=({self.formula})"
+
 
     def apply(self, df):
         x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        df_result = self.create_data_frame(x_result, y_result)
+        df_result = self.create_data_frame(x_result, y_result, self.meta_data(x, y))
         return DataSchema.concatinate(df, df_result)
 
-    def apply_list(self, dfs):
+    def apply_ensemble(self, dfs):
+        if len(dfs) == 0:
+            Exception(f"No DataFrames provided")
         x, y = self.source_schema.get_data_from_list(dfs)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        return self.create_data_frame(x_result, y_result)
+        return self.create_data_frame(x_result, y_result, self.ensemble_meta_data(x, y, dfs[0]))
 
     def meta_data(self, x, y):
         return MetaData(
@@ -67,11 +78,25 @@ class DataFunc:
             desc=self.desc,
             xlabel=self.xlabel,
             ylabel=self.ylabel,
-            source_schema = self.source_schema
+            source_schema = self.source_schema,
+            formula = self.formula
         )
 
-    def create_data_frame(self, x, y):
-        return DataSchema.create_data_frame(x, y, self.meta_data(x, y))
+    def ensemble_meta_data(self, x, y, df):
+        source_meta_data = MetaData.get(df, self.source_schema)
+        return MetaData(
+            npts=len(y),
+            data_type=self.schema.data_type,
+            params=source_meta_data.params | self.params,
+            desc=f"{source_meta_data.desc} {self.desc}",
+            xlabel=self.xlabel,
+            ylabel=self.ylabel,
+            source_schema = None,
+            formula = self.formula
+        )
+
+    def create_data_frame(self, x, y, meta_data):
+        return DataSchema.create_data_frame(x, y, meta_data)
 
     @staticmethod
     def apply_func_type(df, func_type, **kwargs):
@@ -79,9 +104,9 @@ class DataFunc:
         return data_func.apply(df)
 
     @staticmethod
-    def apply_func_type_to_list(dfs, func_type, **kwargs):
-        data_func = create_list_data_func(func_type, **kwargs)
-        return data_func.apply_list(dfs)
+    def apply_func_type_to_ensemble(dfs, func_type, **kwargs):
+        data_func = create_ensemble_data_func(func_type, **kwargs)
+        return data_func.apply_ensemble(dfs)
 
 ###################################################################################################
 ## create function definition for data type
@@ -193,6 +218,7 @@ def _create_vr_stat(schema, **kwargs):
                     ylabel=r"$Z^*(s)$",
                     xlabel=r"$s$",
                     desc="Variance Ratio Statistic",
+                    formula=r"$\frac{\text{VR}(s) - 1}{\sqrt{\theta^\ast (s)}}$",
                     fy=fy)
 
 # DataType.DIFF_1
@@ -202,9 +228,9 @@ def _create_diff_1(schema, **kwargs):
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
-                    ylabel=r"$\Delta^1_t$",
-                    desc="First Difference",
-                    xlabel=r"$t$")
+                    xlabel=r"$t$",
+                    ylabel=r"$\Delta^1_t S_t$",
+                    desc="First Difference")
 
 # DataType.DIFF_2
 def _create_diff_2(schema, **kwargs):
@@ -213,7 +239,7 @@ def _create_diff_2(schema, **kwargs):
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
-                    ylabel=r"$\Delta^2_t$",
+                    ylabel=r"$\Delta^2_t S_t$",
                     xlabel=r"$t$",
                     desc="Second Difference")
 
@@ -254,7 +280,8 @@ def _create_ar1_acf(schema, **kwargs):
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",
                     desc="AR(1) ACF",
-                    fx=fx)
+                    fx=fx,
+                    formula=r"$\varphi^\tau$")
 
 # DataType.MAQ_ACF
 def _create_maq_acf(schema, **kwargs):
@@ -268,10 +295,11 @@ def _create_maq_acf(schema, **kwargs):
                     source_data_type=DataType.ACF,
                     params={"θ": θ, "σ": σ},
                     fy=fy,
-                    ylabel=r"$\rho_\tau$",
-                    xlabel=r"$\tau$",
+                    ylabel=r"$\rho_n$",
+                    xlabel=r"$n$",
                     desc=f"MA({len(θ)}) ACF",
-                    fx=fx)
+                    fx=fx,
+                    formula=r"$\sigma^2 \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$")
 
 # DataType.FBM_MEAN
 def _create_fbm_mean(schema, **kwargs):
@@ -284,6 +312,7 @@ def _create_fbm_mean(schema, **kwargs):
                     fy=fy,
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
+                    formula=r"$0$",
                     desc="FBM Mean",
                     fx=fx)
 
@@ -301,6 +330,7 @@ def _create_fbm_sd(schema, **kwargs):
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
                     desc="FBM SD",
+                    formual=r"$t^H$",
                     fx=fx)
 
 # DataType.FBM_ACF
@@ -313,9 +343,10 @@ def _create_fbm_acf(schema, **kwargs):
                     source_data_type=DataType.ACF,
                     params={"npts": npts, "H": H},
                     fy=fy,
-                    ylabel=r"$\rho_\tau$",
-                    xlabel=r"$\tau$",
+                    ylabel=r"$\rho^H_\n$",
+                    xlabel=r"$\n$",
                     desc="FBM ACF",
+                    formula=r"$\frac{1}{2}[(n-1)^{2H} + (n+1)^{2H} - 2n^{2H}]$",
                     fx=fx)
 
 # DataType.BM_MEAN
@@ -331,6 +362,7 @@ def _create_bm_mean(schema, **kwargs):
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
                     desc="BM Mean",
+                    formula=r"$0$",
                     fx=fx)
 
 # DataType.BM_DRIFT_MEAN
@@ -346,6 +378,7 @@ def _create_bm_drift_mean(schema, **kwargs):
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
                     desc="BM with Drift Mean",
+                    formula=r"$\mu t$",
                     fx=fx)
 
 # DataType.BM_SD
@@ -361,6 +394,7 @@ def _create_bm_sd(schema, **kwargs):
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
                     desc="BM with Drift Mean",
+                    formula=r"$\sqrt{t}$",
                     fx=fx)
 
 # DataType.GBM_MEAN
@@ -377,6 +411,7 @@ def _create_gbm_mean(schema, **kwargs):
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
                     desc="Geometric BM Mean",
+                    formula=r"$S_0 e^{\mu t}$",
                     fx=fx)
 
 # DataType.GBM_SD
@@ -394,6 +429,7 @@ def _create_gbm_sd(schema, **kwargs):
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
                     desc="Geometric BM SD",
+                    formula=r"$S_0^2 e^{2\mu t}\left( e^{\sigma^2 t} - 1 \right)$",
                     fx=fx)
 
 # DataType.AGG_VAR
@@ -426,6 +462,7 @@ def _create_vr(schema, **kwargs):
                     ylabel=r"$\text{VR}(s)$",
                     xlabel=r"$s$",
                     desc="Variance Ratio",
+                    formula=r"$\frac{\sigma^2(s)}{\sigma_B^2(s)}$",
                     fx=fx)
 
 # DataType.BM_NOISE
@@ -453,87 +490,92 @@ def _create_bm(schema, **kwargs):
                     desc="BM",
                     fx=fx)
 
-    # DataType.ARMA_MEAN
-    def _create_arma_mean(schema, **kwargs):
-        fy = lambda x, y : numpy.full(len(x), 0.0)
-        return DataFunc(schema=schema,
-                        source_data_type=DataType.TIME_SERIES,
-                        params={},
-                        fy=fy,
-                        ylabel=r"$\mu_t \to 0$",
-                        xlabel=r"$t$",
-                        desc="ARMA(p,q) Mean")
+# DataType.ARMA_MEAN
+def _create_arma_mean(schema, **kwargs):
+    fy = lambda x, y : numpy.full(len(x), 0.0)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$\mu_\infty$",
+                    xlabel=r"$t$",
+                    formula=r"$0$",
+                    desc="ARMA(p,q) Mean")
 
-    # DataType.AR1_SD
-    def _create_ar1_sd(schema, **kwargs):
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
-        return DataFunc(schema=schema,
-                        source_data_type=DataType.TIME_SERIES,
-                        params={"φ": φ, "σ": σ},
-                        fy=fy,
-                        ylabel=r"$\sigma_t \to \sqrt{\frac{\sigma^2}{1-\varphi^2}}$",
-                        xlabel=r"$t$",
-                        desc="AR(1) SD")
+# DataType.AR1_SD
+def _create_ar1_sd(schema, **kwargs):
+    φ = get_param_throw_if_missing("φ", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"φ": φ, "σ": σ},
+                    fy=fy,
+                    ylabel=r"$\sigma_\infty$",
+                    xlabel=r"$t$",
+                    formula=r"$\frac{\sigma^2}{1-\varphi^2}$",
+                    desc="AR(1) SD")
 
-    # DataType.MAQ_SD
-    def _create_maq_sd(schema, **kwargs):
-        θ = get_param_throw_if_missing("θ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
-        return DataFunc(schema=schema,
-                        source_data_type=DataType.TIME_SERIES,
-                        params={"θ": θ, "σ": σ},
-                        fy=fy,
-                        ylabel=r"$\sigma_t \to \sqrt{\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)}$",
-                        xlabel=r"$t$",
-                        desc="MA(q) SD")
+# DataType.MAQ_SD
+def _create_maq_sd(schema, **kwargs):
+    θ = get_param_throw_if_missing("θ", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"θ": θ, "σ": σ},
+                    fy=fy,
+                    ylabel=r"$\sigma_\infty$",
+                    xlabel=r"$t$",
+                    formula=r"$\sigma^2 \left( \sum_{i=1}^q \vartheta_i^2 + 1 \right)$",
+                    desc="MA(q) SD")
 
-    # DataType.AR1_OFFSET_MEAN
-    def _create_ar1_offset_mean(schema, **kwargs):
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        μ = get_param_throw_if_missing("μ", **kwargs)
-        fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
-        return DataFunc(schema=schema,
-                        source_data_type=DataType.TIME_SERIES,
-                        params={"φ": φ, r"$μ^*$": μ},
-                        fy=fy,
-                        ylabel=r"$\mu_t \to \frac{\mu^*}{1 - \varphi}$",
-                        xlabel=r"$t$",
-                        desc="AR(1) with Offset Mean")
+# DataType.AR1_OFFSET_MEAN
+def _create_ar1_offset_mean(schema, **kwargs):
+    φ = get_param_throw_if_missing("φ", **kwargs)
+    μ = get_param_throw_if_missing("μ", **kwargs)
+    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"φ": φ, r"$μ^*$": μ},
+                    fy=fy,
+                    ylabel=r"$\mu_\infty$",
+                    xlabel=r"$t$",
+                    formula=r"$\frac{\mu^*}{1 - \varphi}$",
+                    desc="AR(1) with Offset Mean")
 
-    # DataType.AR1_OFFSET_SD
-    def _create_ar1_offset_sd(schema, **kwargs):
-        φ = get_param_throw_if_missing("φ", **kwargs)
-        σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-        fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, μ))
-        return DataFunc(schema=schema,
-                        source_data_type=DataType.TIME_SERIES,
-                        params={"φ": φ, "σ": σ},
-                        fy=fy,
-                        ylabel=r"$\sigma_t \to \sqrt{\frac{\sigma^2}{1 - \varphi^2}}$",
-                        xlabel=r"$t$",
-                        desc="AR(1) with Offset Mean")
+# DataType.AR1_OFFSET_SD
+def _create_ar1_offset_sd(schema, **kwargs):
+    φ = get_param_throw_if_missing("φ", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, μ))
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"φ": φ, "σ": σ},
+                    fy=fy,
+                    ylabel=r"$\sigma_\infty$",
+                    xlabel=r"$t$",
+                    formula=r"$\sqrt{\frac{\sigma^2}{1 - \varphi^2}}$",
+                    desc="AR(1) with Offset Mean")
 
 ###################################################################################################
 ## create function definition applied to lists of data frames for data type
-def create_list_data_func(data_type, **kwargs):
+def create_ensemble_data_func(data_type, **kwargs):
     schema = create_schema(data_type)
     if data_type.value == DataType.MEAN.value:
-        return _create_list_mean(schema, **kwargs)
+        return _create_ensemble_mean(schema, **kwargs)
     if data_type.value == DataType.SD.value:
-        return _create_list_sd(schema, **kwargs)
+        return _create_ensemble_sd(schema, **kwargs)
     if data_type.value == DataType.ACF.value:
-        return _create_list_acf(schema, **kwargs)
+        return _create_ensemble_acf(schema, **kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
 
 ###################################################################################################
 ## Create dataFunc objects for specified data type
 # DataType.MEAN
-def _create_list_mean(schema, **kwargs):
-    fy = lambda x, y : stats.ensemble_mean(y, DataType.TIME_SERIES)
+def _create_ensemble_mean(schema, **kwargs):
+    fy = lambda x, y : stats.ensemble_mean(y)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
@@ -543,8 +585,8 @@ def _create_list_mean(schema, **kwargs):
                     desc="Ensemble Mean")
 
 # DataType.SD
-def _create_list_sd(schema, **kwargs):
-    fy = lambda x, y : stats.ensemble_sd(y, DataType.TIME_SERIES)
+def _create_ensemble_sd(schema, **kwargs):
+    fy = lambda x, y : stats.ensemble_sd(y)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
@@ -554,13 +596,13 @@ def _create_list_sd(schema, **kwargs):
                     desc="Ensemble SD")
 
 # DataType.ACF
-def _create_list_acf(schema, **kwargs):
+def _create_ensemble_acf(schema, **kwargs):
     nlags = get_param_default_if_missing("nlags", None, **kwargs)
-    fy = lambda x, y : stats.ensemble_acf(y, nlags, DataType.TIME_SERIES)
+    fy = lambda x, y : stats.ensemble_acf(y, nlags)
     fx = lambda x : x[:nlags]
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
-                    params={},
+                    params={"nlags": nlags},
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
                     xlabel=r"$\tau$",

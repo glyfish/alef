@@ -42,7 +42,7 @@ class MultiDataPlotConfig:
         else:
             return self._xlabel
 
-    def twinx_title(self):
+    def title(self):
         var_desc  = "-".join([meta_data.desc for meta_data in self.meta_datas])
         source_meta_data = MetaData.get(df, meta_datas[0].source_schema)
         return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
@@ -59,7 +59,8 @@ def create_multi_data_plot_type(plot_type, df):
 # Plot two curves with different data_types using different y axis scales, same xaxis
 # with data in the same DataFrame
 def twinx(df, plot_type, **kwargs):
-    title         = get_param_default_if_missing("title", None, **kwargs)
+    plot_config   = create_multi_data_plot_type(plot_type, df)
+    title         = get_param_default_if_missing("title", plot_config.title(), **kwargs)
     title_offset  = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel        = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabel1       = get_param_default_if_missing("ylabel1", None, **kwargs)
@@ -67,17 +68,12 @@ def twinx(df, plot_type, **kwargs):
     legend_loc    = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
     ylim          = get_param_default_if_missing("ylim", None, **kwargs)
 
-    plot_config = create_multi_data_plot_type(plot_type, df)
-
     if len(plot_config.schemas) != 2:
         raise Exception(f"Must have only two schemas: {plot_type}")
 
     figure, axis1 = pyplot.subplots(figsize=(13, 10))
 
-    if title is None:
-        axis1.set_title(plot_config.twinx_title(), y=title_offset)
-    else:
-        axis1.set_title(title, y=title_offset)
+    axis1.set_title(title, y=title_offset)
 
     # first plot left axis1
     schema = plot_config.schemas[0]

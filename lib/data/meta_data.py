@@ -15,7 +15,7 @@ from lib.data.schema import (DataType, DataSchema, create_schema)
 ##################################################################################################################
 # Meta Data Schema
 class MetaData:
-    def __init__(self, npts, data_type, params, desc, xlabel, ylabel, ests={}, tests={}, source_schema=None):
+    def __init__(self, npts, data_type, params, desc, xlabel, ylabel, ests={}, tests={}, source_schema=None, formula=None):
         self.npts = npts
         self.schema = create_schema(data_type)
         self.params = params
@@ -23,6 +23,7 @@ class MetaData:
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.source_schema = source_schema
+        self.formula = formula
         self.ests = ests
         self.tests = tests
         self.data = {
@@ -33,6 +34,7 @@ class MetaData:
           "ylabel": ylabel,
           "xlabel": xlabel,
           "SourceSchema": source_schema,
+          "Formula": formula,
           "Estimates": create_dict_from_estimates(ests),
           "Tests": create_dict_from_tests(tests)
         }
@@ -44,7 +46,16 @@ class MetaData:
         return self._props()
 
     def _props(self):
-        return f"npts=({self.npts}), schema=({self.schema}), params=({self.params}), desc=({self.desc}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), ests=({self.ests}), tests=({self.tests}), source_schema=({self.source_schema})"
+        return f"npts=({self.npts}), " \
+               f"schema=({self.schema}), " \
+               f"params=({self.params}), " \
+               f"desc=({self.desc}), " \
+               f"xlabel=({self.xlabel}), " \
+               f"ylabel=({self.ylabel}), " \
+               f"ests=({self.ests}), " \
+               f"tests=({self.tests}), " \
+               f"source_schema=({self.source_schema}) " \
+               f"formula=({self.formula}) "
 
     def insert_estimate(self, est):
         self.ests[est.key()] = est
@@ -55,35 +66,12 @@ class MetaData:
         self.data["Tests"][test.key()] = test.data
 
     def params_str(self):
-        params_keys = self.params
-        set_param_keys = []
-        for key in params_keys:
-            value = self.params[key]
-            if isinstance(value, list) and len(value) > 0:
-                set_param_keys.append(key)
-            if isinstance(value, numpy.ndarray) and len(value) > 0:
-                set_param_keys.append(key)
-            if isinstance(value, int) and value > 0:
-                set_param_keys.append(key)
-            if isinstance(value, float) and value > 0.0:
-                set_param_keys.append(key)
-            if isinstance(value, str) and value != "":
-                set_param_keys.append(key)
-        if len(set_param_keys) == 0:
-            return ""
-        params_strs = []
-        for key in set_param_keys:
-            value = self.params[key]
-            if isinstance(value, numpy.ndarray):
-                value_str = numpy.array2string(value, precision=2, separator=',', suppress_small=True)
-            else:
-                value_str = f"{value}"
-            params_strs.append(f"{key}={value_str}")
-        return ", ".join(params_strs)
+        return MetaData.params_to_str(self.params)
 
     @staticmethod
     def from_dict(meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
+        formula =  meta_data["Formula"] if "Formula" in meta_data else None
 
         if "Estimates" in meta_data:
             ests = create_estimates_from_dict(meta_data["Estimates"])
@@ -104,7 +92,8 @@ class MetaData:
             ylabel=meta_data["ylabel"],
             ests=ests,
             tests=tests,
-            source_schema=source_schema
+            source_schema=source_schema,
+            formula=formula
         )
 
     @staticmethod
@@ -132,6 +121,35 @@ class MetaData:
         meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)
+
+    @staticmethod
+    def params_to_str(params):
+        set_param_keys = []
+        for key in params.keys():
+            value = params[key]
+            if isinstance(value, list) and len(value) > 0:
+                set_param_keys.append(key)
+            if isinstance(value, numpy.ndarray) and len(value) > 0:
+                set_param_keys.append(key)
+            if isinstance(value, int) and value != 0:
+                set_param_keys.append(key)
+            if isinstance(value, float) and value != 0.0:
+                set_param_keys.append(key)
+            if isinstance(value, str) and value != "":
+                set_param_keys.append(key)
+        if len(set_param_keys) == 0:
+            return ""
+        params_strs = []
+        for key in set_param_keys:
+            value = params[key]
+            if value is None:
+                continue
+            if isinstance(value, numpy.ndarray):
+                value_str = numpy.array2string(value, precision=2, separator=',', suppress_small=True)
+            else:
+                value_str = f"{value}"
+            params_strs.append(f"{key}={value_str}")
+        return ", ".join(params_strs)
 
 ##################################################################################################################
 # Perform estimate

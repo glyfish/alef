@@ -3,16 +3,13 @@ from pandas import DataFrame
 import statsmodels.api as sm
 from enum import Enum
 
-from lib.data.meta_data import (MetaData)
-from lib.data.schema import (DataType, DataSchema, create_schema)
-
 class RegType(Enum):
     LINEAR = 1
     LOG = 2
     XLOG = 3
     YLOG = 4
 
-def ensemble_mean(samples, data_type=DataType.TIME_SERIES):
+def ensemble_mean(samples):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
@@ -23,7 +20,7 @@ def ensemble_mean(samples, data_type=DataType.TIME_SERIES):
             mean[i] += samples[j][i]/float(nsim)
     return mean
 
-def ensemble_sd(samples, data_type=DataType.TIME_SERIES):
+def ensemble_sd(samples):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
@@ -35,7 +32,7 @@ def ensemble_sd(samples, data_type=DataType.TIME_SERIES):
             var[i] += (samples[j][i] - mean[i])**2/float(nsim)
     return numpy.sqrt(var)
 
-def ensemble_acf(samples, nlags=None, data_type=DataType.TIME_SERIES):
+def ensemble_acf(samples, nlags=None):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
