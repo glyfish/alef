@@ -210,6 +210,7 @@ def _create_ar_offset_source(x, source_type, **kwargs):
 # SourceType.MA
 def _create_ma_source(x, source_type, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
     f = lambda x : arima.maq(numpy.array(θ), len(x), σ)
     return DataSource(data_type=DataType.TIME_SERIES,

@@ -297,11 +297,11 @@ def _create_maq_acf(schema, **kwargs):
                     source_data_type=DataType.ACF,
                     params={"θ": θ, "σ": σ},
                     fy=fy,
-                    ylabel=r"$\rho_n$",
-                    xlabel=r"$n$",
+                    ylabel=r"$\rho_\tau$",
+                    xlabel=r"$\tau$",
                     desc=f"MA({len(θ)}) ACF",
                     fx=fx,
-                    formula=r"$\sigma^2 \left( \sum_{i=i}^{q-n} \vartheta_i \vartheta_{i+n} + \vartheta_n \right)$")
+                    formula=r"$\sigma^2 \left( \sum_{i=i}^{q-\tau} \vartheta_i \vartheta_{i+\tau} + \vartheta_\tau \right)$")
 
 # DataType.FBM_MEAN
 def _create_fbm_mean(schema, **kwargs):
