@@ -9,7 +9,8 @@ from lib import stats
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.meta_data import (MetaData)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types)
 
 ##################################################################################################################
 ## Specify PlotConfig for fcompare plot
@@ -99,7 +100,7 @@ class FuncPlotConfig:
             return self._title
 
     def _build_title(self):
-        params = self._data_meta_data.params | self._func_meta_data.params
+        params = self._func_meta_data.params | self._data_meta_data.params
         if self._source_meta_data is None:
             desc = self._data_meta_data.desc
         else:

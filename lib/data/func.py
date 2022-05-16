@@ -138,6 +138,8 @@ def create_data_func(data_type, **kwargs):
         return _create_fbm_sd(schema, **kwargs)
     elif data_type.value == DataType.FBM_ACF.value:
         return _create_fbm_acf(schema, **kwargs)
+    elif data_type.value == DataType.FBM_COV.value:
+        return _create_fbm_cov(schema, **kwargs)
     elif data_type.value == DataType.BM_MEAN.value:
         return _create_bm_mean(schema, **kwargs)
     elif data_type.value == DataType.BM_DRIFT_MEAN.value:
@@ -318,9 +320,9 @@ def _create_fbm_mean(schema, **kwargs):
 
 # DataType.FBM_SD
 def _create_fbm_sd(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/npts)]
     fy = lambda x, y : σ*numpy.sqrt(fbm.var(H, x))
     return DataFunc(schema=schema,
@@ -335,8 +337,8 @@ def _create_fbm_sd(schema, **kwargs):
 
 # DataType.FBM_ACF
 def _create_fbm_acf(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/npts)]
     fy = lambda x, y : fbm.acf(H, x)
     return DataFunc(schema=schema,
@@ -344,9 +346,26 @@ def _create_fbm_acf(schema, **kwargs):
                     params={"npts": npts, "H": H},
                     fy=fy,
                     ylabel=r"$\rho^H_\n$",
-                    xlabel=r"$\n$",
+                    xlabel=r"$n$",
                     desc="FBM ACF",
                     formula=r"$\frac{1}{2}[(n-1)^{2H} + (n+1)^{2H} - 2n^{2H}]$",
+                    fx=fx)
+
+# DataType.FBM_COV
+def _create_fbm_cov(schema, **kwargs):
+    H = get_param_throw_if_missing("H", **kwargs)
+    s = get_param_throw_if_missing("s", **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/npts)]
+    fy = lambda x, y : fbm.acf(H, x)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.ACF,
+                    params={"npts": npts, "H": H, "s": s},
+                    fy=fy,
+                    ylabel=r"$R^H(t,s)$",
+                    xlabel=r"$t$",
+                    desc="FBM ACF",
+                    formula=r"$\frac{1}{2}[t^{2H}+s^{2H}-(t-s)^{2H}]$",
                     fx=fx)
 
 # DataType.BM_MEAN
@@ -548,7 +567,7 @@ def _create_ar1_offset_mean(schema, **kwargs):
 def _create_ar1_offset_sd(schema, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, μ))
+    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, σ))
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"φ": φ, "σ": σ},

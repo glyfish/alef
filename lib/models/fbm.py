@@ -139,45 +139,6 @@ def to_noise(samples):
     return noise
 
 ###############################################################################################
-# Variance aggregation
-def agg(samples, m):
-    n = len(samples)
-    d = int(n/m)
-    agg = numpy.zeros(d)
-    for k in range(d):
-        for i in range(m):
-            j = k*m+i
-            agg[k] += samples[j]
-        agg[k] = agg[k]/m
-    return agg
-
-def agg_var(samples, m_vals):
-    npts = len(m_vals)
-    agg_var = numpy.zeros(npts)
-    for i in range(npts):
-        m = int(m_vals[i])
-        agg_vals = agg(samples, m)
-        agg_mean = numpy.mean(agg_vals)
-        d = len(agg_vals)
-        for k in range(d):
-            agg_var[i] += (agg_vals[k] - agg_mean)**2/(d - 1)
-    return agg_var
-
-def agg_series(samples, m):
-    series = []
-    for i in range(len(m)):
-        series.append(agg(samples, m[i]))
-    return series
-
-def agg_time(samples, m):
-    n = len(samples)
-    times = []
-    for i in range(len(m)):
-        d = int(n/m[i])
-        times.append(numpy.linspace(0, n-1, d))
-    return times
-
-###############################################################################################
 ## Variance Ratio Test
 # The homoscedastic test statistic is used n the analysis.
 def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=HypothesisType.TWO_TAIL, report=False, tablefmt="fancy_grid"):

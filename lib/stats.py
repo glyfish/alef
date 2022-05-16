@@ -9,6 +9,8 @@ class RegType(Enum):
     XLOG = 3
     YLOG = 4
 
+###############################################################################################
+# Ensemble averages
 def ensemble_mean(samples):
     if len(samples) == 0:
         raise Exception(f"no data")
@@ -45,6 +47,8 @@ def ensemble_acf(samples, nlags=None):
             ac_avg[i] += ac[i]
     return ac_avg/float(nsim)
 
+###############################################################################################
+# Cumulative
 def cumu_mean(y):
     ny = len(y)
     mean = numpy.zeros(ny)
@@ -72,6 +76,8 @@ def cumu_cov(x, y):
         cov[i] = (float(i)*cov[i-1]+x[i]*y[i])/float(i+1)
     return cov-meanx*meany
 
+###############################################################################################
+# Brute for covariance and ACF
 def cov(x, y):
     nsample = len(x)
     meanx = numpy.mean(x)
@@ -81,6 +87,36 @@ def cov(x, y):
         c += x[i]*y[i]
     return c/nsample-meanx*meany
 
+def acf(samples, nlags):
+    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
+
+###############################################################################################
+# Power spec
+def pspec(x):
+    n = len(x)
+    μ = x.mean()
+    x_shifted = x - μ
+    energy = numpy.sum(x_shifted**2)
+    x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
+    x_fft = numpy.fft.fft(x_padded)
+    power = numpy.conj(x_fft)*x_fft
+    return power[1:n].real/(n*energy)
+
+###############################################################################################
+# PDF and CDF histograms
+def pdf_hist(samples, range, nbins=50):
+    return numpy.histogram(samples, bins=nbins, range=range, density=True)
+
+def cdf_hist(x, pdf):
+    npoints = len(pdf)
+    cdf = numpy.zeros(npoints)
+    for i in range(npoints):
+        dx = x[i+1] - x[i]
+        cdf[i] = numpy.sum(pdf[:i])*dx
+    return cdf
+
+###############################################################################################
+## Aggregation
 def agg(samples, m):
     n = len(samples)
     d = int(n/m)
@@ -94,40 +130,31 @@ def agg(samples, m):
 
 def agg_var(samples, m_vals):
     npts = len(m_vals)
-    agg_var = numpy.zeros(npts)
+    var = numpy.zeros(npts)
     for i in range(npts):
         m = int(m_vals[i])
-        agg_vals = agg(samples, m)
-        agg_mean = numpy.mean(agg_vals)
-        d = len(agg_vals)
+        vals = agg(samples, m)
+        mean = numpy.mean(vals)
+        d = len(vals)
         for k in range(d):
-            agg_var[i] += (agg_vals[k] - agg_mean)**2/(d - 1)
-    return agg_var
+            var[i] += (vals[k] - mean)**2/(d - 1)
+    return var
 
-def pspec(x):
-    n = len(x)
-    μ = x.mean()
-    x_shifted = x - μ
-    energy = numpy.sum(x_shifted**2)
-    x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
-    x_fft = numpy.fft.fft(x_padded)
-    power = numpy.conj(x_fft)*x_fft
-    return power[1:n].real/(n*energy)
+def agg_series(samples, m):
+    series = []
+    for i in range(len(m)):
+        series.append(agg(samples, m[i]))
+    return series
 
-def pdf_hist(samples, range, nbins=50):
-    return numpy.histogram(samples, bins=nbins, range=range, density=True)
+def agg_time(samples, m):
+    n = len(samples)
+    times = []
+    for i in range(len(m)):
+        d = int(n/m[i])
+        times.append(numpy.linspace(0, n-1, d))
+    return times
 
-def cdf_hist(x, pdf):
-    npoints = len(pdf)
-    cdf = numpy.zeros(npoints)
-    for i in range(npoints):
-        dx = x[i+1] - x[i]
-        cdf[i] = numpy.sum(pdf[:i])*dx
-    return cdf
-
-def acf(samples, nlags):
-    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
-
+###############################################################################################
 ## OLS
 def OLS(y, x, type=RegType.LINEAR):
     if type == RegType.LOG:
@@ -141,12 +168,3 @@ def OLS_fit(y, x, type=RegType.LINEAR):
     results = model.fit()
     results.summary()
     return results
-
-## Private
-def _samples_from_dfs(dfs, data_type):
-    schema = create_schema(data_type)
-    samples = []
-    for df in dfs:
-        x, y = schema.get_data(df)
-        samples.append(y)
-    return x, samples

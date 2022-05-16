@@ -20,6 +20,7 @@ class DataType(Enum):
     FBM_MEAN = "FBM_MEAN"                  # Fractional Brownian Motion mean
     FBM_SD = "FBM_SD"                      # Fractional Brownian Motion standard deviation
     FBM_ACF = "FBM_ACF"                    # Fractional Brownian Motion autocorrelation function
+    FBM_COV = "FBM_COV"                    # Fractional Brownian Motion covariance function
     BM_MEAN = "BM_MEAN"                    # Brownian Motion mean
     BM_DRIFT_MEAN = "BM_DRIFT_MEAN"        # Brownian Motion model mean with data
     BM_SD = "BM_SD"                        # Brownian Motion model standard deviation
@@ -58,7 +59,7 @@ class DataSchema:
     def get_data(self, df):
         if not self.is_in(df):
             raise Exception(f"DataFrame does not contain schema={self}")
-        
+
         meta_data = df.attrs
         xcol = self.xcol
         ycol = self.ycol
@@ -147,6 +148,8 @@ def create_schema(data_type):
         return DataSchema("FBM SD Time", "FBM SD", data_type)
     elif data_type.value == DataType.FBM_ACF.value:
         return DataSchema("FBM ACF Time", "FBM ACF", data_type)
+    elif data_type.value == DataType.FBM_COV.value:
+        return DataSchema("FBM COV Time", "FBM COV", data_type)
     elif data_type.value == DataType.BM_MEAN.value:
         return DataSchema("BM Mean Time", "BM Mean", data_type)
     elif data_type.value == DataType.BM_DRIFT_MEAN.value:
