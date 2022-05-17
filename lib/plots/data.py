@@ -41,10 +41,10 @@ class DataListPlotConfig:
         self._meta_datas = [MetaData.get(dfs[i], self.schemas[i]) for i in range(self.nplot)]
 
     def xlabel(self):
-        self._meta_datas[0].xlabel
+        return self._meta_datas[0].xlabel
 
     def ylabel(self):
-        self._meta_datas[0].ylabel
+        return self._meta_datas[0].ylabel
 
     def ylabels(self):
         return [self._meta_datas[i].ylabel for i in range(self.nplot)]
@@ -116,16 +116,15 @@ def comparison(dfs, **kwargs):
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
-    nplot = len(dfs)
-    ncol = int(nplot/6) + 1
+    ncol = int(plot_config.nplot/6) + 1
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
     if title is not None:
         axis.set_title(title, y=title_offset)
 
-    axis.set_xlabel(plot_config.xlabel)
-    axis.set_ylabel(plot_config.ylabel)
+    axis.set_xlabel(xlabel)
+    axis.set_ylabel(ylabel)
 
     for i in range(nplot):
         x, y = plot_config.schemas[i].get_data(dfs[i])
@@ -180,21 +179,14 @@ def stack(dfs, **kwargs):
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
-    nplot = len(dfs)
+    figure, axis = pyplot.subplots(plot_config.nplot, sharex=True, figsize=(13, 10))
 
-    if isinstance(data_type, list):
-        m = len(data_type)
-        if m < nplot:
-            data_type.append([data_type[m-1] for i in range(m, nplot)])
-    else:
-        data_type = [data_type for i in range(nplot)]
-
-    figure, axis = pyplot.subplots(nplot, sharex=True, figsize=(13, 10))
+    axis[plot_config.nplot-1].set_xlabel(xlabel)
 
     if title is not None:
         axis[0].set_title(title, y=title_offset)
 
-    for i in range(nplot):
+    for i in range(plot_config.nplot):
         x, y = plot_config.schemas[i].get_data(dfs[i])
 
         if npts is None or npts > len(y):
@@ -202,9 +194,6 @@ def stack(dfs, **kwargs):
 
         x = x[:npts]
         y = y[:npts]
-
-        if i == nplot-1:
-            axis[nplot-1].set_xlabel(xlabel)
 
         axis[i].set_ylabel(ylabels[i])
 

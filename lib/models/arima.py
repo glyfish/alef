@@ -154,7 +154,7 @@ def ar_model(samples, order):
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
 
 def ar_fit(samples, order):
-    return ar_model(df, order).fit()
+    return ar_model(samples, order).fit()
 
 def ar_offset_model(samples, order):
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')

@@ -87,7 +87,7 @@ def twinx(df, plot_type, **kwargs):
     meta_data = MetaData.get(df, schema)
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
-    axis2.set_ylabel(meta_data.ylabel)
+    axis2.set_ylabel(meta_data.ylabel, rotation=180)
     _plot_curve(axis2, df, schema, plot_config, **kwargs)
 
     if ylim is not None:
