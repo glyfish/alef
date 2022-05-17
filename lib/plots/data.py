@@ -12,8 +12,17 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # Configurations used in plots
 class DataPlotConfig:
     def __init__(self, df, data_type):
-        self.schema = create_schema(data_type)
-        self._meta_data = MetaData.get(df, self.schema)
+        schema = create_schema(data_type)
+        self.meta_data = MetaData.get(df, self.schema)
+
+    def __repr__(self):
+        return f"DataPlotConfig({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"meta_data=({self.meta_data})"
 
     def xlabel(self):
         return self._meta_data.xlabel
@@ -37,17 +46,26 @@ class DataPlotConfig:
 class DataListPlotConfig:
     def __init__(self, dfs, data_type):
         self.nplot = len(dfs)
-        self.schemas = self._create_schemas(data_type)
-        self._meta_datas = [MetaData.get(dfs[i], self.schemas[i]) for i in range(self.nplot)]
+        schemas = self._create_schemas(data_type)
+        self.meta_datas = [MetaData.get(dfs[i], schemas[i]) for i in range(self.nplot)]
+
+    def __repr__(self):
+        return f"DataListPlotConfig({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"meta_data=({self.meta_data}), nplot=({self.nplot})"
 
     def xlabel(self):
-        return self._meta_datas[0].xlabel
+        return self.meta_datas[0].xlabel
 
     def ylabel(self):
-        return self._meta_datas[0].ylabel
+        return self.meta_datas[0].ylabel
 
     def ylabels(self):
-        return [self._meta_datas[i].ylabel for i in range(self.nplot)]
+        return [self.meta_datas[i].ylabel for i in range(self.nplot)]
 
     def _create_schemas(self, data_type):
         if isinstance(data_type, list):
@@ -74,7 +92,7 @@ def curve(df, **kwargs):
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
-    x, y = plot_config.schema.get_data(df)
+    x, y = plot_config.meta_data.get_data(df)
 
     if npts is None or npts > len(y):
         npts = len(y)
@@ -127,7 +145,7 @@ def comparison(dfs, **kwargs):
     axis.set_ylabel(ylabel)
 
     for i in range(nplot):
-        x, y = plot_config.schemas[i].get_data(dfs[i])
+        x, y = plot_config.meta_datas[i].get_data(dfs[i])
 
         if npts is None or npts > len(y):
             npts = len(y)
@@ -187,7 +205,7 @@ def stack(dfs, **kwargs):
         axis[0].set_title(title, y=title_offset)
 
     for i in range(plot_config.nplot):
-        x, y = plot_config.schemas[i].get_data(dfs[i])
+        x, y = plot_config.meta_datas[i].get_data(dfs[i])
 
         if npts is None or npts > len(y):
             npts = len(y)

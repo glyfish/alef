@@ -6,67 +6,62 @@ import matplotlib.ticker
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types)
 
-# Specify CompPlotType
-class MultiDataPlotType(Enum):
-    ACF_PACF = 2            # ACF-PACF comparison plot
-
-# Plot Configurations
-class MultiDataPlotConfig:
-    def __init__(self, df, schemas, plot_type=PlotType.LINEAR, xlabel=None, ylabel=None):
-        self.plot_type = plot_type
-        self.schemas = schemas
-        self._xlabel = xlabel
-        self._ylabel = ylabel
-        self.meta_datas = [MetaData.get(df, schema) for schema in schemas]
+# twin plot configurations
+class TwinPlotConfig:
+    def __init__(self, df, left_data_type, right_data_type):
+        left_schema = create_schema(left_data_type)
+        right_schema = create_schema(right_data_type)
+        source_schema = MetaData.get_source_schema(df)
+        self.left_meta_data = MetaData.get(df, left_schema)
+        self.right_meta_data = MetaData.get(df, right_schema)
+        self.source_meta_data = MetaData.get(df, source_schema)
 
     def __repr__(self):
-        return f"MultiDataPlotConfig({self._props()})"
+        return f"TwinPlotConfig({self._props()})"
 
     def __str__(self):
         return self._props()
 
     def _props(self):
-        return f"plot_type=({self.est}), schemas=({self.schemas}), xlabel=({self.xlabel()}), ylabel=({self.ylabel()})"
+        return f"left_meta_datas=({self.left_meta_datas}), " \
+               f"right_meta_data=({self.right_meta_datas}), " \
+               f"source_meta_data=({self.source_meta_data})"
 
     def xlabel(self):
-        if self._xlabel is None:
-            return self._meta_data.xlabel
-        else:
-            return self._xlabel
+        return self.left_meta_data.xlabel
 
-    def ylabel(self):
-        if self._xlabel is None:
-            return self._meta_data.xlabel
-        else:
-            return self._xlabel
+    def left_ylabel(self):
+        return self.left_meta_data.ylabel
+
+    def right_ylabel(self):
+        return self.right_meta_data.ylabel
 
     def title(self):
-        var_desc  = "-".join([meta_data.desc for meta_data in self.meta_datas])
-        source_meta_data = MetaData.get(df, meta_datas[0].source_schema)
-        return f"{source_meta_data.desc} {var_desc} {source_meta_data.params_str()}"
-
-## plot data type takes multiple data types
-def create_multi_data_plot_type(plot_type, df):
-    if plot_type.value == MultiDataPlotType.ACF_PACF.value:
-        schemas = [create_schema(DataType.ACF), create_schema(DataType.PACF)]
-        return MultiDataPlotConfig(df, schemas, PlotType.LINEAR)
-    else:
-        raise Exception(f"Data plot type is invalid: {plot_type}")
+        params = self.source_meta_data.params | self.left_meta_data.params | self.right_meta_data.params
+        var_desc  = self.left_meta_data.desc + "-" + self.right_meta_data.desc
+        return f"{source_meta_data.desc} {var_desc}: {MetaData.params_str(params)}"
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
 # with data in the same DataFrame
-def twinx(df, plot_type, **kwargs):
-    plot_config   = create_multi_data_plot_type(plot_type, df)
-    title         = get_param_default_if_missing("title", plot_config.title(), **kwargs)
-    title_offset  = get_param_default_if_missing("title_offset", 1.0, **kwargs)
-    xlabel        = get_param_default_if_missing("xlabel", None, **kwargs)
-    ylabel1       = get_param_default_if_missing("ylabel1", None, **kwargs)
-    ylabel2       = get_param_default_if_missing("ylabel2", None, **kwargs)
-    legend_loc    = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
-    ylim          = get_param_default_if_missing("ylim", None, **kwargs)
+def twinx(df, left_data_type, right_data_type, **kwargs):
+    left_data_type  = get_param_throw_if_missing("left_data_type", **kwargs)
+    right_data_type = get_param_throw_if_missing("left_data_type", **kwargs)
+
+    plot_config     = TwinPlotConfig(df, left_data_type, right_data_type)
+
+    plot_type       = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
+    title           = get_param_default_if_missing("title", plot_config.title(), **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
+    left_ylabel     = get_param_default_if_missing("right_ylabel", plot_config.left_ylabel(), **kwargs)
+    right_ylabel    = get_param_default_if_missing("ylabel2", plot_config.right_ylabel(), **kwargs)
+
+    legend_loc      = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
+    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
 
     if len(plot_config.schemas) != 2:
         raise Exception(f"Must have only two schemas: {plot_type}")
@@ -76,19 +71,15 @@ def twinx(df, plot_type, **kwargs):
     axis1.set_title(title, y=title_offset)
 
     # first plot left axis1
-    schema = plot_config.schemas[0]
-    meta_data = MetaData.get(df, schema)
-    axis1.set_ylabel(meta_data.ylabel)
-    axis1.set_xlabel(meta_data.xlabel)
-    _plot_curve(axis1, df, schema, plot_config, **kwargs)
+    axis1.set_ylabel(left_ylabel)
+    axis1.set_xlabel(xlabel)
+    _plot_curve(axis1, df, plot_config.left_meta_data, plot_type, **kwargs)
 
     # second plot right axis2
-    schema = plot_config.schemas[1]
-    meta_data = MetaData.get(df, schema)
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
-    axis2.set_ylabel(meta_data.ylabel, rotation=180)
-    _plot_curve(axis2, df, schema, plot_config, **kwargs)
+    axis2.set_ylabel(right_ylabel, rotation=180)
+    _plot_curve(axis2, df, plot_config.right_meta_data, plot_type, **kwargs)
 
     if ylim is not None:
         axis1.set_ylim(ylim)
@@ -110,12 +101,11 @@ def twinx_ticks(axis1, axis2):
 
 ###############################################################################################
 # plot curve on specified axis
-def _plot_curve(axis, df, schema, plot_config, **kwargs):
+def _plot_curve(axis, df, meta_data, plot_config, **kwargs):
     lw   = get_param_default_if_missing("lw", 2, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
-    x, y = schema.get_data(df)
-    meta_data = MetaData.get(df, schema)
+    x, y = meta_data.get_data(df)
     label = meta_data.desc + " (" + meta_data.ylabel + ")"
 
     if npts is None or npts > len(y):

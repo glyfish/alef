@@ -65,7 +65,11 @@ class DataSource:
         return self._props()
 
     def _props(self):
-        return f"schema=({self.schema}), params=({self.params}), xlabel=({self.xlabel}), ylabel=({self.ylabel}), desc=({self.desc})"
+        return f"schema=({self.schema}), " \
+               f"params=({self.params}), " \
+               f"xlabel=({self.xlabel}), " \
+               f"ylabel=({self.ylabel}), " \
+               f"desc=({self.desc})"
 
     def meta_data(self, x, y):
         return MetaData(
@@ -83,6 +87,7 @@ class DataSource:
         attrs = df.attrs
         attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         attrs["Name"] = self.name
+        attrs["SourceSchema"] = self.schema
         df.attrs = attrs
         return df
 

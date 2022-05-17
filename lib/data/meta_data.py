@@ -68,6 +68,9 @@ class MetaData:
     def params_str(self):
         return MetaData.params_to_str(self.params)
 
+    def get_data(self, df):
+        return self.schema.get_data(df)
+
     @staticmethod
     def from_dict(meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
@@ -121,6 +124,18 @@ class MetaData:
         meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)
+
+    @staticmethod
+    def get_source_schema(df):
+        return df.attrs["SourceSchema"]
+
+    @staticmethod
+    def get_name(df):
+        return df.attrs["Name"]
+
+    @staticmethod
+    def get_date(df):
+        return df.attrs["Date"]
 
     @staticmethod
     def params_to_str(params):
