@@ -15,7 +15,7 @@ def ensemble_mean(samples):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
-    npts = len(samples)
+    npts = len(samples[0])
     mean = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
@@ -27,7 +27,7 @@ def ensemble_sd(samples):
         raise Exception(f"no data")
     nsim = len(samples)
     mean = ensemble_mean(samples)
-    npts = len(samples)
+    npts = len(samples[0])
     var = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
@@ -39,7 +39,7 @@ def ensemble_acf(samples, nlags=None):
         raise Exception(f"no data")
     nsim = len(samples)
     if nlags is None or nlags > len(samples):
-        nlags = len(samples)
+        nlags = len(samples[0])
     ac_avg = numpy.zeros(nlags)
     for j in range(nsim):
         ac = acf(samples[j], nlags).real

@@ -179,6 +179,7 @@ def _create_ar_source(x, source_type, **kwargs):
                       f=f,
                       x=x)
 
+# SourceType.AR_DRIFT
 def _create_ar_drift_source(x, source_type, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
@@ -196,6 +197,7 @@ def _create_ar_drift_source(x, source_type, **kwargs):
                       f=f,
                       x=x)
 
+# SourceType.AR_OFFSET
 def _create_ar_offset_source(x, source_type, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)

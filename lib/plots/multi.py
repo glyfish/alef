@@ -42,7 +42,7 @@ class TwinPlotConfig:
     def title(self):
         params = self.source_meta_data.params | self.left_meta_data.params | self.right_meta_data.params
         var_desc  = self.left_meta_data.desc + "-" + self.right_meta_data.desc
-        return f"{self.source_meta_data.desc} {var_desc}: {MetaData.params_str(params)}"
+        return f"{self.source_meta_data.desc} {var_desc}: {MetaData.params_to_str(params)}"
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
@@ -63,9 +63,6 @@ def twinx(df, **kwargs):
     legend_loc      = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
 
-    if len(plot_config.schemas) != 2:
-        raise Exception(f"Must have only two schemas: {plot_type}")
-
     figure, axis1 = pyplot.subplots(figsize=(13, 10))
 
     axis1.set_title(title, y=title_offset)
@@ -78,7 +75,7 @@ def twinx(df, **kwargs):
     # second plot right axis2
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
-    axis2.set_ylabel(right_ylabel, rotation=180)
+    axis2.set_ylabel(right_ylabel)
     _plot_curve(axis2, df, plot_config.right_meta_data, plot_type, **kwargs)
 
     if ylim is not None:
@@ -101,7 +98,7 @@ def twinx_ticks(axis1, axis2):
 
 ###############################################################################################
 # plot curve on specified axis
-def _plot_curve(axis, df, meta_data, plot_config, **kwargs):
+def _plot_curve(axis, df, meta_data, plot_type, **kwargs):
     lw   = get_param_default_if_missing("lw", 2, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
@@ -114,19 +111,19 @@ def _plot_curve(axis, df, meta_data, plot_config, **kwargs):
     x = x[:npts]
     y = y[:npts]
 
-    if plot_config.plot_type.value == PlotType.LOG.value:
+    if plot_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
         if label is None:
             axis.loglog(x, y, lw=lw)
         else:
             axis.loglog(x, y, label=label, lw=lw)
-    elif plot_config.plot_type.value == PlotType.XLOG.value:
+    elif plot_type.value == PlotType.XLOG.value:
         logXStyle(axis, x, y)
         if label is None:
             axis.semilogx(x, y, lw=lw)
         else:
             axis.semilogx(x, y, label=label, lw=lw)
-    elif plot_config.plot_type.value == PlotType.YLOG.value:
+    elif plot_type.value == PlotType.YLOG.value:
         logYStyle(axis, x, y)
         if label is None:
             axis.semilogy(x, y, lw=lw)

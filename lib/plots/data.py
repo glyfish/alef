@@ -130,7 +130,7 @@ def comparison(dfs, **kwargs):
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
     ylabel         = get_param_default_if_missing("ylabels", plot_config.ylabel(), **kwargs)
-    labels         = get_param_default_if_missing("labels", plot_config.labels(), **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
@@ -144,7 +144,7 @@ def comparison(dfs, **kwargs):
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
 
-    for i in range(nplot):
+    for i in range(plot_config.nplot):
         x, y = plot_config.meta_datas[i].get_data(dfs[i])
 
         if npts is None or npts > len(y):
@@ -177,7 +177,7 @@ def comparison(dfs, **kwargs):
             else:
                 axis.plot(x, y, label=labels[i], lw=lw)
 
-    if nplot <= 12 and labels is not None:
+    if plot_config.nplot <= 12 and labels is not None:
         axis.legend(ncol=ncol, loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
 ###############################################################################################
