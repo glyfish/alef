@@ -13,7 +13,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 class DataPlotConfig:
     def __init__(self, df, data_type):
         schema = create_schema(data_type)
-        self.meta_data = MetaData.get(df, self.schema)
+        self.meta_data = MetaData.get(df, schema)
 
     def __repr__(self):
         return f"DataPlotConfig({self._props()})"
@@ -25,21 +25,21 @@ class DataPlotConfig:
         return f"meta_data=({self.meta_data})"
 
     def xlabel(self):
-        return self._meta_data.xlabel
+        return self.meta_data.xlabel
 
     def ylabel(self):
-        return self._meta_data.ylabel
+        return self.meta_data.ylabel
 
     def title(self):
-        params = self._meta_data.params
-        formula = self._meta_data.formula
-        title = f"{self._meta_data.desc}"
+        params = self.meta_data.params
+        formula = self.meta_data.formula
+        title = f"{self.meta_data.desc}"
         if formula is not None:
-            title = f"{title} {self._meta_data.formula()}"
+            title = f"{title} {self.meta_data.formula()}"
         if not params:
             return title
         else:
-            return f"{title}: {self._meta_data.params_str()}"
+            return f"{title}: {self.meta_data.params_str()}"
 
 ###############################################################################################
 # Configurations used in plots of data lists

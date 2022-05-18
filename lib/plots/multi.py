@@ -42,14 +42,14 @@ class TwinPlotConfig:
     def title(self):
         params = self.source_meta_data.params | self.left_meta_data.params | self.right_meta_data.params
         var_desc  = self.left_meta_data.desc + "-" + self.right_meta_data.desc
-        return f"{source_meta_data.desc} {var_desc}: {MetaData.params_str(params)}"
+        return f"{self.source_meta_data.desc} {var_desc}: {MetaData.params_str(params)}"
 
 ###############################################################################################
 # Plot two curves with different data_types using different y axis scales, same xaxis
 # with data in the same DataFrame
-def twinx(df, left_data_type, right_data_type, **kwargs):
+def twinx(df, **kwargs):
     left_data_type  = get_param_throw_if_missing("left_data_type", **kwargs)
-    right_data_type = get_param_throw_if_missing("left_data_type", **kwargs)
+    right_data_type = get_param_throw_if_missing("right_data_type", **kwargs)
 
     plot_config     = TwinPlotConfig(df, left_data_type, right_data_type)
 
@@ -57,8 +57,8 @@ def twinx(df, left_data_type, right_data_type, **kwargs):
     title           = get_param_default_if_missing("title", plot_config.title(), **kwargs)
     title_offset    = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel          = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
-    left_ylabel     = get_param_default_if_missing("right_ylabel", plot_config.left_ylabel(), **kwargs)
-    right_ylabel    = get_param_default_if_missing("ylabel2", plot_config.right_ylabel(), **kwargs)
+    left_ylabel     = get_param_default_if_missing("left_ylabel", plot_config.left_ylabel(), **kwargs)
+    right_ylabel    = get_param_default_if_missing("right_ylabel", plot_config.right_ylabel(), **kwargs)
 
     legend_loc      = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
