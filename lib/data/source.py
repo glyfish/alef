@@ -146,8 +146,8 @@ def _get_data_source(source_type, x, **kwargs):
         return _create_bm_noise_source(x, source_type, **kwargs)
     if source_type.value == SourceType.BM.value:
         return _create_bm_source(x, source_type, **kwargs)
-    if source_type.value == SourceType.BM_WITH_DRIFT.value:
-        return _create_bm_with_drift_source(x, source_type, **kwargs)
+    if source_type.value == SourceType.BM_DRIFT.value:
+        return _create_bm_drift_source(x, source_type, **kwargs)
     if source_type.value == SourceType.BM_GEO.value:
         return _create_bm_geo_source(x, source_type, **kwargs)
     if source_type.value == SourceType.FBM_NOISE_CHOL.value:
@@ -310,7 +310,7 @@ def _create_bm_source(x, source_type, **kwargs):
                       x=x)
 
 # SourceType.BM_WITH_DRIFT
-def _create_bm_with_drift_source(x, source_type, **kwargs):
+def _create_bm_drift_source(x, source_type, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
@@ -331,7 +331,7 @@ def _create_bm_geo_source(x, source_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    f = lambda x : bm.bm_geometric(μ, σ, S0, len(x), Δt)
+    f = lambda x : bm.bm_geometric(μ, σ, S0, len(x), Δx)
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",

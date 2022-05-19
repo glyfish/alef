@@ -38,7 +38,5 @@ def bm_with_drift(μ, σ, n, Δt=1):
 
 def bm_geometric(μ, σ, s0, n, Δt=1):
     gbm_drift = μ - 0.5*σ**2
-    df = bm_with_drift(gbm_drift, σ, n, Δt)
-    schema = create_schema(DataType.TIME_SERIES)
-    _, samples = schema.get_data(df)
+    samples = bm_with_drift(gbm_drift, σ, n, Δt)
     return s0*numpy.exp(samples)
