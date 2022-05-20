@@ -109,13 +109,6 @@ def arma(φ, θ, n, σ=1):
     return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
 
 ### ARIMA(p,d,q) simulator
-def diff(samples):
-    n = len(samples)
-    d = numpy.zeros(n-1)
-    for i in range(n-1):
-        d[i] = samples[i+1] - samples[i]
-    return d
-
 def arima(φ, δ, d, n, σ=1.0):
     assert d <= 2, "d must equal 1 or 2"
     samples = arma(φ, δ, n, σ)

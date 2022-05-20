@@ -123,22 +123,6 @@ def generate_fft(H, n, Δt=1, dB=None):
     return Z
 
 ###############################################################################################
-# Transformations
-def to_geometric(s0, samples):
-    return s0*numpy.exp(samples)
-
-def from_geometric(s0, samples):
-    return numpy.log(samples/s0)
-
-def to_noise(samples):
-    nsim, npts = samples.shape
-    noise = numpy.zeros((nsim, npts-1))
-    for i in range(nsim):
-        for j in range(npts-1):
-            noise[i,j] = samples[i,j+1] - samples[i,j]
-    return noise
-
-###############################################################################################
 ## Variance Ratio Test
 # The homoscedastic test statistic is used n the analysis.
 def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=HypothesisType.TWO_TAIL, report=False, tablefmt="fancy_grid"):

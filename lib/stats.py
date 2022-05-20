@@ -10,6 +10,34 @@ class RegType(Enum):
     YLOG = 4
 
 ###############################################################################################
+# Transformations
+def to_noise(samples):
+    npts = len(samples)
+    noise = numpy.zeros(npts-1)
+    for j in range(npts-1):
+        noise[j] = samples[j+1] - samples[j]
+    return noise
+
+def from_noise(dB):
+    B = numpy.zeros(len(dB))
+    for i in range(1, len(dB)):
+        B[i] = B[i-1] + dB[i]
+    return B
+
+def to_geometric(samples):
+    return numpy.exp(samples)
+
+def from_geometric(samples):
+    return numpy.log(samples/s0)
+
+def diff(samples):
+    n = len(samples)
+    d = numpy.zeros(n-1)
+    for i in range(n-1):
+        d[i] = samples[i+1] - samples[i]
+    return d
+
+###############################################################################################
 # Ensemble averages
 def ensemble_mean(samples):
     if len(samples) == 0:
@@ -77,7 +105,7 @@ def cumu_cov(x, y):
     return cov-meanx*meany
 
 ###############################################################################################
-# Brute for covariance and ACF
+# Covaraince and auto covariance implementations
 def cov(x, y):
     nsample = len(x)
     meanx = numpy.mean(x)
@@ -88,7 +116,7 @@ def cov(x, y):
     return c/nsample-meanx*meany
 
 def acf(samples, nlags):
-    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True)
+    return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True, missing="drop")
 
 ###############################################################################################
 # Power spec

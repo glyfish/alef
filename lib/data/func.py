@@ -54,7 +54,6 @@ class DataFunc:
                f"source_schema=({self.source_schema}) " \
                f"formula=({self.formula})"
 
-
     def apply(self, df):
         x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
@@ -69,6 +68,9 @@ class DataFunc:
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
         return self.create_data_frame(x_result, y_result, self.ensemble_meta_data(x, y, dfs[0]))
+
+    def apply_list(self, dfs):
+        return [self.apply(df) for df in dfs]
 
     def meta_data(self, x, y):
         return MetaData(
@@ -108,6 +110,11 @@ class DataFunc:
         data_func = create_ensemble_data_func(func_type, **kwargs)
         return data_func.apply_ensemble(dfs)
 
+    @staticmethod
+    def apply_func_type_to_list(dfs, func_type, **kwargs):
+        data_func = create_data_func(func_type, **kwargs)
+        return data_func.apply_list(dfs)
+
 ###################################################################################################
 ## create function definition for data type
 def create_data_func(data_type, **kwargs):
@@ -120,10 +127,8 @@ def create_data_func(data_type, **kwargs):
         return _create_pacf(schema, **kwargs)
     elif data_type.value == DataType.VR_STAT.value:
         return _create_vr_stat(schema, **kwargs)
-    elif data_type.value == DataType.DIFF_1.value:
-        return _create_diff_1(schema, **kwargs)
-    elif data_type.value == DataType.DIFF_2.value:
-        return _create_diff_2(schema, **kwargs)
+    elif data_type.value == DataType.DIFF.value:
+        return _create_diff(schema, **kwargs)
     elif data_type.value == DataType.CUMU_MEAN.value:
         return _create_cumu_mean(schema, **kwargs)
     elif data_type.value == DataType.CUMU_SD.value:
@@ -154,8 +159,6 @@ def create_data_func(data_type, **kwargs):
         return _create_agg_var(schema, **kwargs)
     elif data_type.value == DataType.VR.value:
         return _create_vr(schema, **kwargs)
-    elif data_type.value == DataType.BM_NOISE.value:
-        return _create_bm_noise(schema, **kwargs)
     elif data_type.value == DataType.BM.value:
         return _create_bm(schema, **kwargs)
     elif data_type.value == DataType.ARMA_MEAN.value:
@@ -187,10 +190,11 @@ def _create_pspec(schema, **kwargs):
 # DataType.ACF
 def _create_acf(schema, **kwargs):
     nlags = get_param_throw_if_missing("nlags", **kwargs)
+    source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : x[:nlags+1]
     fy = lambda x, y : stats.acf(y, nlags)
     return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
+                    source_data_type=source_data_type,
                     params={"nlags": nlags},
                     fy=fy,
                     ylabel=r"$\rho_\tau$",
@@ -224,27 +228,18 @@ def _create_vr_stat(schema, **kwargs):
                     fy=fy)
 
 # DataType.DIFF_1
-def _create_diff_1(schema, **kwargs):
-    fy = lambda x, y : y
+def _create_diff(schema, **kwargs):
+    ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
+    fx = lambda x : x[:-1]
+    fy = lambda x, y : stats.diff(y)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
+                    ylabel=r"$\Delta S_t$",
                     xlabel=r"$t$",
-                    ylabel=r"$\Delta^1_t S_t$",
-                    desc="First Difference")
-
-# DataType.DIFF_2
-def _create_diff_2(schema, **kwargs):
-    fy = lambda x, y : y
-    return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
-                    params={},
-                    fy=fy,
-                    ylabel=r"$\Delta^2_t S_t$",
-                    xlabel=r"$t$",
-                    desc="Second Difference")
-
+                    desc="Difference",
+                    fx=fx)
 
 # DataType.CUMU_MEAN
 def _create_cumu_mean(schema, **kwargs):
@@ -321,18 +316,18 @@ def _create_fbm_mean(schema, **kwargs):
 # DataType.FBM_SD
 def _create_fbm_sd(schema, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
-    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/npts)]
-    fy = lambda x, y : σ*numpy.sqrt(fbm.var(H, x))
+    fy = lambda x, y : Δx**H*numpy.sqrt(fbm.var(H, x))
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "H": H, "σ": σ},
+                    params={"npts": npts, "H": H, "Δt": Δx},
                     fy=fy,
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
                     desc="FBM SD",
-                    formual=r"$t^H$",
+                    formula=r"$t^H$",
                     fx=fx)
 
 # DataType.FBM_ACF
@@ -345,7 +340,7 @@ def _create_fbm_acf(schema, **kwargs):
                     source_data_type=DataType.ACF,
                     params={"npts": npts, "H": H},
                     fy=fy,
-                    ylabel=r"$\rho^H_\n$",
+                    ylabel=r"$\rho^H_n$",
                     xlabel=r"$n$",
                     desc="FBM ACF",
                     formula=r"$\frac{1}{2}[(n-1)^{2H} + (n+1)^{2H} - 2n^{2H}]$",
@@ -484,30 +479,16 @@ def _create_vr(schema, **kwargs):
                     formula=r"$\frac{\sigma^2(s)}{\sigma_B^2(s)}$",
                     fx=fx)
 
-# DataType.BM_NOISE
-def _create_bm_noise(schema, **kwargs):
-    fx = lambda x : x[1:]
-    fy = lambda x, y : bm.to_noise(y)
-    return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
-                    params={},
-                    fy=fy,
-                    ylabel=r"$\Delta S_t$",
-                    xlabel=r"$t$",
-                    desc="BM Noise",
-                    fx=fx)
-
 # DataType.BM
 def _create_bm(schema, **kwargs):
-    fy = lambda x, y : bm.to_noise(y)
+    fy = lambda x, y : stats.from_noise(y)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
                     ylabel=r"$S_t$",
                     xlabel=r"$t$",
-                    desc="BM",
-                    fx=fx)
+                    desc="BM")
 
 # DataType.ARMA_MEAN
 def _create_arma_mean(schema, **kwargs):
@@ -583,9 +564,9 @@ def create_ensemble_data_func(data_type, **kwargs):
     schema = create_schema(data_type)
     if data_type.value == DataType.MEAN.value:
         return _create_ensemble_mean(schema, **kwargs)
-    if data_type.value == DataType.SD.value:
+    elif data_type.value == DataType.SD.value:
         return _create_ensemble_sd(schema, **kwargs)
-    if data_type.value == DataType.ACF.value:
+    elif data_type.value == DataType.ACF.value:
         return _create_ensemble_acf(schema, **kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
@@ -616,11 +597,12 @@ def _create_ensemble_sd(schema, **kwargs):
 
 # DataType.ACF
 def _create_ensemble_acf(schema, **kwargs):
+    source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     nlags = get_param_default_if_missing("nlags", None, **kwargs)
     fy = lambda x, y : stats.ensemble_acf(y, nlags)
     fx = lambda x : x[:nlags]
     return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
+                    source_data_type=source_data_type,
                     params={"nlags": nlags},
                     fy=fy,
                     ylabel=r"$\rho_\tau$",

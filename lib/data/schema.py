@@ -9,8 +9,8 @@ class DataType(Enum):
     TIME_SERIES = "TIME_SERIES"            # Time Series
     PSPEC = "PSPEC"                        # Power Spectrum
     ACF = "ACF"                            # Autocorrelation function
-    DIFF_1 = "DIFF_1"                      # First time series difference
-    DIFF_2 = "DIFF_2"                      # Second time series difference
+    DIFF = "DIFF"                          # Time series difference
+    DIFF_ACF = "DIFF_ACF"                  # ACF Difference
     CUMU_MEAN = "CUMU_MEAN"                # Cumulative mean
     CUMU_SD = "CUMU_SD"                    # Cumulative standard deviation
     MEAN = "MEAN"                          # Mean as a function of time
@@ -30,7 +30,6 @@ class DataType(Enum):
     VR = "VR"                              # Variance Ratio use in test for brownian motion
     VR_STAT = "VR_STAT"                    # FBM variance ratio test statistic
     PACF = "PACF"                          # Partial Autocorrelation function
-    BM_NOISE = "BM_NOISE"                  # Brownian motion noise increments computed from brwnian motion
     BM = "BM"                              # Brownian motion computed from brownian motion noise
     ARMA_MEAN = "ARMA_MEAN"                # ARMA(p,q) MEAN
     AR1_SD = "AR1_SD"                      # AR(1) standard seviation
@@ -126,10 +125,8 @@ def create_schema(data_type):
         return DataSchema("PACF Lag", "PACF", data_type)
     elif data_type.value == DataType.VR_STAT.value:
         return DataSchema("Lag", "Variance Ratio", data_type)
-    elif data_type.value == DataType.DIFF_1.value:
-        return DataSchema("Time", "Difference 1", data_type)
-    elif data_type.value == DataType.DIFF_2.value:
-        return DataSchema("Time", "Difference 2", data_type)
+    elif data_type.value == DataType.DIFF.value:
+        return DataSchema("Difference Time", "Difference", data_type)
     elif data_type.value == DataType.CUMU_MEAN.value:
         return DataSchema("Time", "Cumulative Mean", data_type)
     elif data_type.value == DataType.CUMU_SD.value:
@@ -164,8 +161,6 @@ def create_schema(data_type):
         return DataSchema("Agg Time", "Aggregated Variance", data_type)
     elif data_type.value == DataType.VR.value:
         return DataSchema("VR Time", "Variance Ratio", data_type)
-    elif data_type.value == DataType.BM_NOISE.value:
-        return DataSchema("BM Noise Time", "BM Noise", data_type)
     elif data_type.value == DataType.BM.value:
         return DataSchema("Time", "BM", data_type)
     elif data_type.value == DataType.ARMA_MEAN.value:

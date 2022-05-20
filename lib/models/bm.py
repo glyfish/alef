@@ -4,20 +4,6 @@ import numpy
 from datetime import datetime
 import uuid
 
-def to_noise(samples):
-    nsim, npts = samples.shape
-    noise = numpy.zeros((nsim, npts-1))
-    for i in range(nsim):
-        for j in range(npts-1):
-            noise[i,j] = samples[i,j+1] - samples[i,j]
-    return noise
-
-def from_noise(dB):
-    B = numpy.zeros(len(dB))
-    for i in range(1, len(dB)):
-        B[i] = B[i-1] + dB[i]
-    return B
-
 def noise(n):
     return numpy.random.normal(0.0, 1.0, n)
 
