@@ -1,5 +1,7 @@
 from enum import Enum
 from pandas import DataFrame
+from datetime import datetime
+import uuid
 import numpy
 
 from lib import stats
@@ -10,7 +12,7 @@ from lib.models import arima
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema, create_schema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+                       verify_type, verify_types, create_space)
 
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
@@ -58,7 +60,7 @@ class DataFunc:
         x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        df_result = self.create_data_frame(x_result, y_result, self.meta_data(x, y))
+        df_result = self.create_data_frame(x_result, y_result, self.meta_data(len(y)))
         return DataSchema.concatinate(df, df_result)
 
     def apply_ensemble(self, dfs):
@@ -67,14 +69,14 @@ class DataFunc:
         x, y = self.source_schema.get_data_from_list(dfs)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        return self.create_data_frame(x_result, y_result, self.ensemble_meta_data(x, y, dfs[0]))
+        return self.create_data_frame(x_result, y_result, self.ensemble_meta_data(len(y), dfs[0]))
 
     def apply_list(self, dfs):
         return [self.apply(df) for df in dfs]
 
-    def meta_data(self, x, y):
+    def meta_data(self, npts):
         return MetaData(
-            npts=len(y),
+            npts=npts,
             data_type=self.schema.data_type,
             params=self.params,
             desc=self.desc,
@@ -84,10 +86,10 @@ class DataFunc:
             formula = self.formula
         )
 
-    def ensemble_meta_data(self, x, y, df):
+    def ensemble_meta_data(self, npts, df):
         source_meta_data = MetaData.get(df, self.source_schema)
         return MetaData(
-            npts=len(y),
+            npts=npts,
             data_type=self.schema.data_type,
             params=source_meta_data.params | self.params,
             desc=f"{source_meta_data.desc} {self.desc}",
@@ -96,6 +98,16 @@ class DataFunc:
             source_schema = None,
             formula = self.formula
         )
+
+    def create(self, x):
+        y = self.fy(x, None)
+        df = self.create_data_frame(x, y, self.meta_data(len(y)))
+        attrs = df.attrs
+        attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        attrs["Name"] = self.desc
+        attrs["SourceSchema"] = self.schema
+        df.attrs = attrs
+        return df
 
     def create_data_frame(self, x, y, meta_data):
         return DataSchema.create_data_frame(x, y, meta_data)
@@ -114,6 +126,19 @@ class DataFunc:
     def apply_func_type_to_list(dfs, func_type, **kwargs):
         data_func = create_data_func(func_type, **kwargs)
         return data_func.apply_list(dfs)
+
+    @staticmethod
+    def create_func_type(func_type, **kwargs):
+        x = get_param_default_if_missing("x", None, **kwargs)
+        if x is None:
+            npts = get_param_default_if_missing("npts", None, **kwargs)
+            xmax = get_param_default_if_missing("xmax", None, **kwargs)
+            x0 = get_param_default_if_missing("xmin", 0.0, **kwargs)
+            Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+            x = create_space(xmax, x0, Δx)
+        kwargs["npts"] = len(x)
+        data_func = create_data_func(func_type, **kwargs, npolt=len(x))
+        return data_func.create(x)
 
 ###################################################################################################
 ## create function definition for data type
@@ -215,6 +240,7 @@ def _create_pacf(schema, **kwargs):
                     xlabel=r"$\tau$",
                     desc="PACF",
                     fx=fx)
+
 # DataType.VR_STAT
 def _create_vr_stat(schema, **kwargs):
     fy = lambda x, y : y
@@ -300,12 +326,12 @@ def _create_maq_acf(schema, **kwargs):
 
 # DataType.FBM_MEAN
 def _create_fbm_mean(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.full(len(x), 0.0)
     return DataFunc(schema=schema,
                     source_data_type=DataType.MEAN,
-                    params={"npts": npts},
+                    params={},
                     fy=fy,
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
@@ -316,15 +342,14 @@ def _create_fbm_mean(schema, **kwargs):
 # DataType.FBM_SD
 def _create_fbm_sd(schema, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
-    fy = lambda x, y : Δx**H*numpy.sqrt(fbm.var(H, x))
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fy = lambda x, y : numpy.sqrt(fbm.var(H, x))
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "H": H, "Δt": Δx},
+                    params={"H": H},
                     fy=fy,
-                    ylabel=r"$\sigma_t$",
+                    ylabel=r"$\sigma^H_t$",
                     xlabel=r"$t$",
                     desc="FBM SD",
                     formula=r"$t^H$",
@@ -333,12 +358,12 @@ def _create_fbm_sd(schema, **kwargs):
 # DataType.FBM_ACF
 def _create_fbm_acf(schema, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : fbm.acf(H, x)
     return DataFunc(schema=schema,
                     source_data_type=DataType.ACF,
-                    params={"npts": npts, "H": H},
+                    params={"H": H},
                     fy=fy,
                     ylabel=r"$\rho^H_n$",
                     xlabel=r"$n$",
@@ -350,12 +375,12 @@ def _create_fbm_acf(schema, **kwargs):
 def _create_fbm_cov(schema, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     s = get_param_throw_if_missing("s", **kwargs)
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
-    fy = lambda x, y : fbm.acf(H, x)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fy = lambda x, y : fbm.cov(H, s, x)
     return DataFunc(schema=schema,
                     source_data_type=DataType.ACF,
-                    params={"npts": npts, "H": H, "s": s},
+                    params={"H": H, "s": s},
                     fy=fy,
                     ylabel=r"$R^H(t,s)$",
                     xlabel=r"$t$",
@@ -365,13 +390,13 @@ def _create_fbm_cov(schema, **kwargs):
 
 # DataType.BM_MEAN
 def _create_bm_mean(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.full(len(x), μ)
     return DataFunc(schema=schema,
                     source_data_type=DataType.MEAN,
-                    params={"npts": npts, "μ": μ},
+                    params={"μ": μ},
                     fy=fy,
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
@@ -381,13 +406,13 @@ def _create_bm_mean(schema, **kwargs):
 
 # DataType.BM_DRIFT_MEAN
 def _create_bm_drift_mean(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : μ*x
     return DataFunc(schema=schema,
                     source_data_type=DataType.MEAN,
-                    params={"npts": npts, "μ": μ},
+                    params={"μ": μ},
                     fy=fy,
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
@@ -397,13 +422,13 @@ def _create_bm_drift_mean(schema, **kwargs):
 
 # DataType.BM_SD
 def _create_bm_sd(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : σ*numpy.sqrt(x)
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "σ": σ},
+                    params={"σ": σ},
                     fy=fy,
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
@@ -413,14 +438,14 @@ def _create_bm_sd(schema, **kwargs):
 
 # DataType.GBM_MEAN
 def _create_gbm_mean(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : S0*numpy.exp(μ*x)
     return DataFunc(schema=schema,
                     source_data_type=DataType.MEAN,
-                    params={"npts": npts, "μ": μ, "S0": S0},
+                    params={"μ": μ, "S0": S0},
                     fy=fy,
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
@@ -430,15 +455,15 @@ def _create_gbm_mean(schema, **kwargs):
 
 # DataType.GBM_SD
 def _create_gbm_sd(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.sqrt(S0**2*numpy.exp(2*μ*x)*(numpy.exp(x*σ**2)-1))
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "σ": σ, "μ": μ, "S0": S0},
+                    params={"σ": σ, "μ": μ, "S0": S0},
                     fy=fy,
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
@@ -448,14 +473,14 @@ def _create_gbm_sd(schema, **kwargs):
 
 # DataType.AGG_VAR
 def _create_agg_var(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : σ**2*fbm.var(H, t)
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "H": H, "σ": σ},
+                    params={"H": H, "σ": σ},
                     fy=fy,
                     ylabel=r"$\text{Var}(X^m)$",
                     xlabel=r"$m$",
@@ -464,14 +489,14 @@ def _create_agg_var(schema, **kwargs):
 
 # DataType.VR
 def _create_vr(schema, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/npts)]
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y :  σ**2*t**(2*H - 1.0)
     return DataFunc(schema=schema,
                     source_data_type=DataType.SD,
-                    params={"npts": npts, "H": H, "σ": σ},
+                    params={"H": H, "σ": σ},
                     fy=fy,
                     ylabel=r"$\text{VR}(s)$",
                     xlabel=r"$s$",

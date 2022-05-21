@@ -12,7 +12,7 @@ from lib.models import arima
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema, create_schema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+                       verify_type, verify_types, create_space)
 
 ##################################################################################################################
 # Specify Data Source Types used in analysis
@@ -71,9 +71,9 @@ class DataSource:
                f"ylabel=({self.ylabel}), " \
                f"desc=({self.desc})"
 
-    def meta_data(self, x, y):
+    def meta_data(self, npts):
         return MetaData(
-            npts=len(y),
+            npts=npts,
             data_type=self.schema.data_type,
             params=self.params,
             desc=self.desc,
@@ -83,7 +83,7 @@ class DataSource:
 
     def create(self):
         y = self.f(self.x)
-        df = DataSchema.create_data_frame(self.x, y, self.meta_data(self.x, y))
+        df = DataSchema.create_data_frame(self.x, y, self.meta_data(len(y)))
         attrs = df.attrs
         attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         attrs["Name"] = self.name
@@ -103,11 +103,6 @@ class DataSource:
         return create_data_source(source_type, **kwargs)
 
     @staticmethod
-    def create_space(xmax, x0=0.0, Δx=1.0):
-        npts = int((xmax-x0)/Δx)
-        return numpy.linspace(x0, xmax, npts+1)
-
-    @staticmethod
     def create_parameter_scan(source_type, *args):
         dfs = []
         for kwargs in args:
@@ -119,10 +114,11 @@ class DataSource:
 def create_data_source(source_type, **kwargs):
     x = get_param_default_if_missing("x", None, **kwargs)
     if x is None:
-        xmax = get_param_throw_if_missing("xmax", **kwargs)
-        x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+        npts = get_param_default_if_missing("npts", None, **kwargs)
+        xmax = get_param_default_if_missing("xmax", None, **kwargs)
+        xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
         Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-        x = DataSource.create_space(xmax, x0, Δx)
+        x = create_space(xmax, npts, xmin, Δx)
 
     source = _get_data_source(source_type, x, **kwargs)
     return source.create()
@@ -303,7 +299,7 @@ def _create_bm_source(x, source_type, **kwargs):
                       source_type=source_type,
                       params={"Δx": Δx},
                       name=f"BM-Simulation-{str(uuid.uuid4())}",
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Brownian Motion",
                       f=f,
@@ -319,7 +315,7 @@ def _create_bm_drift_source(x, source_type, **kwargs):
                       source_type=source_type,
                       name=f"BM-Simulation-{str(uuid.uuid4())}",
                       params={"σ": σ, "μ": μ, "Δx": Δx},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Brownian Motion",
                       f=f,
@@ -336,7 +332,7 @@ def _create_bm_geo_source(x, source_type, **kwargs):
                       source_type=source_type,
                       name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",
                       params={"σ": σ, "μ": μ, "Δx": Δx, "S0": S0},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Brownian Motion",
                       f=f,
@@ -348,12 +344,16 @@ def _create_fbm_noise_chol_source(x, source_type, **kwargs):
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
     L = get_param_default_if_missing("L", None, **kwargs)
-    f = lambda x : fbm.cholesky_noise(H, len(x), Δx, dB, L)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+    else:
+        ΔB = None
+    f = lambda x : fbm.cholesky_noise(H, len(x[:-1]), Δx, ΔB, L)
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Cholesky-FBM-Noise-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δx": Δx},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Cholesky FBM Noise",
                       f=f,
@@ -364,12 +364,16 @@ def _create_fbm_noise_fft_source(x, source_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
-    f = lambda x : fbm.fft_noise(H, len(x), Δx, dB)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+    else:
+        ΔB = None
+    f = lambda x : fbm.fft_noise(H, len(x), Δx, ΔB)
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"FFT-FBM-Noise-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δx": Δx},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"FFT FBM Noise",
                       f=f,
@@ -381,12 +385,16 @@ def _create_fbm_chol_source(x, source_type, **kwargs):
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
     L = get_param_default_if_missing("L", None, **kwargs)
-    f = lambda x : fbm.generate_cholesky(H, len(x), Δx, dB, L)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+    else:
+        ΔB = None
+    f = lambda x : fbm.generate_cholesky(H, len(x[:-1]), Δx, ΔB, L)
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Cholesky-FBM-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δx": Δx},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Cholesky FBM",
                       f=f,
@@ -397,12 +405,16 @@ def _create_fbm_fft_source(x, source_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
-    f = lambda x : fbm.generate_fft(H, len(x), Δx, dB)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+    else:
+        ΔB = None
+    f = lambda x : fbm.generate_fft(H, len(x), Δx, ΔB)
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"FFT-FBM-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δx": Δx},
-                      ylabel=r"$\S_t$",
+                      ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"FFT FBM",
                       f=f,

@@ -74,7 +74,6 @@ def generate_cholesky(H, n, Δt=1, dB=None, L=None):
 ###############################################################################################
 # FFT Method for FBM generation
 def fft_noise(H, n, Δt=1, dB=None):
-
     if dB is None:
         dB = bm.noise(2*n)
     if len(dB) != 2*n:

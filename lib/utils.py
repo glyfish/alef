@@ -16,3 +16,12 @@ def verify_type(param, expected_type):
 def verify_types(param, expected_types):
     if not isinstance(param, expected_types):
         raise Exception(f"{param} is type {type(param)}. Expected {expected_types}")
+
+def create_space(xmax=None, npts=None, xmin=0.0, Δx=1.0):
+    if xmax is None and npts is None:
+        raise Exception(f"xmax or npts is required")
+    if xmax is None:
+        xmax = (npts - 1)*Δx + xmin
+    elif npts is None:
+        npts = int((xmax-xmin)/Δx) + 1
+    return numpy.linspace(xmin, xmax, npts)
