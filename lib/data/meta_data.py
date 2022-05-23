@@ -2,13 +2,12 @@ import numpy
 from enum import Enum
 from pandas import (DataFrame)
 
-from lib.models import arima
-
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 
 from lib.data.est import (EstType, ParamEst, ARMAEst, OLSEst,
-                          create_estimates_from_dict, create_dict_from_estimates)
+                          create_estimates_from_dict, create_dict_from_estimates,
+                          perform_est_for_type)
 from lib.data.tests import (create_tests_from_dict, create_dict_from_tests)
 from lib.data.schema import (DataType, DataSchema, create_schema)
 
@@ -169,66 +168,7 @@ class MetaData:
 ##################################################################################################################
 # Perform estimate
 def perform_est(df, est_type, **kwargs):
-    _, samples = DataSchema.get_data_type(df, DataType.TIME_SERIES)
-    result, est = _perform_est_for_type(samples, est_type, **kwargs)
-    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
+    data_type = get_param_default_if_missing("data_type", DataType.TIME_SERIES, **kwargs)
+    result, est = _perform_est_for_type(df, est_type, **kwargs)
+    MetaData.add_estimate(df, data_type, est)
     return result
-
-def _perform_est_for_type(samples, est_type, **kwargs):
-    if est_type.value == EstType.AR.value:
-        return _ar_estimate(samples, **kwargs)
-    elif est_type.value == EstType.AR_OFFSET.value:
-        return _ar_offset_estimate(samples, **kwargs)
-    elif est_type.value == EstType.MA.value:
-        return _ma_estimate(samples, **kwargs)
-    elif est_type.value == EstType.MA_OFFSET.value:
-        return _ma_offset_estimate(samples, **kwargs)
-    # elif est_type.value == EstType.PERGRAM.value:
-    #   _periodogram_estimate(samples)
-    # elif est_type.value == EstType.VAR_AGG.value:
-    #   _variance_aggregation_estimate(samples)
-    else:
-        raise Exception(f"Esitmate type is invalid: {est_type}")
-
-##################################################################################################################
-# Perform esimate for specified esimate types
-# EstType.AR
-def _ar_estimate(samples, **kwargs):
-    order = get_param_throw_if_missing("order", **kwargs)
-    result = arima.ar_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.AR)
-
-# EstType.AR_OFFSET
-def _ar_offset_estimate(samples, **kwargs):
-    order = get_param_throw_if_missing("order", **kwargs)
-    result = arima.ar_offset_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.AR_OFFSET)
-
-# EstType.MA
-def _ma_estimate(samples, **kwargs):
-    order = get_param_throw_if_missing("order", **kwargs)
-    result = arima.ma_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.MA)
-
-# EstType.MA_OFFSET
-def _ma_offset_estimate(samples, **kwargs):
-    order = get_param_throw_if_missing("order", **kwargs)
-    result = arima.ma_offset_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.MA_OFFSET)
-
-# EstType.PERGRAM
-# def _periodogram_estimate(samples):
-
-# EstType.VAR_AGG
-# def _variance_aggregation_estimate(samples):
-
-def _arma_estimate_from_result(result, type):
-    schema = create_schema(DataType.TIME_SERIES)
-    nparams = len(result.params)
-    params = []
-    for i in range(1, nparams-1):
-        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
-    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
-    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
-    return ARMAEst(type, const, sigma2, params)
-    MetaData.add_estimate(df, DataType.TIME_SERIES, est)
