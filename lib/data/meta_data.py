@@ -5,7 +5,7 @@ from pandas import (DataFrame)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 
-from lib.data.est import (EstType, ParamEst, ARMAEst, OLSEst,
+from lib.data.est import (EstType, ParamEst, ARMAEst, OLSSingleVarEst,
                           create_estimates_from_dict, create_dict_from_estimates,
                           perform_est_for_type)
 from lib.data.tests import (create_tests_from_dict, create_dict_from_tests)
@@ -169,6 +169,6 @@ class MetaData:
 # Perform estimate
 def perform_est(df, est_type, **kwargs):
     data_type = get_param_default_if_missing("data_type", DataType.TIME_SERIES, **kwargs)
-    result, est = _perform_est_for_type(df, est_type, **kwargs)
+    result, est = perform_est_for_type(df, est_type, **kwargs)
     MetaData.add_estimate(df, data_type, est)
     return result

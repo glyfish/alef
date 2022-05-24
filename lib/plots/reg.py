@@ -69,7 +69,7 @@ def create_reg_plot_type(plot_type, results, x):
 
 ###############################################################################################
 # Compare the result of a linear regression with teh acutal data (Uses RegPlotType config)
-def reg(df, results, **kwargs):
+def single_var(df, results, **kwargs):
     title        = kwargs["title"]        if "title"        in kwargs else None
     plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else RegressionPlotType.LINEAR
     title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0

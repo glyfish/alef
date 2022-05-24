@@ -4,6 +4,9 @@ from pandas import (DataFrame)
 
 from lib.models import arima
 from lib import stats
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types)
+from lib.data.schema import (DataType, DataSchema)
 
 ##################################################################################################################
 # Parameter Estimates
@@ -20,16 +23,17 @@ class EstType(Enum):
 ##################################################################################################################
 # Estimated parameter
 class ParamEst:
-    def __init__(self, est, err):
+    def __init__(self, est, err, est_label=None, err_label=None):
             self.est = est
             self.err = err
-            self.est_label = None
-            self.err_label = None
-            self.data = {"Estimate": self.est,
-                         "Error": self.err,
-                         "Estimate Label": self.est_label,
-                         "Error Label": self.err_label}
+            self.est_label = est_label
+            self.err_label = err_label
+            self._set_data()
 
+    def set_labels(self, est_label, err_label):
+        self.est_label = est_label
+        self.err_label = err_label
+        self._set_data()
 
     def __repr__(self):
         return f"ParamEst({self._props()})"
@@ -38,7 +42,16 @@ class ParamEst:
         return self._props()
 
     def _props(self):
-        return f"est=({self.est}), err=({self.err}), data=({self.data})"
+        return f"est=({self.est}), " \
+               f"err=({self.err}, " \
+               f"est_label=({self.est_label}), "\
+               f"err_label=({self.err_label})"
+
+    def _set_data(self):
+        self.data = {"Estimate": self.est,
+                     "Error": self.err,
+                     "Estimate Label": self.est_label,
+                     "Error Label": self.err_label}
 
     @staticmethod
     def from_array(meta_data):
@@ -53,14 +66,13 @@ class ARMAEst:
         self.order = len(params)
         self.params = params
         self.sigma2 = sigma2
-        self.formula = self._set_formula()
+        self._set_const_labels()
+        self._set_params_labels()
+        self._set_sigma2_labels()
         self.data = {"Type": type,
                      "Const": const.data,
                      "Parameters": [p.data for p in params],
                      "Sigma2": sigma2.data}
-        self._set_const_labels()
-        self._set_params_labels()
-        self._set_params_labels()
 
     def __repr__(self):
         return f"ARMAEst({self._props()})"
@@ -71,47 +83,46 @@ class ARMAEst:
     def _props(self):
         return f"type=({self.type}), " \
                f"const=({self.const}), " \
-               f"order=({self.order}), " \
                f"params=({self.params}), " \
-               f"sigma2=({self.sigma2}), " \
-               f"formula=({self.formula})"
+               f"sigma2=({self.sigma2})"
 
     def key(self):
         return f"{self.type.value}({self.order})"
 
-    def _set_const_labels(self):
-        self.const.est_label = r"$\hat{\mu^*}$"
-        self.const.err_label = r"$\sigma_{\hat{\mu^*}}$"
-
-    def _set_params_labels(self):
-        for i in range(self.params):
-            self._set_param_labels(params[i], i)
-
-    def _set_param_labels(self, param, i):
-        if self.type.value == EstType.AR.value or self.type.value == EstType.AR_OFFSET.value:
-            param.est_label = f"$\hat{{\varphi_{{{i}}}}}$"
-            param.est_label = f"$\sigma_{{$\hat{{\varphi_{{{i}}}}}}}$"
-        elif self.type.value == EstType.MA.value or self.type.value == EstType.MA_OFFSET.value:
-            param.est_label = f"$\hat{{\vartheta_{{{i}}}}}$"
-            param.est_label = f"$\sigma_{{$\hat{{\varphi_{{{i}}}}}}}$"
-        else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
-
-    def _set_sigma2(self):
-        self.const.est_label = r"$\hat{\sigma^2}$"
-        self.const.err_label = r"$\sigma_{\hat{\sigma^2}}$"
-
-    def _set_formula():
+    def get_formula():
         if self.type.value == EstType.AR.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
         elif self.type.value == EstType.AR_OFFSET.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
         elif self.type.value == EstType.MA.value:
-            return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$""
+            return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
         elif self.type.value == EstType.MA_OFFSET.value:
-            return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$""
+            return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
+
+    def _set_const_labels(self):
+        self.const.set_labels(est_label=r"$\hat{\mu^*}$",
+                              err_label=r"$\sigma_{\hat{\mu^*}}$")
+
+    def _set_params_labels(self):
+        for i in range(len(self.params)):
+            self._set_param_labels(i)
+
+    def _set_param_labels(self, i):
+        param = self.params[i]
+        if self.type.value == EstType.AR.value or self.type.value == EstType.AR_OFFSET.value:
+            param.set_labels(est_label=f"$\hat{{\phi_{{{i}}}}}$",
+                             err_label=f"$\sigma_{{$\hat{{\phi_{{{i}}}}}}}$")
+        elif self.type.value == EstType.MA.value or self.type.value == EstType.MA_OFFSET.value:
+            param.set_labels(est_label=f"$\hat{{\\theta_{{{i}}}}}$",
+                             err_label=f"$\sigma_{{$\hat{{\theta_{{{i}}}}}}}$")
+        else:
+            raise Exception(f"Esitmate type is invalid: {est_type}")
+
+    def _set_sigma2_labels(self):
+            self.sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
+                                   err_label=r"$\sigma_{\hat{\sigma^2}}$")
 
     @staticmethod
     def from_dict(meta_data):
@@ -125,17 +136,21 @@ class ARMAEst:
 ##################################################################################################################
 # Single variable OLS estimated parameters
 class OLSSingleVarEst:
-    def __init__(self, type, const, param, r2):
+    def __init__(self, type, reg_type, const, param, r2):
         self.type = type
-        self.const = self._get_const(const)
-        self.param = self._get_param(param)
+        self.reg_type = reg_type
+        self.const = const
+        self.const.est_label = r"$\hat{\alpha}$"
+        self.const.err_label = r"$\sigma_{\hat{\alpha}}$"
+        self.param = param
+        self.param.est_label = r"$\hat{\beta}$"
+        self.param.err_label = r"$\sigma_{\hat{beta}}$"
         self.r2 = r2
-        self.data = {"Const": const.data, "Parameters": params.data}
-        self.formula = self._set_formula()
-        self.results_text = self._set_results_text()
-        self.plot_type = self._set_plotType()
-        self._set_const_labels()
-        self._set_param_labels()
+        self.data = {"Type": type,
+                     "Regression Type": reg_type,
+                     "Constant": const.data,
+                     "Parameter": param.data,
+                     "R2": r2}
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -144,63 +159,107 @@ class OLSSingleVarEst:
         return self._props()
 
     def _props(self):
-        return f"type=({self.type}), const=({self.const}), params=({self.param}), data=({self.data})"
+        return f"type=({self.type}), " \
+               f"reg_type=({self.reg_type}), " \
+               f"const=({self.const}), " \
+               f"params=({self.param}, "\
+               f"r2=({self.r2})"
 
     def key(self):
         return self.type.value
 
-    def _get_param(self, param):
+    def get_trans_param(self, param):
         if self.type.value == EstType.VAR_AGG.value:
-            return ParamEst(est=1.0 + param[0]/2.0, err=param[1]/2.0)
+            return _get_var_agg_trans_param(param)
         elif self.type.value == EstType.PERGRAM.value:
-            return ParamEst(est=1.0 - param[0]/2.0, err=param[1]/2.0)
-        elif est_type.value == EstType.LINEAR.value:
+            return _get_pergram_trans_param(param)
+        elif self.type.value == EstType.LINEAR.value:
             return param
-        elif est_type.value == EstType.LOG.value:
+        elif self.type.value == EstType.LOG.value:
             return param
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
 
-    def _get_const(self, const):
+    def get_trans_const(self, const):
         if self.type.value == EstType.VAR_AGG.value:
-            return self._get_log_const(const)
+            return _get_var_agg_trans_const(const)
         elif self.type.value == EstType.PERGRAM.value:
-            return self._get_log_const(const)
-        elif est_type.value == EstType.LINEAR.value:
-            return param
-        elif est_type.value == EstType.LOG.value:
-            return self._get_log_const(const)
+            return _get_pergram_trans_const(const)
+        elif self.type.value == EstType.LINEAR.value:
+            return const
+        elif self.type.value == EstType.LOG.value:
+            return const
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
 
-    def _get_log_const(self, const):
-        c = 10.0**const[0]
-        return ParamEst(est=c, err=c*const[1])
+    def get_yfit(self):
+        if self.reg_type.value == RegType.LOG.value:
+            return self._log_fit()
+        elif self.reg_type.value == RegType.LINEAR.value:
+            return self._linear_fit()
+        elif self.reg_type.value == RegType.XLOG.value:
+            raise Exception(f"Regression type not supported: {self.reg_type}")
+        elif self.reg_type.value == RegType.YLOG.value:
+            raise Exception(f"Regression type not supported: {self.reg_type}")
+        else:
+            raise Exception(f"Regression type is invalid: {self.reg_type}")
 
-    def _set_const_labels(self):
-        if self.type.value == EstType.PERGRAM.value:
+    def get_formula(self):
+        if self.type.value == EstType.VAR_AGG.value:
+            return r"$\sigma^2 m^{2\left(H-1\right)}$"
         elif self.type.value == EstType.PERGRAM.value:
-        elif est_type.value == EstType.LINEAR.value:
-        elif est_type.value == EstType.LOG.value:
+            return r"$C\omega^{1 - 2H}$"
+        elif self.type.value == EstType.LINEAR.value:
+            return r"$\alpha + \beta x$"
+        elif self.type.value == EstType.LOG.value:
+            return r"$10^\alpha x^\beta$"
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
 
-    def _set_params_labels(self):
-        if self.type.value == EstType.PERGRAM.value:
-        elif self.type.value == EstType.PERGRAM.value:
-        elif est_type.value == EstType.LINEAR.value:
-        elif est_type.value == EstType.LOG.value:
-        else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
+    def _log_fit(self):
+        return lambda x : 10**self.const[0] * x**self.param[0]
+
+    def _linear_fit(self):
+        return lambda x : self.const[0] + x*self.param[0]
 
     @staticmethod
     def from_dict(meta_data):
         return OLSSingleVarEst(
             type=meta_data["Type"],
-            const = ParamEst.from_array(meta_data["Const"]),
-            param = ParamEst.from_array(meta_data["Parameter"])
-            r2 = meta_data["R2"]
+            reg_type=meta_data["Regression Type"],
+            const=ParamEst.from_array(meta_data["Constant"]),
+            param=ParamEst.from_array(meta_data["Parameter"]),
+            r2=meta_data["R2"]
         )
+
+# transformed parameters
+# EstType.VAR_AGG
+def _get_var_agg_trans_param(param):
+    return ParamEst(est=1.0 + param[0]/2.0,
+                    err=param[1]/2.0,
+                    est_label=r"$\hat{Η}$",
+                    err_label=r"$\sigma_{\hat{Η}}$")
+
+def _get_var_agg_trans_const(const):
+    c = 10.0**const[0]
+    return ParamEst(est=c,
+                    err=c*const[1],
+                    est_label=r"$\hat{\sigma}^2$",
+                    err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+
+# EstType.PERGRAM
+def _get_pergram_trans_param(param):
+    return ParamEst(est=(1.0 - param[0])/2.0,
+                    err=param[1]/2.0,
+                    est_label=r"$\hat{Η}$",
+                    err_label=r"$\sigma_{\hat{Η}}$")
+
+def _get_pergram_trans_const(const):
+    c = 10.0**const[0]
+    return ParamEst(est=c,
+                    err=c*const[1],
+                    est_label=r"$\hat{C}$",
+                    err_label=r"$\sigma_{\hat{C}}$")
 
 ##################################################################################################################
 # Create estimates
