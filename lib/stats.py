@@ -189,7 +189,7 @@ def OLS(y, x, type=RegType.LINEAR):
         x = numpy.log10(x)
         y = numpy.log10(y)
     x = sm.add_constant(x)
-    return sm.OLS(y, x)
+    return sm.OLS(y, x, missing='drop')
 
 def OLS_fit(y, x, type=RegType.LINEAR):
     model = OLS(y, x, type=type)

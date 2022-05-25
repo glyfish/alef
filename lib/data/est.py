@@ -310,13 +310,13 @@ def perform_est_for_type(df, est_type, **kwargs):
     elif est_type.value == EstType.MA_OFFSET.value:
         return _ma_offset_estimate(y, **kwargs)
     elif est_type.value == EstType.PERGRAM.value:
-        return _ols_estimate(x, y, RegType.LOG, **kwargs)
+        return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
     elif est_type.value == EstType.VAR_AGG.value:
-        return _ols_estimate(x, y, RegType.LOG, **kwargs)
+        return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
     elif est_type.value == EstType.LINEAR.value:
-        return _ols_estimate(x, y, RegType.LINEAR, **kwargs)
+        return _ols_estimate(x, y, stats.RegType.LINEAR, est_type, **kwargs)
     elif est_type.value == EstType.LOG.value:
-        return _ols_estimate(x, y, RegType.LOG, **kwargs)
+        return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
 
@@ -329,11 +329,11 @@ def _arma_estimate_from_result(result, type):
     sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
     return ARMAEst(type, const, sigma2, params)
 
-def _ols_estimate_from_result(x, y, result, type):
-    const = ParamEst.from_array([result.param[0], result.bse[0]])
-    param = ParamEst.from_array([result.param[1], result.bse[1]])
-    r2 = results.rsquared
-    return OLSSingleVarEst(type, const, param, r2)
+def _ols_estimate_from_result(x, y, reg_type, est_type, result):
+    const = ParamEst.from_array([result.params[0], result.bse[0]])
+    param = ParamEst.from_array([result.params[1], result.bse[1]])
+    r2 = result.rsquared
+    return OLSSingleVarEst(est_type, reg_type, const, param, r2)
 
 # EstType.AR
 def _ar_estimate(samples, **kwargs):
@@ -361,5 +361,5 @@ def _ma_offset_estimate(samples, **kwargs):
 
 # EstType.PERGRAM, EstType.VAR_AGG, EstType.LINEAR, EstType.LOG
 def _ols_estimate(x, y, reg_type, est_type, **kwargs):
-    results = stats.OLS_fit(y, x, reg_type)
-    return _ols_estimate_from_result(x, y, est_type, result)
+    result = stats.OLS_fit(y, x, reg_type)
+    return result, _ols_estimate_from_result(x, y, reg_type, est_type, result)
