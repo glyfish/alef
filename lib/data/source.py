@@ -114,12 +114,7 @@ class DataSource:
 def create_data_source(source_type, **kwargs):
     x = get_param_default_if_missing("x", None, **kwargs)
     if x is None:
-        npts = get_param_default_if_missing("npts", None, **kwargs)
-        xmax = get_param_default_if_missing("xmax", None, **kwargs)
-        xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
-        Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-        x = create_space(xmax, npts, xmin, Δx)
-
+        x = create_space(**kwargs)
     source = _get_data_source(source_type, x, **kwargs)
     return source.create()
 
@@ -314,7 +309,7 @@ def _create_bm_drift_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"BM-Simulation-{str(uuid.uuid4())}",
-                      params={"σ": σ, "μ": μ, "Δx": Δx},
+                      params={"σ": σ, "μ": μ, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Brownian Motion",
@@ -331,7 +326,7 @@ def _create_bm_geo_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",
-                      params={"σ": σ, "μ": μ, "Δx": Δx, "S0": S0},
+                      params={"σ": σ, "μ": μ, "Δt": Δx, "S0": S0},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Brownian Motion",
@@ -352,7 +347,7 @@ def _create_fbm_noise_chol_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Cholesky-FBM-Noise-Simulation-{str(uuid.uuid4())}",
-                      params={"H": H, "Δx": Δx},
+                      params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Cholesky FBM Noise",
@@ -372,7 +367,7 @@ def _create_fbm_noise_fft_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"FFT-FBM-Noise-Simulation-{str(uuid.uuid4())}",
-                      params={"H": H, "Δx": Δx},
+                      params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"FFT FBM Noise",
@@ -393,7 +388,7 @@ def _create_fbm_chol_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"Cholesky-FBM-Simulation-{str(uuid.uuid4())}",
-                      params={"H": H, "Δx": Δx},
+                      params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Cholesky FBM",
@@ -413,7 +408,7 @@ def _create_fbm_fft_source(x, source_type, **kwargs):
     return DataSource(data_type=DataType.TIME_SERIES,
                       source_type=source_type,
                       name=f"FFT-FBM-Simulation-{str(uuid.uuid4())}",
-                      params={"H": H, "Δx": Δx},
+                      params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"FFT FBM",

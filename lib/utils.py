@@ -17,7 +17,11 @@ def verify_types(param, expected_types):
     if not isinstance(param, expected_types):
         raise Exception(f"{param} is type {type(param)}. Expected {expected_types}")
 
-def create_space(xmax=None, npts=None, xmin=0.0, Δx=1.0):
+def create_space(**kwargs):
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+    xmax = get_param_default_if_missing("xmax", None, **kwargs)
+    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     if xmax is None and npts is None:
         raise Exception(f"xmax or npts is required")
     if xmax is None:

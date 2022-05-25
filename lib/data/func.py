@@ -131,11 +131,7 @@ class DataFunc:
     def create_func_type(func_type, **kwargs):
         x = get_param_default_if_missing("x", None, **kwargs)
         if x is None:
-            npts = get_param_default_if_missing("npts", None, **kwargs)
-            xmax = get_param_default_if_missing("xmax", None, **kwargs)
-            x0 = get_param_default_if_missing("xmin", 0.0, **kwargs)
-            Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-            x = create_space(xmax, x0, Δx)
+            x = create_space(**kwargs)
         kwargs["npts"] = len(x)
         data_func = create_data_func(func_type, **kwargs, npolt=len(x))
         return data_func.create(x)
@@ -203,14 +199,16 @@ def create_data_func(data_type, **kwargs):
 # Create DataFunc objects for specified DataType
 # DataType.PSPEC
 def _create_pspec(schema, **kwargs):
-    fy = lambda x, y : y
+    fx = lambda x : x[1:]
+    fy = lambda x, y : stats.pspec(y)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
                     ylabel=r"$\rho_\omega$",
                     xlabel=r"$\omega$",
-                    desc="Power Spectrum")
+                    desc="Power Spectrum",
+                    fx=fx)
 
 # DataType.ACF
 def _create_acf(schema, **kwargs):

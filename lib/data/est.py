@@ -140,12 +140,12 @@ class OLSSingleVarEst:
         self.type = type
         self.reg_type = reg_type
         self.const = const
-        self.const.est_label = r"$\hat{\alpha}$"
-        self.const.err_label = r"$\sigma_{\hat{\alpha}}$"
         self.param = param
-        self.param.est_label = r"$\hat{\beta}$"
-        self.param.err_label = r"$\sigma_{\hat{beta}}$"
         self.r2 = r2
+        self.const.set_labels(est_label=r"$\hat{\alpha}$",
+                              err_label=r"$\sigma_{\hat{\alpha}}$")
+        self.param.set_labels(est_label=r"$\hat{\beta}$",
+                              err_label=r"$\sigma_{\hat{beta}}$")
         self.data = {"Type": type,
                      "Regression Type": reg_type,
                      "Constant": const.data,
