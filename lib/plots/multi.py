@@ -39,6 +39,10 @@ class TwinPlotConfig:
     def right_ylabel(self):
         return self.right_meta_data.ylabel
 
+    def labels(self):
+        return [self.left_meta_data.desc + " (" + self.left_meta_data.ylabel + ")",
+                self.right_meta_data.desc + " (" + self.right_meta_data.ylabel + ")"]
+
     def title(self):
         params = self.source_meta_data.params | self.left_meta_data.params | self.right_meta_data.params
         var_desc  = self.left_meta_data.desc + "-" + self.right_meta_data.desc
@@ -59,7 +63,7 @@ def twinx(df, **kwargs):
     xlabel          = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
     left_ylabel     = get_param_default_if_missing("left_ylabel", plot_config.left_ylabel(), **kwargs)
     right_ylabel    = get_param_default_if_missing("right_ylabel", plot_config.right_ylabel(), **kwargs)
-
+    labels          = get_param_default_if_missing("labels", plot_config.labels(), **kwargs)
     legend_loc      = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
 
@@ -70,13 +74,13 @@ def twinx(df, **kwargs):
     # first plot left axis1
     axis1.set_ylabel(left_ylabel)
     axis1.set_xlabel(xlabel)
-    _plot_curve(axis1, df, plot_config.left_meta_data, plot_type, **kwargs)
+    _plot_curve(axis1, df, plot_config.left_meta_data, plot_type, labels[0], **kwargs)
 
     # second plot right axis2
     axis2 = axis1.twinx()
     axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
     axis2.set_ylabel(right_ylabel)
-    _plot_curve(axis2, df, plot_config.right_meta_data, plot_type, **kwargs)
+    _plot_curve(axis2, df, plot_config.right_meta_data, plot_type, labels[1], **kwargs)
 
     if ylim is not None:
         axis1.set_ylim(ylim)
@@ -98,12 +102,11 @@ def twinx_ticks(axis1, axis2):
 
 ###############################################################################################
 # plot curve on specified axis
-def _plot_curve(axis, df, meta_data, plot_type, **kwargs):
+def _plot_curve(axis, df, meta_data, plot_type, label, **kwargs):
     lw   = get_param_default_if_missing("lw", 2, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
     x, y = meta_data.get_data(df)
-    label = meta_data.desc + " (" + meta_data.ylabel + ")"
 
     if npts is None or npts > len(y):
         npts = len(y)

@@ -20,6 +20,9 @@ class EstType(Enum):
     LINEAR = "LINEAR"             # Simple single variable linear regression
     LOG = "LOG"                   # Log log single variable linear regression
 
+    def ols_key(self):
+        return self.value
+
 ##################################################################################################################
 # Estimated parameter
 class ParamEst:
@@ -169,14 +172,23 @@ class OLSSingleVarEst:
     def key(self):
         return self.type.value
 
+    def formula(self):
+        return self.trans.formula
+
+    def trans_est(self):
+        return self.trans.est
+
+    def trans_const(self):
+        return self.trans.const
+
     def get_yfit(self):
-        if self.reg_type.value == RegType.LOG.value:
+        if self.reg_type.value == stats.RegType.LOG.value:
             return self._log_fit()
-        elif self.reg_type.value == RegType.LINEAR.value:
+        elif self.reg_type.value == stats.RegType.LINEAR.value:
             return self._linear_fit()
-        elif self.reg_type.value == RegType.XLOG.value:
+        elif self.reg_type.value == stats.RegType.XLOG.value:
             raise Exception(f"Regression type not supported: {self.reg_type}")
-        elif self.reg_type.value == RegType.YLOG.value:
+        elif self.reg_type.value == stats.RegType.YLOG.value:
             raise Exception(f"Regression type not supported: {self.reg_type}")
         else:
             raise Exception(f"Regression type is invalid: {self.reg_type}")
@@ -198,9 +210,9 @@ class OLSSingleVarEst:
 ##################################################################################################################
 # transformed parameters
 class OLSSinlgeVarTrans:
-    def __init__(self, formula, const, est):
+    def __init__(self, formula, const, param):
         self.formula = formula
-        self.est = est
+        self.param = param
         self.const = const
 
     def __repr__(self):
@@ -211,7 +223,7 @@ class OLSSinlgeVarTrans:
 
     def _props(self):
         return f"formula=({self.formula}), " \
-               f"est=({self.est}), " \
+               f"param=({self.param}), " \
                f"const=({self.const})"
 
 

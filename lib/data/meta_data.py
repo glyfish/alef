@@ -70,6 +70,9 @@ class MetaData:
     def get_data(self, df):
         return self.schema.get_data(df)
 
+    def get_estimate(self, est_key):
+        return self.ests[est_key]
+
     @staticmethod
     def from_dict(meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None

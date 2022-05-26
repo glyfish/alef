@@ -4,25 +4,74 @@ from matplotlib import pyplot
 
 from lib import stats
 
+from lib.data.meta_data import (MetaData)
+from lib.data.est import (EstType)
+from lib.data.schema import (DataType, create_schema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types)
 
 ###############################################################################################
-# Specify PlotConfig for regression plot
-class RegPlotType(Enum):
-    LINEAR = 1          # Default
-    FBM_AGG_VAR = 2     # FBM variance aggregation
-    FBM_PSPEC = 3       # FBM Power Spectrum
+# Create single variable regression PlotConfig
+class SingleVarPlotConfig:
+    def __init__(self, df, data_type, est_type):
+        schema = create_schema(data_type)
+        source_schema = MetaData.get_source_schema(df)
+        self.meta_data = MetaData.get(df, schema)
+        self.source_meta_data = MetaData.get(df, source_schema)
+        self.est = self.meta_data.get_estimate(est_type.ols_key())
 
-###############################################################################################
-# Create regression PlotConfig
-class RegPlotConfig:
-    def __init__(self, xlabel, ylabel, plot_type=PlotType.LINEAR, legend_labels=None, results_text=None, y_fit=None):
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.plot_type = plot_type
-        self.legend_labels = legend_labels
-        self.results_text = results_text
-        self.y_fit = y_fit
+    def __repr__(self):
+        return f"DataPlotConfig({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"meta_data=({self.meta_data}), " \
+               f"source_meta_data=({self.source_meta_data})"
+
+    def xlabel(self):
+        return self.meta_data.xlabel
+
+    def ylabel(self):
+        return self.meta_data.ylabel
+
+    def title(self):
+        params = self.source_meta_data.params | self.meta_data.params
+        desc = f"{self.source_meta_data.desc} {self.meta_data.desc}"
+        return f"{desc} : {MetaData.params_to_str(params)}"
+
+    def labels(self):
+        return ["Data", f"{self.ylabel()}={self.est.formula()}"]
+
+    def yfit(self, x):
+        return self.est.get_yfit()(x)
+
+    def results(self):
+        param = self.param.trans_est()
+        const = self.est.trans_const()
+        r2 = self.est.r2
+        param_est_row = f"{param.est_label}=f{format(param.est, '2.2f')}"
+        paream_err_row = f"{param.err_label}=f{format(param.err, '2.2f')}"
+        const_est_row = f"{const.est_label}=f{format(const.est, '2.2f')}"
+        const_err_row = f"{const.err_label}=f{format(const.err, '2.2f')}"
+        r2_row = f"$R^2$={format(r2, '2.2f')}"
+
+    def plot_type(self):
+        if self.reg_type.value == stats.RegType.LOG.value:
+            return PlotType.LOG
+        elif self.reg_type.value == stats.RegType.LINEAR.value:
+            return PlotType.LINEAR
+        elif self.reg_type.value == stats.RegType.XLOG.value:
+            return PlotType.XLOG
+        elif self.reg_type.value == stats.RegType.YLOG.value:
+            return PlotType.YLOG
+        else:
+            raise Exception(f"Regression type is invalid: {self.reg_type}")
+
+    def _get_est(self, est_type):
+        return se
 
 ###############################################################################################
 # Create regression plot configuartion
@@ -69,10 +118,19 @@ def create_reg_plot_type(plot_type, results, x):
 
 ###############################################################################################
 # Compare the result of a linear regression with teh acutal data (Uses RegPlotType config)
-def single_var(df, results, **kwargs):
-    title        = kwargs["title"]        if "title"        in kwargs else None
-    plot_type    = kwargs["plot_type"]    if "plot_type"    in kwargs else RegressionPlotType.LINEAR
-    title_offset = kwargs["title_offset"] if "title_offset" in kwargs else 1.0
+def single_var(df, data_type, est_type, **kwargs):
+    data_type      = get_param_throw_if_missing("data_type", **kwargs)
+    est_type      = get_param_throw_if_missing("data_type", **kwargs)
+
+    plot_config    = SingleVarPlotConfig(df, data_type)
+
+    plot_type      = get_param_default_if_missing("plot_type", plot_config.plot_type(), **kwargs)
+    title          = get_param_default_if_missing("title", plot_config.title(), **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", plot_config.ylabel(), **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
+    npts           = get_param_default_if_missing("npts", None, **kwargs)
 
     β = results.params
 
