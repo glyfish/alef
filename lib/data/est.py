@@ -151,6 +151,7 @@ class OLSSingleVarEst:
                      "Constant": const.data,
                      "Parameter": param.data,
                      "R2": r2}
+        self.trans = _create_ols_single_var_trans(type, self.const, self.param)
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -168,30 +169,6 @@ class OLSSingleVarEst:
     def key(self):
         return self.type.value
 
-    def get_trans_param(self, param):
-        if self.type.value == EstType.VAR_AGG.value:
-            return _get_var_agg_trans_param(param)
-        elif self.type.value == EstType.PERGRAM.value:
-            return _get_pergram_trans_param(param)
-        elif self.type.value == EstType.LINEAR.value:
-            return param
-        elif self.type.value == EstType.LOG.value:
-            return param
-        else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
-
-    def get_trans_const(self, const):
-        if self.type.value == EstType.VAR_AGG.value:
-            return _get_var_agg_trans_const(const)
-        elif self.type.value == EstType.PERGRAM.value:
-            return _get_pergram_trans_const(const)
-        elif self.type.value == EstType.LINEAR.value:
-            return const
-        elif self.type.value == EstType.LOG.value:
-            return const
-        else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
-
     def get_yfit(self):
         if self.reg_type.value == RegType.LOG.value:
             return self._log_fit()
@@ -204,18 +181,6 @@ class OLSSingleVarEst:
         else:
             raise Exception(f"Regression type is invalid: {self.reg_type}")
 
-    def get_formula(self):
-        if self.type.value == EstType.VAR_AGG.value:
-            return r"$\sigma^2 m^{2\left(H-1\right)}$"
-        elif self.type.value == EstType.PERGRAM.value:
-            return r"$C\omega^{1 - 2H}$"
-        elif self.type.value == EstType.LINEAR.value:
-            return r"$\alpha + \beta x$"
-        elif self.type.value == EstType.LOG.value:
-            return r"$10^\alpha x^\beta$"
-        else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
-
     def _log_fit(self):
         return lambda x : 10**self.const[0] * x**self.param[0]
 
@@ -224,42 +189,80 @@ class OLSSingleVarEst:
 
     @staticmethod
     def from_dict(meta_data):
-        return OLSSingleVarEst(
-            type=meta_data["Type"],
-            reg_type=meta_data["Regression Type"],
-            const=ParamEst.from_array(meta_data["Constant"]),
-            param=ParamEst.from_array(meta_data["Parameter"]),
-            r2=meta_data["R2"]
-        )
+        return OLSSingleVarEst(type=meta_data["Type"],
+                               reg_type=meta_data["Regression Type"],
+                               const=ParamEst.from_array(meta_data["Constant"]),
+                               param=ParamEst.from_array(meta_data["Parameter"]),
+                               r2=meta_data["R2"])
 
+##################################################################################################################
 # transformed parameters
-# EstType.VAR_AGG
-def _get_var_agg_trans_param(param):
-    return ParamEst(est=1.0 + param[0]/2.0,
-                    err=param[1]/2.0,
-                    est_label=r"$\hat{Η}$",
-                    err_label=r"$\sigma_{\hat{Η}}$")
+class OLSSinlgeVarTrans:
+    def __init__(self, formula, const, est):
+        self.formula = formula
+        self.est = est
+        self.const = const
 
-def _get_var_agg_trans_const(const):
-    c = 10.0**const[0]
-    return ParamEst(est=c,
-                    err=c*const[1],
-                    est_label=r"$\hat{\sigma}^2$",
-                    err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+    def __repr__(self):
+        return f"OLSEst({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"formula=({self.formula}), " \
+               f"est=({self.est}), " \
+               f"const=({self.const})"
+
+
+##################################################################################################################
+def _create_ols_single_var_trans(est_type, param, const):
+    if est_type.value == EstType.VAR_AGG.value:
+        return _create_var_agg_trans(param, const)
+    elif est_type.value == EstType.PERGRAM.value:
+        return _create_pergram_trans(param, const)
+    elif est_type.value == EstType.LINEAR.value:
+        return _create_linear_trans(param, const)
+    elif est_type.value == EstType.LOG.value:
+        return _create_log_trans(param, const)
+    else:
+        raise Exception(f"Esitmate type is invalid: {est_type}")
+
+# EstType.VAR_AGG
+def _create_var_agg_trans(param, const):
+    formula = r"$\sigma^2 m^{2\left(H-1\right)}$"
+    param = ParamEst(est=1.0 + param.est/2.0,
+                     err=param.est_err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**const.est
+    const = ParamEst(est=c,
+                     err= c*const.est_err,
+                     est_label=r"$\hat{\sigma}^2$",
+                     err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+    return OLSSinlgeVarTrans(formula, param, const)
 
 # EstType.PERGRAM
-def _get_pergram_trans_param(param):
-    return ParamEst(est=(1.0 - param[0])/2.0,
-                    err=param[1]/2.0,
-                    est_label=r"$\hat{Η}$",
-                    err_label=r"$\sigma_{\hat{Η}}$")
+def _create_pergram_trans(param, const):
+    formula = r"$C\omega^{1 - 2H}$"
+    param = ParamEst(est=(1.0 - param.est)/2.0,
+                     err=param.err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**const.est
+    const = ParamEst(est=c,
+                     err=c*const.err,
+                     est_label=r"$\hat{C}$",
+                     err_label=r"$\sigma_{\hat{C}}$")
+    return OLSSinlgeVarTrans(formula, param, const)
 
-def _get_pergram_trans_const(const):
-    c = 10.0**const[0]
-    return ParamEst(est=c,
-                    err=c*const[1],
-                    est_label=r"$\hat{C}$",
-                    err_label=r"$\sigma_{\hat{C}}$")
+# EstType.LINEAR
+def _create_linear_trans(param, const):
+    return OLSSinlgeVarTrans(r"$\alpha + \beta x$", param, const)
+
+# EstType.LOG
+def _create_log_trans(param, const):
+    return OLSSinlgeVarTrans(r"$10^\alpha x^\beta$", param, const)
 
 ##################################################################################################################
 # Create estimates
