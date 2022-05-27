@@ -178,6 +178,8 @@ def create_data_func(data_type, **kwargs):
         return _create_gbm_sd(schema, **kwargs)
     elif data_type.value == DataType.AGG_VAR.value:
         return _create_agg_var(schema, **kwargs)
+    elif data_type.value == DataType.AGG.value:
+        return _create_agg(schema, **kwargs)
     elif data_type.value == DataType.VR.value:
         return _create_vr(schema, **kwargs)
     elif data_type.value == DataType.BM.value:
@@ -471,6 +473,22 @@ def _create_gbm_sd(schema, **kwargs):
 
 # DataType.AGG_VAR
 def _create_agg_var(schema, **kwargs):
+    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    H = get_param_throw_if_missing("H", **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fy = lambda x, y : σ**2*fbm.var(H, t)
+    return DataFunc(schema=schema,
+                    source_data_type=DataType.SD,
+                    params={"H": H, "σ": σ},
+                    fy=fy,
+                    ylabel=r"$\text{Var}(X^m)$",
+                    xlabel=r"$m$",
+                    desc="Aggregated Variance",
+                    fx=fx)
+
+# DataType.AGG
+def _create_agg(schema, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)

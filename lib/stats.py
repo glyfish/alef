@@ -168,12 +168,6 @@ def agg_var(samples, m_vals):
             var[i] += (vals[k] - mean)**2/(d - 1)
     return var
 
-def agg_series(samples, m):
-    series = []
-    for i in range(len(m)):
-        series.append(agg(samples, m[i]))
-    return series
-
 def agg_time(samples, m):
     n = len(samples)
     times = []

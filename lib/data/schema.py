@@ -27,6 +27,7 @@ class DataType(Enum):
     GBM_MEAN = "GBM_MEAN"                  # Geometric Brownian Motion model mean
     GBM_SD = "GBM_SD"                      # Geometric Brownian Motion model standard deviation
     AGG_VAR = "AGG_VAR"                    # Aggregated variance
+    AGG = "AGG"                            # Aggregated time series
     VR = "VR"                              # Variance Ratio use in test for brownian motion
     VR_STAT = "VR_STAT"                    # FBM variance ratio test statistic
     PACF = "PACF"                          # Partial Autocorrelation function
@@ -158,7 +159,9 @@ def create_schema(data_type):
     elif data_type.value == DataType.GBM_SD.value:
         return DataSchema("GBM STD Time", "GBM SD", data_type)
     elif data_type.value == DataType.AGG_VAR.value:
-        return DataSchema("Agg Time", "Aggregated Variance", data_type)
+        return DataSchema("AggregatedTime", "Aggregated Variance", data_type)
+    elif data_type.value == DataType.AGG.value:
+        return DataSchema("Aggregated Time", "Aggregated", data_type)
     elif data_type.value == DataType.VR.value:
         return DataSchema("VR Time", "Variance Ratio", data_type)
     elif data_type.value == DataType.BM.value:

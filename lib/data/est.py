@@ -57,8 +57,20 @@ class ParamEst:
                      "Error Label": self.err_label}
 
     @staticmethod
-    def from_array(meta_data):
-        return ParamEst(meta_data[0], meta_data[1])
+    def from_dictionary(meta_data):
+        if "Estimate Label" in meta_data:
+            est_label = meta_data["Estimate Label"]
+        else:
+            est_label = None
+        if "Error Label" in meta_data:
+            err_label = meta_data["Error Label"]
+        else:
+            err_label = None
+
+        return ParamEst(meta_data["Estimate"],
+                        meta_data["Error"],
+                        est_label,
+                        err_label)
 
 ##################################################################################################################
 # ARMA estimated parameters
@@ -131,9 +143,9 @@ class ARMAEst:
     def from_dict(meta_data):
         return ARMAEst(
             type=meta_data["Type"],
-            const=ParamEst.from_array(meta_data["Const"]),
-            sigma2=ParamEst.from_array(meta_data["Sigma2"]),
-            params=[ParamEst.from_array(est) for est in  meta_data["Parameters"]]
+            const=ParamEst.from_dictionary(meta_data["Const"]),
+            sigma2=ParamEst.from_dictionary(meta_data["Sigma2"]),
+            params=[ParamEst.from_dictionary(est) for est in  meta_data["Parameters"]]
         )
 
 ##################################################################################################################
@@ -154,7 +166,7 @@ class OLSSingleVarEst:
                      "Constant": const.data,
                      "Parameter": param.data,
                      "R2": r2}
-        self.trans = _create_ols_single_var_trans(type, self.const, self.param)
+        self.trans = _create_ols_single_var_trans(type, self.param, self.const)
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -175,8 +187,8 @@ class OLSSingleVarEst:
     def formula(self):
         return self.trans.formula
 
-    def trans_est(self):
-        return self.trans.est
+    def trans_param(self):
+        return self.trans.param
 
     def trans_const(self):
         return self.trans.const
@@ -194,17 +206,17 @@ class OLSSingleVarEst:
             raise Exception(f"Regression type is invalid: {self.reg_type}")
 
     def _log_fit(self):
-        return lambda x : 10**self.const[0] * x**self.param[0]
+        return lambda x : 10**self.const.est * x**self.param.est
 
     def _linear_fit(self):
-        return lambda x : self.const[0] + x*self.param[0]
+        return lambda x : self.const.est + x*self.param.est
 
     @staticmethod
     def from_dict(meta_data):
         return OLSSingleVarEst(type=meta_data["Type"],
                                reg_type=meta_data["Regression Type"],
-                               const=ParamEst.from_array(meta_data["Constant"]),
-                               param=ParamEst.from_array(meta_data["Parameter"]),
+                               const=ParamEst.from_dictionary(meta_data["Constant"]),
+                               param=ParamEst.from_dictionary(meta_data["Parameter"]),
                                r2=meta_data["R2"])
 
 ##################################################################################################################
@@ -225,7 +237,6 @@ class OLSSinlgeVarTrans:
         return f"formula=({self.formula}), " \
                f"param=({self.param}), " \
                f"const=({self.const})"
-
 
 ##################################################################################################################
 def _create_ols_single_var_trans(est_type, param, const):
@@ -252,7 +263,7 @@ def _create_var_agg_trans(param, const):
                      err= c*const.est_err,
                      est_label=r"$\hat{\sigma}^2$",
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
-    return OLSSinlgeVarTrans(formula, param, const)
+    return OLSSinlgeVarTrans(formula, const, param)
 
 # EstType.PERGRAM
 def _create_pergram_trans(param, const):
@@ -266,15 +277,15 @@ def _create_pergram_trans(param, const):
                      err=c*const.err,
                      est_label=r"$\hat{C}$",
                      err_label=r"$\sigma_{\hat{C}}$")
-    return OLSSinlgeVarTrans(formula, param, const)
+    return OLSSinlgeVarTrans(formula, const, param)
 
 # EstType.LINEAR
 def _create_linear_trans(param, const):
-    return OLSSinlgeVarTrans(r"$\alpha + \beta x$", param, const)
+    return OLSSinlgeVarTrans(r"$\alpha + \beta x$", const, param)
 
 # EstType.LOG
 def _create_log_trans(param, const):
-    return OLSSinlgeVarTrans(r"$10^\alpha x^\beta$", param, const)
+    return OLSSinlgeVarTrans(r"$10^\alpha x^\beta$", const, param)
 
 ##################################################################################################################
 # Create estimates
@@ -339,14 +350,19 @@ def _arma_estimate_from_result(result, type):
     nparams = len(result.params)
     params = []
     for i in range(1, nparams-1):
-        params.append(ParamEst.from_array([result.params.iloc[i], result.bse.iloc[i]]))
-    const = ParamEst.from_array([result.params.iloc[0], result.bse.iloc[0]])
-    sigma2 = ParamEst.from_array([result.params.iloc[nparams-1], result.bse.iloc[nparams-1]])
+        params.append(ParamEst.from_dictionary({"Estimate": result.params.iloc[i],
+                                                "Error": result.bse.iloc[i]}))
+    const = ParamEst.from_dictionary({"Estimate": result.params.iloc[0],
+                                      "Error": result.bse.iloc[0]})
+    sigma2 = ParamEst.from_dictionary({"Estimate": result.params.iloc[nparams-1],
+                                       "Error": result.bse.iloc[nparams-1]})
     return ARMAEst(type, const, sigma2, params)
 
 def _ols_estimate_from_result(x, y, reg_type, est_type, result):
-    const = ParamEst.from_array([result.params[0], result.bse[0]])
-    param = ParamEst.from_array([result.params[1], result.bse[1]])
+    const = ParamEst.from_dictionary({"Estimate": result.params[0],
+                                      "Error": result.bse[0]})
+    param = ParamEst.from_dictionary({"Estimate": result.params[1],
+                                      "Error": result.bse[1]})
     r2 = result.rsquared
     return OLSSingleVarEst(est_type, reg_type, const, param, r2)
 

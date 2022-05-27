@@ -102,7 +102,9 @@ def curve(df, **kwargs):
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 
-    axis.set_title(title, y=title_offset)
+    if title is not None:
+        axis.set_title(title, y=title_offset)
+
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
 
