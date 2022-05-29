@@ -1,5 +1,6 @@
 import numpy
 from enum import Enum
+from datetime import datetime
 from pandas import (DataFrame)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
@@ -9,14 +10,14 @@ from lib.data.est import (EstType, ParamEst, ARMAEst, OLSSingleVarEst,
                           create_estimates_from_dict, create_dict_from_estimates,
                           perform_est_for_type)
 from lib.data.tests import (create_tests_from_dict, create_dict_from_tests)
-from lib.data.schema import (DataType, DataSchema, create_schema)
+from lib.data.schema import (DataType, DataSchema)
 
 ##################################################################################################################
 # Meta Data Schema
 class MetaData:
     def __init__(self, npts, data_type, params, desc, xlabel, ylabel, ests={}, tests={}, source_schema=None, formula=None):
         self.npts = npts
-        self.schema = create_schema(data_type)
+        self.schema = DataSchema.create(data_type)
         self.params = params
         self.desc = desc
         self.xlabel = xlabel
@@ -101,43 +102,85 @@ class MetaData:
             formula=formula
         )
 
-    @staticmethod
-    def get_data_type(df, data_type):
-        schema = create_schema(data_type)
+    @classmethod
+    def get_data_type(cls, df, data_type):
+        schema = DataSchema.create(data_type)
         return MetaData.get(df, schema)
 
-    @staticmethod
-    def get(df, schema):
+    @classmethod
+    def get(cls, df):
+        schema = cls.get_schema(df)
         return MetaData.from_dict(df.attrs[schema.ycol])
 
-    @staticmethod
-    def set(df, data_type, meta_data):
-        schema = create_schema(data_type)
+    @classmethod
+    def get_source_meta_data(cls, df):
+        schema = cls.get_source_schema(df)
+        if schema is not None:
+            return MetaData.from_dict(df.attrs[schema.ycol])
+        else:
+            return None
+
+    @classmethod
+    def set(cls, df, meta_data):
+        schema = cls.get_schema(df)
         df.attrs[schema.ycol]  = meta_data.data
 
-    @staticmethod
-    def add_estimate(df, data_type, est):
+    @classmethod
+    def add_estimate(cls, df, data_type, est):
         meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_estimate(est)
         MetaData.set(df, data_type, meta_data)
 
-    @staticmethod
-    def add_test(df, data_type, test):
+    @classmethod
+    def add_test(cls, df, data_type, test):
         meta_data = MetaData.get_data_type(df, data_type)
         meta_data.insert_test(test)
         MetaData.set(df, data_type, meta_data)
 
-    @staticmethod
-    def get_source_schema(df):
+    @classmethod
+    def get_data(cls, df):
+        schema = cls.get_schema(df)
+        return schema.get_data(df)
+
+    @classmethod
+    def get_schema(cls, df):
+        return df.attrs["Schema"]
+
+    @classmethod
+    def set_schema(cls, df, schema):
+        df.attrs["Schema"] = schema
+
+    @classmethod
+    def get_source_schema(cls, df):
         return df.attrs["SourceSchema"]
 
-    @staticmethod
-    def get_name(df):
+    @classmethod
+    def set_source_schema(cls, df, schema):
+        df.attrs["SourceSchema"] = schema
+
+    @classmethod
+    def get_name(cls, df):
         return df.attrs["Name"]
 
-    @staticmethod
-    def get_date(df):
+    @classmethod
+    def set_name(cls, df, name):
+        df.attrs["Name"] = name
+
+    @classmethod
+    def get_date(cls, df):
         return df.attrs["Date"]
+
+    @classmethod
+    def set_date(cls, df):
+        df.attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    @classmethod
+    def get_iterations(cls, df):
+        return df.attrs["SchemaIterations"]
+
+    @classmethod
+    def set_iterations(cls, df, iter):
+        df.attrs["SchemaIterations"] = iter
 
     @staticmethod
     def params_to_str(params):

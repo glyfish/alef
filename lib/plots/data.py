@@ -2,7 +2,7 @@ import numpy
 from enum import Enum
 from matplotlib import pyplot
 
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType, DataSchema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.meta_data import (MetaData)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
@@ -11,9 +11,8 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 ###############################################################################################
 # Configurations used in plots
 class DataPlotConfig:
-    def __init__(self, df, data_type):
-        schema = create_schema(data_type)
-        self.meta_data = MetaData.get(df, schema)
+    def __init__(self, df):
+        self.meta_data = MetaData.get(df)
 
     def __repr__(self):
         return f"DataPlotConfig({self._props()})"
@@ -44,10 +43,9 @@ class DataPlotConfig:
 ###############################################################################################
 # Configurations used in plots of data lists
 class DataListPlotConfig:
-    def __init__(self, dfs, data_type):
+    def __init__(self, dfs):
         self.nplot = len(dfs)
-        schemas = self._create_schemas(data_type)
-        self.meta_datas = [MetaData.get(dfs[i], schemas[i]) for i in range(self.nplot)]
+        self.meta_datas = [MetaData.get(df) for df in dfs]
 
     def __repr__(self):
         return f"DataListPlotConfig({self._props()})"
@@ -67,24 +65,11 @@ class DataListPlotConfig:
     def ylabels(self):
         return [self.meta_datas[i].ylabel for i in range(self.nplot)]
 
-    def _create_schemas(self, data_type):
-        if isinstance(data_type, list):
-            m = len(data_type)
-            if m < self.nplot:
-                data_type.append([data_type[m-1] for i in range(m, self.nplot)])
-        else:
-            data_type = [data_type for i in range(self.nplot)]
-
-        return [create_schema(type) for type in data_type]
-
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
 def curve(df, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
+    plot_config    = DataPlotConfig(df)
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
-
-    plot_config    = DataPlotConfig(df, data_type)
-
     title          = get_param_default_if_missing("title", plot_config.title(), **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
@@ -123,11 +108,8 @@ def curve(df, **kwargs):
 ###############################################################################################
 # Plot multiple curves of the same DataType using the same axes  (Uses DataPlotType config)
 def comparison(dfs, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
+    plot_config    = DataListPlotConfig(dfs)
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
-
-    plot_config    = DataListPlotConfig(dfs, data_type)
-
     title          = get_param_default_if_missing("title", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
@@ -185,11 +167,8 @@ def comparison(dfs, **kwargs):
 ###############################################################################################
 # Plot a single curve in a stack of plots that use the same x-axis (Uses PlotDataType config)
 def stack(dfs, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
+    plot_config    = DataListPlotConfig(dfs)
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
-
-    plot_config    = DataListPlotConfig(dfs, data_type)
-
     title          = get_param_default_if_missing("title", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)

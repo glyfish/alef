@@ -23,6 +23,9 @@ class EstType(Enum):
     def ols_key(self):
         return self.value
 
+    def arma_key(self, order):
+        return f"{self.value}({order})"
+
 ##################################################################################################################
 # Estimated parameter
 class ParamEst:
@@ -102,7 +105,7 @@ class ARMAEst:
                f"sigma2=({self.sigma2})"
 
     def key(self):
-        return f"{self.type.value}({self.order})"
+        return self.type.arma_key(self.order)
 
     def get_formula():
         if self.type.value == EstType.AR.value:
@@ -182,7 +185,7 @@ class OLSSingleVarEst:
                f"r2=({self.r2})"
 
     def key(self):
-        return self.type.value
+        return self.type.ols_key()
 
     def formula(self):
         return self.trans.formula

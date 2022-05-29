@@ -10,7 +10,7 @@ from lib.models import bm
 from lib.models import arima
 
 from lib.data.meta_data import (MetaData)
-from lib.data.schema import (DataType, DataSchema, create_schema)
+from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space)
 
@@ -30,7 +30,7 @@ class DataFunc:
     def __init__(self, schema, source_data_type, params, fy, ylabel, xlabel, desc, formula=None, fx=None):
         self.schema = schema
         self.params = params
-        self.source_schema = create_schema(source_data_type)
+        self.source_schema = DataSchema.create(source_data_type)
         self.ylabel = ylabel
         self.xlabel = xlabel
         self.desc = desc
@@ -61,7 +61,12 @@ class DataFunc:
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
         df_result = self.create_data_frame(x_result, y_result, self.meta_data(len(y)))
-        return DataSchema.concatinate(df, df_result)
+        df_result.attrs = df.attrs | df_result.attrs
+        MetaData.set_date(df_result)
+        MetaData.set_source_schema(df_result, self.source_schema)
+        MetaData.set_schema(df_result, self.schema)
+        MetaData.set_iterations(df_result, None)
+        return df_result
 
     def apply_ensemble(self, dfs):
         if len(dfs) == 0:
@@ -69,7 +74,13 @@ class DataFunc:
         x, y = self.source_schema.get_data_from_list(dfs)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        return self.create_data_frame(x_result, y_result, self.ensemble_meta_data(len(y), dfs[0]))
+        df = self.create_data_frame(x_result, y_result, self.ensemble_meta_data(len(y), dfs[0]))
+        df.attrs = df.attrs | dfs[0].attrs
+        MetaData.set_date(df)
+        MetaData.set_source_schema(df, self.source_schema)
+        MetaData.set_schema(df, self.schema)
+        MetaData.set_iterations(df, None)
+        return df
 
     def apply_list(self, dfs):
         return [self.apply(df) for df in dfs]
@@ -87,7 +98,7 @@ class DataFunc:
         )
 
     def ensemble_meta_data(self, npts, df):
-        source_meta_data = MetaData.get(df, self.source_schema)
+        source_meta_data = MetaData.get(df)
         return MetaData(
             npts=npts,
             data_type=self.schema.data_type,
@@ -102,11 +113,10 @@ class DataFunc:
     def create(self, x):
         y = self.fy(x, None)
         df = self.create_data_frame(x, y, self.meta_data(len(y)))
-        attrs = df.attrs
-        attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        attrs["Name"] = self.desc
-        attrs["SourceSchema"] = self.schema
-        df.attrs = attrs
+        MetaData.set_date(df)
+        MetaData.set_source_schema(df, self.source_schema)
+        MetaData.set_schema(df, self.schema)
+        MetaData.set_name(df, self.desc)
         return df
 
     def create_data_frame(self, x, y, meta_data):
@@ -139,7 +149,7 @@ class DataFunc:
 ###################################################################################################
 ## create function definition for data type
 def create_data_func(data_type, **kwargs):
-    schema = create_schema(data_type)
+    schema = DataSchema.create(data_type)
     if data_type.value == DataType.PSPEC.value:
         return _create_pspec(schema, **kwargs)
     elif data_type.value == DataType.ACF.value:
@@ -257,10 +267,10 @@ def _create_vr_stat(schema, **kwargs):
 def _create_diff(schema, **kwargs):
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
     fx = lambda x : x[:-1]
-    fy = lambda x, y : stats.diff(y)
+    fy = lambda x, y : stats.ndiff(y, ndiff)
     return DataFunc(schema=schema,
                     source_data_type=DataType.TIME_SERIES,
-                    params={},
+                    params={"ndiff": ndiff},
                     fy=fy,
                     ylabel=r"$\Delta S_t$",
                     xlabel=r"$t$",
@@ -473,34 +483,29 @@ def _create_gbm_sd(schema, **kwargs):
 
 # DataType.AGG_VAR
 def _create_agg_var(schema, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    H = get_param_throw_if_missing("H", **kwargs)
-    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    m_vals = get_param_throw_if_missing("m_vals", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
-    fy = lambda x, y : σ**2*fbm.var(H, t)
+    fy = lambda x, y : agg_var(y, m_vals)
     return DataFunc(schema=schema,
-                    source_data_type=DataType.SD,
-                    params={"H": H, "σ": σ},
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"m_vals": m_vals},
                     fy=fy,
                     ylabel=r"$\text{Var}(X^m)$",
                     xlabel=r"$m$",
                     desc="Aggregated Variance",
                     fx=fx)
-
 # DataType.AGG
 def _create_agg(schema, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    H = get_param_throw_if_missing("H", **kwargs)
-    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
-    fy = lambda x, y : σ**2*fbm.var(H, t)
+    m = get_param_throw_if_missing("m", **kwargs)
+    fx = lambda x : stats.agg_time(x, m)
+    fy = lambda x, y : stats.agg(y, m)
     return DataFunc(schema=schema,
-                    source_data_type=DataType.SD,
-                    params={"H": H, "σ": σ},
+                    source_data_type=DataType.TIME_SERIES,
+                    params={"m": m},
                     fy=fy,
-                    ylabel=r"$\text{Var}(X^m)$",
-                    xlabel=r"$m$",
-                    desc="Aggregated Variance",
+                    ylabel=f"$X^{{m}}$",
+                    xlabel=r"$t$",
+                    desc=f"Aggregation",
                     fx=fx)
 
 # DataType.VR
@@ -602,7 +607,7 @@ def _create_ar1_offset_sd(schema, **kwargs):
 ###################################################################################################
 ## create function definition applied to lists of data frames for data type
 def create_ensemble_data_func(data_type, **kwargs):
-    schema = create_schema(data_type)
+    schema = DataSchema.create(data_type)
     if data_type.value == DataType.MEAN.value:
         return _create_ensemble_mean(schema, **kwargs)
     elif data_type.value == DataType.SD.value:

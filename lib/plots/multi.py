@@ -4,7 +4,7 @@ from matplotlib import pyplot
 import matplotlib.ticker
 
 from lib.data.meta_data import (MetaData)
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType, DataSchema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -12,8 +12,8 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # twin plot configurations
 class TwinPlotConfig:
     def __init__(self, df, left_data_type, right_data_type):
-        left_schema = create_schema(left_data_type)
-        right_schema = create_schema(right_data_type)
+        left_schema = DataSchema.create(left_data_type)
+        right_schema = DataSchema.create(right_data_type)
         source_schema = MetaData.get_source_schema(df)
         self.left_meta_data = MetaData.get(df, left_schema)
         self.right_meta_data = MetaData.get(df, right_schema)

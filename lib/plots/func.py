@@ -6,48 +6,19 @@ from lib.models import fbm
 from lib.models import arima
 from lib import stats
 
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.meta_data import (MetaData)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 
 ##################################################################################################################
-## Specify PlotConfig for fcompare plot
-class FuncPlotType(Enum):
-    LINEAR = "LINEAR"                               # Linear Model
-    FBM_MEAN = "FBM_MEAN"                           # FBM model mean with data
-    FBM_SD = "FBM_SD"                               # FBM model standard deviation with data
-    FBM_ACF = "FBM_ACF"                             # FBM model autocorrelation with data
-    BM_MEAN = "BM_MEAN"                             # BM model mean with data
-    BM_DRIFT_MEAN = "BM_DRIFT_MEAN"                 # BM model mean with data
-    BM_SD = "BM_SD"                                 # BM model standard deviation with data
-    GBM_MEAN = "GBM_MEAN"                           # GBM model mean with data
-    GBM_SD = "GBM_SD"                               # GBM model mean with data
-    AR1_ACF = "AR1_ACF"                             # AR1 model ACF autocorrelation function with data
-    MAQ_ACF = "MAQ_ACF"                             # MA(q) model ACF autocorrelation function with data
-    LAG_VAR = "LAG_VAR"                             # Lagged variance computed from a time series
-    VR = "VR"                                       # Vraiance ratio use in test for brownian motion
-    AR1_CUMU_MEAN = "AR1_CUMU_MEAN"                 # Cumulative mean for AR(1)
-    AR1_CUMU_SD = "AR1_CUMU_SD"                     # Cumulative standard deviation for AR(1)
-    MAQ_CUMU_MEAN = "MAQ_CUMU_MEAN"                 # Cumulative mean for MA(q)
-    MAQ_CUMU_SD = "MAQ_CUMU_SD"                     # Cumulative standard deviation for MA(q)
-    AR1_CUMU_OFFSET_MEAN = "AR1_CUMU_OFFSET_MEAN"   # AR1 with Offset model mean
-    AR1_CUMU_OFFSET_SD = "AR1_CUMU_OFFSET_SD"       # AR1 with Offset model standard deviation
-
-##################################################################################################################
 ## Function compare plot config
 class FuncPlotConfig:
-    def __init__(self, df, data_type, func_type):
-        data_schema = create_schema(data_type)
-        func_schema = create_schema(func_type)
-        self.data_meta_data = MetaData.get(df, data_schema)
-        self.func_meta_data = MetaData.get(df, func_schema)
-
-        if self.data_meta_data.source_schema is not None:
-            self.source_meta_data = MetaData.get(df, self.data_meta_data.source_schema)
-        else:
-            self.source_meta_data = None
+    def __init__(self, data, func):
+        self.data_meta_data = MetaData.get(data)
+        self.func_meta_data = MetaData.get(func)
+        self.source_meta_data = MetaData.get_source_meta_data(data)
 
     def __repr__(self):
         return f"CumuPlotConfig({self._props()})"
@@ -87,11 +58,10 @@ class FuncPlotConfig:
 
 ###############################################################################################
 # Compare data to the value of a function at a specified number of points
-def fpoints(df, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
-    func_type      = get_param_throw_if_missing("func_type", **kwargs)
-
-    plot_config    = FuncPlotConfig(df, data_type, func_type)
+def fpoints(**kwargs):
+    data           = get_param_throw_if_missing("data", **kwargs)
+    func           = get_param_throw_if_missing("func", **kwargs)
+    plot_config    = FuncPlotConfig(data, func)
 
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
     title          = get_param_default_if_missing("title", plot_config.title(), **kwargs)
@@ -101,8 +71,8 @@ def fpoints(df, **kwargs):
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
 
-    x, y = plot_config.data_meta_data.get_data(df)
-    fx, fy = plot_config.func_meta_data.get_data(df)
+    x, y = plot_config.data_meta_data.get_data(data)
+    fx, fy = plot_config.func_meta_data.get_data(func)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
     axis.set_xlabel(xlabel)
@@ -130,11 +100,10 @@ def fpoints(df, **kwargs):
 
 ##################################################################################################################
 ## Compare the function with all data points
-def fcurve(df, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
-    func_type      = get_param_throw_if_missing("func_type", **kwargs)
-
-    plot_config    = FuncPlotConfig(df, data_type, func_type)
+def fcurve(**kwargs):
+    data           = get_param_throw_if_missing("data", **kwargs)
+    func           = get_param_throw_if_missing("func", **kwargs)
+    plot_config    = FuncPlotConfig(data, func)
 
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
     title          = get_param_default_if_missing("title", plot_config.title(), **kwargs)
@@ -144,8 +113,8 @@ def fcurve(df, **kwargs):
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
 
-    x, y = plot_config.data_meta_data.get_data(df)
-    fx, fy = plot_config.func_meta_data.get_data(df)
+    x, y = plot_config.data_meta_data.get_data(data)
+    fx, fy = plot_config.func_meta_data.get_data(func)
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
 

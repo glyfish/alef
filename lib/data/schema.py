@@ -59,7 +59,6 @@ class DataSchema:
     def get_data(self, df):
         if not self.is_in(df):
             raise Exception(f"DataFrame does not contain schema={self}")
-
         meta_data = df.attrs
         xcol = self.xcol
         ycol = self.ycol
@@ -137,33 +136,33 @@ def create_schema(data_type):
     elif data_type.value == DataType.SD.value:
         return DataSchema("Time", "SD", data_type)
     elif data_type.value == DataType.AR1_ACF.value:
-        return DataSchema("AR(1) Lag", "AR(1) ACF", data_type)
+        return DataSchema("Lag", "AR(1) ACF", data_type)
     elif data_type.value == DataType.MAQ_ACF.value:
-        return DataSchema("MA(q) Lag", "MA(q) ACF", data_type)
+        return DataSchema("Lag", "MA(q) ACF", data_type)
     elif data_type.value == DataType.FBM_MEAN.value:
-        return DataSchema("FBM Mean Time", "FBM Mean", data_type)
+        return DataSchema("Time", "FBM Mean", data_type)
     elif data_type.value == DataType.FBM_SD.value:
-        return DataSchema("FBM SD Time", "FBM SD", data_type)
+        return DataSchema("Time", "FBM SD", data_type)
     elif data_type.value == DataType.FBM_ACF.value:
-        return DataSchema("FBM ACF Time", "FBM ACF", data_type)
+        return DataSchema("Time", "FBM ACF", data_type)
     elif data_type.value == DataType.FBM_COV.value:
-        return DataSchema("FBM COV Time", "FBM COV", data_type)
+        return DataSchema("Time", "FBM COV", data_type)
     elif data_type.value == DataType.BM_MEAN.value:
-        return DataSchema("BM Mean Time", "BM Mean", data_type)
+        return DataSchema("Time", "BM Mean", data_type)
     elif data_type.value == DataType.BM_DRIFT_MEAN.value:
-        return DataSchema("BM Drift Mean Time", "BM Drift Mean", data_type)
+        return DataSchema("Time", "BM Drift Mean", data_type)
     elif data_type.value == DataType.BM_SD.value:
-        return DataSchema("BM SD Time", "BM SD", data_type)
+        return DataSchema("Time", "BM SD", data_type)
     elif data_type.value == DataType.GBM_MEAN.value:
-        return DataSchema("GBM Mean Time", "GBM Mean", data_type)
+        return DataSchema("Time", "GBM Mean", data_type)
     elif data_type.value == DataType.GBM_SD.value:
-        return DataSchema("GBM STD Time", "GBM SD", data_type)
+        return DataSchema("Time", "GBM SD", data_type)
     elif data_type.value == DataType.AGG_VAR.value:
-        return DataSchema("AggregatedTime", "Aggregated Variance", data_type)
+        return DataSchema("Time", "Aggregated Variance", data_type)
     elif data_type.value == DataType.AGG.value:
-        return DataSchema("Aggregated Time", "Aggregated", data_type)
+        return DataSchema("Time", "Aggregated", data_type)
     elif data_type.value == DataType.VR.value:
-        return DataSchema("VR Time", "Variance Ratio", data_type)
+        return DataSchema("Time", "Variance Ratio", data_type)
     elif data_type.value == DataType.BM.value:
         return DataSchema("Time", "BM", data_type)
     elif data_type.value == DataType.ARMA_MEAN.value:

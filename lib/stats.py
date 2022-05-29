@@ -1,4 +1,5 @@
 import numpy
+from copy import deepcopy
 from pandas import DataFrame
 import statsmodels.api as sm
 from enum import Enum
@@ -29,6 +30,12 @@ def to_geometric(samples):
 
 def from_geometric(samples):
     return numpy.log(samples/s0)
+
+def ndiff(samples, ndiff):
+    result = deepcopy(samples)
+    for _ in ndiff:
+        result = diff(result)
+    return result
 
 def diff(samples):
     n = len(samples)
@@ -168,13 +175,10 @@ def agg_var(samples, m_vals):
             var[i] += (vals[k] - mean)**2/(d - 1)
     return var
 
-def agg_time(samples, m):
-    n = len(samples)
-    times = []
-    for i in range(len(m)):
-        d = int(n/m[i])
-        times.append(numpy.linspace(0, n-1, d))
-    return times
+def agg_time(x, m):
+    n = len(x)
+    d = int(n/m)
+    return numpy.linspace(x[0], x[n-1], d)
 
 ###############################################################################################
 ## OLS

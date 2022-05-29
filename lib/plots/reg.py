@@ -6,7 +6,7 @@ from lib import stats
 
 from lib.data.meta_data import (MetaData)
 from lib.data.est import (EstType)
-from lib.data.schema import (DataType, create_schema)
+from lib.data.schema import (DataType, DataSchema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -14,8 +14,8 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 ###############################################################################################
 # Create single variable regression PlotConfig
 class SingleVarPlotConfig:
-    def __init__(self, df, data_type, est_type):
-        schema = create_schema(data_type)
+    def __init__(self, df, est_type):
+        schema = DataSchema.get_schema(df)
         source_schema = MetaData.get_source_schema(df)
         self.meta_data = MetaData.get(df, schema)
         self.source_meta_data = MetaData.get(df, source_schema)
