@@ -159,6 +159,14 @@ class MetaData:
         df.attrs["SourceSchema"] = schema
 
     @classmethod
+    def get_source_name(cls, df):
+        return df.attrs["Name"]
+
+    @classmethod
+    def set_source_name(cls, df, name):
+        df.attrs["SourceName"] = name
+
+    @classmethod
     def get_name(cls, df):
         return df.attrs["Name"]
 

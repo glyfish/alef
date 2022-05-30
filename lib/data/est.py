@@ -16,7 +16,7 @@ class EstType(Enum):
     MA = "MA"                     # Moving average model parameters
     MA_OFFSET = "MA_OFFSET"       # Moving average model  with constant offset parameters
     PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
-    VAR_AGG = "VAR_AGG"           # Variance Aggregation esimate of FBM Hurst parameter using OLS
+    AGG_VAR = "AGG_VAR"           # Variance Aggregation esimate of FBM Hurst parameter using OLS
     LINEAR = "LINEAR"             # Simple single variable linear regression
     LOG = "LOG"                   # Log log single variable linear regression
 
@@ -243,8 +243,8 @@ class OLSSinlgeVarTrans:
 
 ##################################################################################################################
 def _create_ols_single_var_trans(est_type, param, const):
-    if est_type.value == EstType.VAR_AGG.value:
-        return _create_var_agg_trans(param, const)
+    if est_type.value == EstType.AGG_VAR.value:
+        return _create_agg_var_trans(param, const)
     elif est_type.value == EstType.PERGRAM.value:
         return _create_pergram_trans(param, const)
     elif est_type.value == EstType.LINEAR.value:
@@ -254,16 +254,16 @@ def _create_ols_single_var_trans(est_type, param, const):
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
 
-# EstType.VAR_AGG
-def _create_var_agg_trans(param, const):
+# EstType.AGG_VAR
+def _create_agg_var_trans(param, const):
     formula = r"$\sigma^2 m^{2\left(H-1\right)}$"
     param = ParamEst(est=1.0 + param.est/2.0,
-                     err=param.est_err/2.0,
+                     err=param.err/2.0,
                      est_label=r"$\hat{Η}$",
                      err_label=r"$\sigma_{\hat{Η}}$")
     c = 10.0**const.est
     const = ParamEst(est=c,
-                     err= c*const.est_err,
+                     err= c*const.err,
                      est_label=r"$\hat{\sigma}^2$",
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
     return OLSSinlgeVarTrans(formula, const, param)
@@ -310,7 +310,7 @@ def create_estimate_from_dict(dict):
         return ARMAEst.from_dict(dict)
     elif est_type.value == EstType.PERGRAM.value:
         return OLSSingleVarEst.from_dict(dict)
-    elif est_type.value == EstType.VAR_AGG.value:
+    elif est_type.value == EstType.AGG_VAR.value:
         return OLSSingleVarEst.from_dict(dict)
     elif est_type.value == EstType.LINEAR.value:
         return OLSSingleVarEst.from_dict(dict)
@@ -338,7 +338,7 @@ def perform_est_for_type(x, y, est_type, **kwargs):
         return _ma_offset_estimate(y, **kwargs)
     elif est_type.value == EstType.PERGRAM.value:
         return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
-    elif est_type.value == EstType.VAR_AGG.value:
+    elif est_type.value == EstType.AGG_VAR.value:
         return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
     elif est_type.value == EstType.LINEAR.value:
         return _ols_estimate(x, y, stats.RegType.LINEAR, est_type, **kwargs)
@@ -391,7 +391,7 @@ def _ma_offset_estimate(samples, **kwargs):
     result = arima.ma_offset_fit(samples, order)
     return result, _arma_estimate_from_result(result, EstType.MA_OFFSET)
 
-# EstType.PERGRAM, EstType.VAR_AGG, EstType.LINEAR, EstType.LOG
+# EstType.PERGRAM, EstType.AGG_VAR, EstType.LINEAR, EstType.LOG
 def _ols_estimate(x, y, reg_type, est_type, **kwargs):
     result = stats.OLS_fit(y, x, reg_type)
     return result, _ols_estimate_from_result(x, y, reg_type, est_type, result)

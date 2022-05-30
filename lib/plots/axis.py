@@ -33,8 +33,3 @@ def logYStyle(axis, x, y):
         axis.tick_params(axis='y', which='minor', length=8, color="#b0b0b0", direction="in")
         axis.tick_params(axis='y', which='major', length=15, color="#b0b0b0", direction="in", pad=10)
         axis.spines['left'].set_color("#b0b0b0")
-
-###############################################################################################
-## generate points evenly spaced on a logarithmic axis
-def logspace(npts, max, min=10.0):
-    return numpy.logspace(numpy.log10(min), numpy.log10(max/min), npts)

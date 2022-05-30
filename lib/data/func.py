@@ -12,7 +12,7 @@ from lib.models import arima
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space)
+                       verify_type, verify_types, create_space, create_logspace)
 
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
@@ -56,12 +56,18 @@ class DataFunc:
                f"source_schema=({self.source_schema}) " \
                f"formula=({self.formula})"
 
+    def _name(self):
+        return f"{self.schema.data_type.value}-{str(uuid.uuid4())}"
+
     def apply(self, df):
         x, y = self.source_schema.get_data(df)
         x_result = self.fx(x)
         y_result = self.fy(x_result, y)
-        df_result = self.create_data_frame(x_result, y_result, self.meta_data(len(y)))
+        df_result = self.create_data_frame(x_result, y_result, self.meta_data(len(y_result)))
         df_result.attrs = df.attrs | df_result.attrs
+        source_name = MetaData.get_name(df)
+        MetaData.set_source_name(df_result, source_name)
+        MetaData.set_name(df_result, self._name())
         MetaData.set_date(df_result)
         MetaData.set_source_schema(df_result, self.source_schema)
         MetaData.set_schema(df_result, self.schema)
@@ -194,9 +200,9 @@ def create_data_func(data_type, **kwargs):
     elif data_type.value == DataType.GBM_SD.value:
         return _create_gbm_sd(schema, **kwargs)
     elif data_type.value == DataType.AGG_VAR.value:
-        return _var(schema, **kwargs)
+        return _create_agg_var(schema, **kwargs)
     elif data_type.value == DataType.AGG.value:
-        return (schema, **kwargs)
+        return _create_agg(schema, **kwargs)
     elif data_type.value == DataType.VR.value:
         return _create_vr(schema, **kwargs)
     elif data_type.value == DataType.BM.value:
@@ -267,7 +273,7 @@ def _create_vr_stat(schema, **kwargs):
                     ylabel=r"$Z^*(s)$",
                     xlabel=r"$s$",
                     desc="Variance Ratio Statistic",
-                    formula=r"$\frac{\text{VR}(s) - 1}{\sqrt{\theta^\ast (s)}}$",
+                    formula=r"$\frac{VR(s) - 1}{\sqrt{\theta^\ast (s)}}$",
                     fy=fy)
 
 # DataType.DIFF_1
@@ -490,20 +496,22 @@ def _create_gbm_sd(schema, **kwargs):
 
 # DataType.AGG_VAR
 def _create_agg_var(schema, **kwargs):
-    m_vals = get_param_throw_if_missing("m_vals", 10, **kwargs)
+    npts = get_param_throw_if_missing("npts", **kwargs)
+    m_max = get_param_throw_if_missing("m_max", **kwargs)
+    m_min = get_param_default_if_missing("m_min", 1.0, **kwargs)
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
-    fy = lambda x, y : agg_var(y, m_vals)
+    fx = lambda x : create_logspace(npts=npts, xmax=m_max, xmin=m_min)
+    fy = lambda x, y : stats.agg_var(y, x)
     return DataFunc(schema=schema,
                     source_data_type=source_data_type,
-                    params={"m_vals": m_vals},
+                    params={"npts": npts, "m_max": m_max, "m_min": m_min},
                     fy=fy,
-                    ylabel=r"$\text{Var}(X^m)$",
+                    ylabel=r"$Var(X^m)$",
                     xlabel=r"$m$",
                     desc="Aggregated Variance",
                     fx=fx)
 # DataType.AGG
-def (schema, **kwargs):
+def _create_agg(schema, **kwargs):
     m = get_param_throw_if_missing("m", **kwargs)
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : stats.agg_time(x, m)
@@ -512,7 +520,7 @@ def (schema, **kwargs):
                     source_data_type=source_data_type,
                     params={"m": m},
                     fy=fy,
-                    ylabel=f"$X^{{{{m}}}}$",
+                    ylabel=f"$X^{{{m}}}$",
                     xlabel=r"$t$",
                     desc=f"Aggregation",
                     fx=fx)
@@ -528,7 +536,7 @@ def _create_vr(schema, **kwargs):
                     source_data_type=DataType.SD,
                     params={"H": H, "σ": σ},
                     fy=fy,
-                    ylabel=r"$\text{VR}(s)$",
+                    ylabel=r"$VR(s)$",
                     xlabel=r"$s$",
                     desc="Variance Ratio",
                     formula=r"$\frac{\sigma^2(s)}{\sigma_B^2(s)}$",

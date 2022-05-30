@@ -85,6 +85,7 @@ class DataSource:
         MetaData.set_date(df)
         MetaData.set_name(df, self.name)
         MetaData.set_source_schema(df, None)
+        MetaData.set_source_name(df, None)
         MetaData.set_schema(df, self.schema)
         MetaData.set_iterations(df, None)
         return df
