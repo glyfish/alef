@@ -122,23 +122,30 @@ class DataFunc:
     def create_data_frame(self, x, y, meta_data):
         return DataSchema.create_data_frame(x, y, meta_data)
 
-    @staticmethod
-    def apply_func_type(df, func_type, **kwargs):
+    @classmethod
+    def apply_func_type(cls, df, func_type, **kwargs):
         data_func = create_data_func(func_type, **kwargs)
         return data_func.apply(df)
 
-    @staticmethod
-    def apply_func_type_to_ensemble(dfs, func_type, **kwargs):
+    @classmethod
+    def apply_func_type_to_ensemble(cls, dfs, func_type, **kwargs):
         data_func = create_ensemble_data_func(func_type, **kwargs)
         return data_func.apply_ensemble(dfs)
 
-    @staticmethod
-    def apply_func_type_to_list(dfs, func_type, **kwargs):
+    @classmethod
+    def apply_func_type_to_list(cls, dfs, func_type, **kwargs):
         data_func = create_data_func(func_type, **kwargs)
         return data_func.apply_list(dfs)
 
-    @staticmethod
-    def create_func_type(func_type, **kwargs):
+    @classmethod
+    def apply_parameter_scan(cls, df, func_type, *args):
+        dfs = []
+        for kwargs in args:
+            dfs.append(cls.apply_func_type(df, func_type, **kwargs))
+        return dfs
+
+    @classmethod
+    def create_func_type(cls, func_type, **kwargs):
         x = get_param_default_if_missing("x", None, **kwargs)
         if x is None:
             x = create_space(**kwargs)
@@ -187,9 +194,9 @@ def create_data_func(data_type, **kwargs):
     elif data_type.value == DataType.GBM_SD.value:
         return _create_gbm_sd(schema, **kwargs)
     elif data_type.value == DataType.AGG_VAR.value:
-        return _create_agg_var(schema, **kwargs)
+        return _var(schema, **kwargs)
     elif data_type.value == DataType.AGG.value:
-        return _create_agg(schema, **kwargs)
+        return (schema, **kwargs)
     elif data_type.value == DataType.VR.value:
         return _create_vr(schema, **kwargs)
     elif data_type.value == DataType.BM.value:
@@ -304,7 +311,7 @@ def _create_cumu_sd(schema, **kwargs):
 def _create_ar1_acf(schema, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
-    fx = lambda x : x[:nlags+1]
+    fx = lambda x : x[:nlags +1 ]
     fy = lambda x, y : φ**x
     return DataFunc(schema=schema,
                     source_data_type=DataType.ACF,
@@ -484,10 +491,11 @@ def _create_gbm_sd(schema, **kwargs):
 # DataType.AGG_VAR
 def _create_agg_var(schema, **kwargs):
     m_vals = get_param_throw_if_missing("m_vals", 10, **kwargs)
+    source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : agg_var(y, m_vals)
     return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
+                    source_data_type=source_data_type,
                     params={"m_vals": m_vals},
                     fy=fy,
                     ylabel=r"$\text{Var}(X^m)$",
@@ -495,15 +503,16 @@ def _create_agg_var(schema, **kwargs):
                     desc="Aggregated Variance",
                     fx=fx)
 # DataType.AGG
-def _create_agg(schema, **kwargs):
+def (schema, **kwargs):
     m = get_param_throw_if_missing("m", **kwargs)
+    source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : stats.agg_time(x, m)
     fy = lambda x, y : stats.agg(y, m)
     return DataFunc(schema=schema,
-                    source_data_type=DataType.TIME_SERIES,
+                    source_data_type=source_data_type,
                     params={"m": m},
                     fy=fy,
-                    ylabel=f"$X^{{m}}$",
+                    ylabel=f"$X^{{{{m}}}}$",
                     xlabel=r"$t$",
                     desc=f"Aggregation",
                     fx=fx)

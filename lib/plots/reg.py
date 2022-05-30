@@ -15,10 +15,8 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # Create single variable regression PlotConfig
 class SingleVarPlotConfig:
     def __init__(self, df, est_type):
-        schema = DataSchema.get_schema(df)
-        source_schema = MetaData.get_source_schema(df)
-        self.meta_data = MetaData.get(df, schema)
-        self.source_meta_data = MetaData.get(df, source_schema)
+        self.meta_data = MetaData.get(df)
+        self.source_meta_data = MetaData.get_source_meta_data(df)
         self.est = self.meta_data.get_estimate(est_type.ols_key())
 
     def __repr__(self):
@@ -77,10 +75,8 @@ class SingleVarPlotConfig:
 ###############################################################################################
 # Compare the result of a linear regression with teh acutal data (Uses RegPlotType config)
 def single_var(df, **kwargs):
-    data_type      = get_param_throw_if_missing("data_type", **kwargs)
     est_type       = get_param_throw_if_missing("est_type", **kwargs)
-
-    plot_config    = SingleVarPlotConfig(df, data_type, est_type)
+    plot_config    = SingleVarPlotConfig(df, est_type)
 
     plot_type      = get_param_default_if_missing("plot_type", plot_config.plot_type(), **kwargs)
     title          = get_param_default_if_missing("title", plot_config.title(), **kwargs)

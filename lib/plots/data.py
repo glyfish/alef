@@ -1,6 +1,7 @@
 import numpy
 from enum import Enum
 from matplotlib import pyplot
+import matplotlib.ticker
 
 from lib.data.schema import (DataType, DataSchema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
@@ -13,6 +14,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 class DataPlotConfig:
     def __init__(self, df):
         self.meta_data = MetaData.get(df)
+        self.source_meta_data = MetaData.get_source_meta_data(df)
 
     def __repr__(self):
         return f"DataPlotConfig({self._props()})"
@@ -30,15 +32,20 @@ class DataPlotConfig:
         return self.meta_data.ylabel
 
     def title(self):
+        title = f"{self.meta_data.desc}"
         params = self.meta_data.params
         formula = self.meta_data.formula
-        title = f"{self.meta_data.desc}"
-        if formula is not None:
+        
+        if self.source_meta_data is not None:
+            title = f"{self.source_meta_data.desc} {title}"
+            params = params | self.source_meta_data.params
+        elif formula is not None:
             title = f"{title} {self.meta_data.formula()}"
+
         if not params:
             return title
         else:
-            return f"{title}: {self.meta_data.params_str()}"
+            return f"{title}: {MetaData.params_to_str(params)}"
 
 ###############################################################################################
 # Configurations used in plots of data lists
@@ -64,6 +71,43 @@ class DataListPlotConfig:
 
     def ylabels(self):
         return [self.meta_datas[i].ylabel for i in range(self.nplot)]
+
+###############################################################################################
+# twin plot configurations
+class TwinPlotConfig:
+    def __init__(self, left, right):
+        self.left_meta_data = MetaData.get(left)
+        self.right_meta_data = MetaData.get(right)
+        self.source_meta_data = MetaData.get_source_meta_data(left)
+
+    def __repr__(self):
+        return f"TwinPlotConfig({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"left_meta_datas=({self.left_meta_datas}), " \
+               f"right_meta_data=({self.right_meta_datas}), " \
+               f"source_meta_data=({self.source_meta_data})"
+
+    def xlabel(self):
+        return self.left_meta_data.xlabel
+
+    def left_ylabel(self):
+        return self.left_meta_data.ylabel
+
+    def right_ylabel(self):
+        return self.right_meta_data.ylabel
+
+    def labels(self):
+        return [self.left_meta_data.desc + " (" + self.left_meta_data.ylabel + ")",
+                self.right_meta_data.desc + " (" + self.right_meta_data.ylabel + ")"]
+
+    def title(self):
+        params = self.source_meta_data.params | self.left_meta_data.params | self.right_meta_data.params
+        var_desc  = self.left_meta_data.desc + "-" + self.right_meta_data.desc
+        return f"{self.source_meta_data.desc} {var_desc}: {MetaData.params_to_str(params)}"
 
 ###############################################################################################
 # Plot a single curve as a function of the dependent variable (Uses DataPlotType config)
@@ -218,3 +262,92 @@ def stack(dfs, **kwargs):
             axis[i].semilogy(x, y, lw=1)
         else:
             axis[i].plot(x, y, lw=1)
+
+###############################################################################################
+# Plot two curves with different data_types using different y axis scales, same xaxis
+# with data in the same DataFrame
+def twinx(**kwargs):
+    left            = get_param_throw_if_missing("left", **kwargs)
+    right           = get_param_throw_if_missing("right", **kwargs)
+    plot_config     = TwinPlotConfig(left, right)
+
+    plot_type       = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
+    title           = get_param_default_if_missing("title", plot_config.title(), **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
+    left_ylabel     = get_param_default_if_missing("left_ylabel", plot_config.left_ylabel(), **kwargs)
+    right_ylabel    = get_param_default_if_missing("right_ylabel", plot_config.right_ylabel(), **kwargs)
+    labels          = get_param_default_if_missing("labels", plot_config.labels(), **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "upper right", **kwargs)
+    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
+
+    figure, axis1 = pyplot.subplots(figsize=(13, 10))
+
+    axis1.set_title(title, y=title_offset)
+
+    # first plot left axis1
+    axis1.set_ylabel(left_ylabel)
+    axis1.set_xlabel(xlabel)
+    _plot_curve(axis1, left, plot_config.left_meta_data, plot_type, labels[0], **kwargs)
+
+    # second plot right axis2
+    axis2 = axis1.twinx()
+    axis2._get_lines.prop_cycler = axis1._get_lines.prop_cycler
+    axis2.set_ylabel(right_ylabel)
+    _plot_curve(axis2, right, plot_config.right_meta_data, plot_type, labels[1], **kwargs)
+
+    if ylim is not None:
+        axis1.set_ylim(ylim)
+
+    twinx_ticks(axis1, axis2)
+    axis2.grid(False)
+
+    figure.legend(loc=legend_loc, bbox_to_anchor=(0.2, 0.2, 0.6, 0.6))
+
+###############################################################################################
+# compute twinz ticks so grids align
+def twinx_ticks(axis1, axis2):
+    y1_lim = axis1.get_ylim()
+    y2_lim = axis2.get_ylim()
+    f = lambda x : y2_lim[0] + (x - y1_lim[0])*(y2_lim[1] - y2_lim[0])/(y1_lim[1] - y1_lim[0])
+    ticks = f(axis1.get_yticks())
+    axis2.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(ticks))
+    axis2.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.2f'))
+
+###############################################################################################
+# plot curve on specified axis
+def _plot_curve(axis, df, meta_data, plot_type, label, **kwargs):
+    lw   = get_param_default_if_missing("lw", 2, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+
+    x, y = meta_data.get_data(df)
+
+    if npts is None or npts > len(y):
+        npts = len(y)
+
+    x = x[:npts]
+    y = y[:npts]
+
+    if plot_type.value == PlotType.LOG.value:
+        logStyle(axis, x, y)
+        if label is None:
+            axis.loglog(x, y, lw=lw)
+        else:
+            axis.loglog(x, y, label=label, lw=lw)
+    elif plot_type.value == PlotType.XLOG.value:
+        logXStyle(axis, x, y)
+        if label is None:
+            axis.semilogx(x, y, lw=lw)
+        else:
+            axis.semilogx(x, y, label=label, lw=lw)
+    elif plot_type.value == PlotType.YLOG.value:
+        logYStyle(axis, x, y)
+        if label is None:
+            axis.semilogy(x, y, lw=lw)
+        else:
+            axis.semilogy(x, y, label=label, lw=lw)
+    else:
+        if label is None:
+            axis.plot(x, y, lw=lw)
+        else:
+            axis.plot(x, y, label=label, lw=lw)

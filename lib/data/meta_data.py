@@ -126,10 +126,10 @@ class MetaData:
         df.attrs[schema.ycol]  = meta_data.data
 
     @classmethod
-    def add_estimate(cls, df, data_type, est):
-        meta_data = MetaData.get_data_type(df, data_type)
+    def add_estimate(cls, df, est):
+        meta_data = MetaData.get(df)
         meta_data.insert_estimate(est)
-        MetaData.set(df, data_type, meta_data)
+        MetaData.set(df, meta_data)
 
     @classmethod
     def add_test(cls, df, data_type, test):
@@ -214,7 +214,7 @@ class MetaData:
 ##################################################################################################################
 # Perform estimate
 def perform_est(df, est_type, **kwargs):
-    data_type = get_param_default_if_missing("data_type", DataType.TIME_SERIES, **kwargs)
-    result, est = perform_est_for_type(df, est_type, **kwargs)
-    MetaData.add_estimate(df, data_type, est)
+    x, y = MetaData.get_data(df)
+    result, est = perform_est_for_type(x, y, est_type, **kwargs)
+    MetaData.add_estimate(df, est)
     return result

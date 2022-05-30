@@ -97,16 +97,6 @@ class DataSchema:
         return df
 
     @staticmethod
-    def get_data_type(df, data_type):
-        schema = create_schema(data_type)
-        return schema.get_data(df)
-
-    @staticmethod
-    def get_data_type_from_list(dfs, data_type):
-        schema = create_schema(data_type)
-        return schema.get_data_from_list(df)
-
-    @staticmethod
     def create(data_type):
         return create_schema(data_type)
 

@@ -327,9 +327,7 @@ def create_dict_from_estimates(ests):
 
 ##################################################################################################################
 # Perform esimate for specified esimate types
-def perform_est_for_type(df, est_type, **kwargs):
-    data_type = get_param_default_if_missing("data_type", DataType.TIME_SERIES, **kwargs)
-    x, y = DataSchema.get_data_type(df, data_type)
+def perform_est_for_type(x, y, est_type, **kwargs):
     if est_type.value == EstType.AR.value:
         return _ar_estimate(y, **kwargs)
     elif est_type.value == EstType.AR_OFFSET.value:

@@ -1,7 +1,6 @@
-from lib.plots.data import (curve, comparison, stack)
+from lib.plots.data import (curve, comparison, stack, twinx)
 from lib.plots.func import (fpoints, fcurve)
 from lib.plots.axis import (PlotType)
-from lib.plots.multi import (twinx)
 from lib.plots.reg import (single_var)
 
 from lib.data.schema import (DataType, DataSchema)

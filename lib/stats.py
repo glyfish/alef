@@ -33,8 +33,10 @@ def from_geometric(samples):
 
 def ndiff(samples, ndiff):
     result = deepcopy(samples)
-    for _ in ndiff:
+    i = 0
+    while i < ndiff:
         result = diff(result)
+        i += 1
     return result
 
 def diff(samples):
