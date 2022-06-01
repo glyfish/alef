@@ -2,9 +2,15 @@ from scipy import stats
 from enum import Enum
 import numpy
 
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, verify_types, create_space, create_logspace)
+
 # Supported Distributions
 class DistType(Enum):
     NORMAL = 1  # Normal distribution with parameters σ and μ
+
+    def create(self, **kwargs):
+        return _create_distribution(**kwargs)
 
 # Supported distribution functions
 class DistFuncType(Enum):
@@ -22,23 +28,18 @@ class HypothesisType(Enum):
     UPPER_TAIL = 3
 
 # Create specified distribution function with specifoed parameters
-def distribution_function(type, func_type, params):
-    if type.value == DistType.NORMAL.value:
-        return _normal(func_type, params)
+def _create_distribution(**kwargs):
+    dist_type = get_param_throw_if_missing("dist_type", **kwargs)
+    func_type = get_param_throw_if_missing("func_type", **kwargs)
+    if dist_type.value == DistType.NORMAL.value:
+        return _normal(func_type, **kwargs)
     else:
         raise Exception(f"Distribution type is invalid: {type}")
 
 # Normal distributions with scale σ and loc μ
-def _normal(func_type, params):
-    if len(params) > 0:
-        σ = params[0]
-    else:
-        σ = 1.0
-    if len(params) > 1:
-        μ = params[1]
-    else:
-        μ = 0.0
-
+def _normal(func_type, **kwargs):
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     if func_type.value == DistFuncType.PDF.value:
         return lambda x : stats.norm.pdf(x, loc=μ, scale=σ)
     elif func_type.value == DistFuncType.CDF.value:

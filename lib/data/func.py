@@ -14,6 +14,55 @@ from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
+##################################################################################################################
+# Specify FuncTypes used in analysis
+class FuncType(Enum):
+    PSPEC = "PSPEC"                        # Power Spectrum
+    ACF = "ACF"                            # Autocorrelation function
+    DIFF = "DIFF"                          # Time series difference
+    DIFF_ACF = "DIFF_ACF"                  # ACF Difference
+    CUMU_MEAN = "CUMU_MEAN"                # Cumulative mean
+    CUMU_SD = "CUMU_SD"                    # Cumulative standard deviation
+    MEAN = "MEAN"                          # Mean as a function of time
+    SD = "SD"                              # Standard deviation as a function of time
+    AR1_ACF = "AR1_ACF"                    # AR(1) Autocorrelation function
+    MAQ_ACF = "MAQ_ACF"                    # MA(q) Autocorrelation function
+    FBM_MEAN = "FBM_MEAN"                  # Fractional Brownian Motion mean
+    FBM_SD = "FBM_SD"                      # Fractional Brownian Motion standard deviation
+    FBM_ACF = "FBM_ACF"                    # Fractional Brownian Motion autocorrelation function
+    FBM_COV = "FBM_COV"                    # Fractional Brownian Motion covariance function
+    BM_MEAN = "BM_MEAN"                    # Brownian Motion mean
+    BM_DRIFT_MEAN = "BM_DRIFT_MEAN"        # Brownian Motion model mean with data
+    BM_SD = "BM_SD"                        # Brownian Motion model standard deviation
+    GBM_MEAN = "GBM_MEAN"                  # Geometric Brownian Motion model mean
+    GBM_SD = "GBM_SD"                      # Geometric Brownian Motion model standard deviation
+    AGG_VAR = "AGG_VAR"                    # Aggregated variance
+    AGG = "AGG"                            # Aggregated time series
+    VR = "VR"                              # Variance Ratio use in test for brownian motion
+    VR_STAT = "VR_STAT"                    # FBM variance ratio test statistic
+    PACF = "PACF"                          # Partial Autocorrelation function
+    BM = "BM"                              # Brownian motion computed from brownian motion noise
+    ARMA_MEAN = "ARMA_MEAN"                # ARMA(p,q) MEAN
+    AR1_SD = "AR1_SD"                      # AR(1) standard seviation
+    MAQ_SD = "MAQ_SD"                      # MA(q) standard deviation
+    AR1_OFFSET_MEAN = "AR1_OFFSET_MEAN"    # AR(1) with constant offset mean
+    AR1_OFFSET_SD = "AR1_OFFSET_SD"        # AR(1) with offset standard deviation
+
+    def create(self, **kwargs):
+        return _create_func_type(self, **kwargs)
+
+    def apply(df, **kwargs):
+        return _apply_func_type(self, df, **kwargs)
+
+    def apply_to_ensemble(self, dfs, **kwargs):
+        return _apply_func_type_to_ensemble(self, dfs, **kwargs)
+
+    def apply_to_list(self, dfs, **kwargs):
+        return _apply_func_type_to_list(self, dfs, **kwargs)
+
+    def apply_to_parameter_scan(self, df, *args):
+        return _apply_func_type_to_parameter_scan(self, df, *args)
+
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
 #
@@ -27,10 +76,10 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # source: DataType input into f used to compute xcol and ycol
 #
 class DataFunc:
-    def __init__(self, schema, source_data_type, params, fy, ylabel, xlabel, desc, formula=None, fx=None):
-        self.schema = schema
+    def __init__(self, data_type, source_type, params, fy, ylabel, xlabel, desc, formula=None, fx=None):
+        self.schema = data_type.schema()
         self.params = params
-        self.source_schema = DataSchema.create(source_data_type)
+        self.source_schema = source_data_type.schema()
         self.ylabel = ylabel
         self.xlabel = xlabel
         self.desc = desc
@@ -65,13 +114,13 @@ class DataFunc:
         y_result = self.fy(x_result, y)
         df_result = self.create_data_frame(x_result, y_result, self.meta_data(len(y_result)))
         df_result.attrs = df.attrs | df_result.attrs
-        source_name = MetaData.get_name(df)
-        MetaData.set_source_name(df_result, source_name)
-        MetaData.set_name(df_result, self._name())
-        MetaData.set_date(df_result)
-        MetaData.set_source_schema(df_result, self.source_schema)
-        MetaData.set_schema(df_result, self.schema)
-        MetaData.set_iterations(df_result, None)
+        source_name = DataSchema.get_name(df)
+        DataSchema.set_source_name(df_result, source_name)
+        DataSchema.set_name(df_result, self._name())
+        DataSchema.set_date(df_result)
+        DataSchema.set_source_schema(df_result, self.source_schema)
+        DataSchema.set_schema(df_result, self.schema)
+        DataSchema.set_iterations(df_result, None)
         return df_result
 
     def apply_ensemble(self, dfs):
@@ -82,10 +131,10 @@ class DataFunc:
         y_result = self.fy(x_result, y)
         df = self.create_data_frame(x_result, y_result, self.ensemble_meta_data(len(y), dfs[0]))
         df.attrs = df.attrs | dfs[0].attrs
-        MetaData.set_date(df)
-        MetaData.set_source_schema(df, self.source_schema)
-        MetaData.set_schema(df, self.schema)
-        MetaData.set_iterations(df, None)
+        DataSchema.set_date(df)
+        DataSchema.set_source_schema(df, self.source_schema)
+        DataSchema.set_schema(df, self.schema)
+        DataSchema.set_iterations(df, None)
         return df
 
     def apply_list(self, dfs):
@@ -119,114 +168,118 @@ class DataFunc:
     def create(self, x):
         y = self.fy(x, None)
         df = self.create_data_frame(x, y, self.meta_data(len(y)))
-        MetaData.set_date(df)
-        MetaData.set_source_schema(df, self.source_schema)
-        MetaData.set_schema(df, self.schema)
-        MetaData.set_name(df, self.desc)
+        DataSchema.set_date(df)
+        DataSchema.set_source_schema(df, self.source_schema)
+        DataSchema.set_schema(df, self.schema)
+        DataSchema.set_name(df, self.desc)
         return df
 
     def create_data_frame(self, x, y, meta_data):
         return DataSchema.create_data_frame(x, y, meta_data)
 
-    @classmethod
-    def apply_func_type(cls, df, func_type, **kwargs):
-        data_func = create_data_func(func_type, **kwargs)
-        return data_func.apply(df)
-
-    @classmethod
-    def apply_func_type_to_ensemble(cls, dfs, func_type, **kwargs):
-        data_func = create_ensemble_data_func(func_type, **kwargs)
-        return data_func.apply_ensemble(dfs)
-
-    @classmethod
-    def apply_func_type_to_list(cls, dfs, func_type, **kwargs):
-        data_func = create_data_func(func_type, **kwargs)
-        return data_func.apply_list(dfs)
-
-    @classmethod
-    def apply_parameter_scan(cls, df, func_type, *args):
-        dfs = []
-        for kwargs in args:
-            dfs.append(cls.apply_func_type(df, func_type, **kwargs))
-        return dfs
-
-    @classmethod
-    def create_func_type(cls, func_type, **kwargs):
-        x = get_param_default_if_missing("x", None, **kwargs)
-        if x is None:
-            x = create_space(**kwargs)
-        kwargs["npts"] = len(x)
-        data_func = create_data_func(func_type, **kwargs, npolt=len(x))
-        return data_func.create(x)
+###################################################################################################
+## create function definition for data type
+def _apply_func_type(func_type, df,**kwargs):
+    data_func = _create_func(func_type, **kwargs)
+    return data_func.apply(df)
 
 ###################################################################################################
 ## create function definition for data type
-def create_data_func(data_type, **kwargs):
-    schema = DataSchema.create(data_type)
-    if data_type.value == DataType.PSPEC.value:
-        return _create_pspec(schema, **kwargs)
-    elif data_type.value == DataType.ACF.value:
-        return _create_acf(schema, **kwargs)
-    elif data_type.value == DataType.PACF.value:
-        return _create_pacf(schema, **kwargs)
-    elif data_type.value == DataType.VR_STAT.value:
-        return _create_vr_stat(schema, **kwargs)
-    elif data_type.value == DataType.DIFF.value:
-        return _create_diff(schema, **kwargs)
-    elif data_type.value == DataType.CUMU_MEAN.value:
-        return _create_cumu_mean(schema, **kwargs)
-    elif data_type.value == DataType.CUMU_SD.value:
-        return  _create_cumu_sd(schema, **kwargs)
-    elif data_type.value == DataType.AR1_ACF.value:
-        return _create_ar1_acf(schema, **kwargs)
-    elif data_type.value == DataType.MAQ_ACF.value:
-        return _create_maq_acf(schema, **kwargs)
-    elif data_type.value == DataType.FBM_MEAN.value:
-        return _create_fbm_mean(schema, **kwargs)
-    elif data_type.value == DataType.FBM_SD.value:
-        return _create_fbm_sd(schema, **kwargs)
-    elif data_type.value == DataType.FBM_ACF.value:
-        return _create_fbm_acf(schema, **kwargs)
-    elif data_type.value == DataType.FBM_COV.value:
-        return _create_fbm_cov(schema, **kwargs)
-    elif data_type.value == DataType.BM_MEAN.value:
-        return _create_bm_mean(schema, **kwargs)
-    elif data_type.value == DataType.BM_DRIFT_MEAN.value:
-        return _create_bm_drift_mean(schema, **kwargs)
-    elif data_type.value == DataType.BM_SD.value:
-        return _create_bm_sd(schema, **kwargs)
-    elif data_type.value == DataType.GBM_MEAN.value:
-        return _create_gbm_mean(schema, **kwargs)
-    elif data_type.value == DataType.GBM_SD.value:
-        return _create_gbm_sd(schema, **kwargs)
-    elif data_type.value == DataType.AGG_VAR.value:
-        return _create_agg_var(schema, **kwargs)
-    elif data_type.value == DataType.AGG.value:
-        return _create_agg(schema, **kwargs)
-    elif data_type.value == DataType.VR.value:
-        return _create_vr(schema, **kwargs)
-    elif data_type.value == DataType.BM.value:
-        return _create_bm(schema, **kwargs)
-    elif data_type.value == DataType.ARMA_MEAN.value:
-        return _create_arma_mean(schema, **kwargs)
-    elif data_type.value == DataType.AR1_SD.value:
-        return _create_ar1_sd(schema, **kwargs)
-    elif data_type.value == DataType.MAQ_SD.value:
-        return _create_maq_sd(schema, **kwargs)
-    elif data_type.value == DataType.AR1_OFFSET_MEAN.value:
-        return _create_ar1_offset_mean(schema, **kwargs)
-    elif data_type.value == DataType.AR1_OFFSET_SD.value:
-        return _create_ar1_offset_sd(schema, **kwargs)
+def _apply_func_type_to_ensemble(func_type, dfs, **kwargs):
+    data_func = _create_ensemble_data_func(func_type, **kwargs)
+    return data_func.apply_ensemble(dfs)
+
+###################################################################################################
+## create function definition for data type
+def _apply_func_type_to_list(func_type, dfs, **kwargs):
+    data_func = _create_func(func_type, **kwargs)
+    return data_func.apply_list(dfs)
+
+###################################################################################################
+## create function definition for data type
+def _apply_func_type_to_parameter_scan(func_type, df, *args):
+    dfs = []
+    for kwargs in args:
+        dfs.append(_apply_func_type(df, func_type, **kwargs))
+    return dfs
+
+###################################################################################################
+## create function definition for data type
+def _create_func_type(func_type, **kwargs):
+    x = get_param_default_if_missing("x", None, **kwargs)
+    if x is None:
+        x = create_space(**kwargs)
+    kwargs["npts"] = len(x)
+    data_func = _create_func(func_type, **kwargs, npolt=len(x))
+    return data_func.create(x)
+
+###################################################################################################
+## create function definition for data type
+def _create_func(func_type, **kwargs):
+    if func_type.value == DataType.PSPEC.value:
+        return _create_pspec(**kwargs)
+    elif func_type.value == DataType.ACF.value:
+        return _create_acf(**kwargs)
+    elif func_type.value == DataType.PACF.value:
+        return _create_pacf(**kwargs)
+    elif func_type.value == DataType.VR_STAT.value:
+        return _create_vr_stat(**kwargs)
+    elif func_type.value == DataType.DIFF.value:
+        return _create_diff(**kwargs)
+    elif func_type.value == DataType.CUMU_MEAN.value:
+        return _create_cumu_mean(**kwargs)
+    elif func_type.value == DataType.CUMU_SD.value:
+        return  _create_cumu_sd(**kwargs)
+    elif func_type.value == DataType.AR1_ACF.value:
+        return _create_ar1_acf(**kwargs)
+    elif func_type.value == DataType.MAQ_ACF.value:
+        return _create_maq_acf(**kwargs)
+    elif func_type.value == DataType.FBM_MEAN.value:
+        return _create_fbm_mean(**kwargs)
+    elif func_type.value == DataType.FBM_SD.value:
+        return _create_fbm_sd(**kwargs)
+    elif func_type.value == DataType.FBM_ACF.value:
+        return _create_fbm_acf(**kwargs)
+    elif func_type.value == DataType.FBM_COV.value:
+        return _create_fbm_cov(**kwargs)
+    elif func_type.value == DataType.BM_MEAN.value:
+        return _create_bm_mean(**kwargs)
+    elif func_type.value == DataType.BM_DRIFT_MEAN.value:
+        return _create_bm_drift_mean(**kwargs)
+    elif func_type.value == DataType.BM_SD.value:
+        return _create_bm_sd(**kwargs)
+    elif func_type.value == DataType.GBM_MEAN.value:
+        return _create_gbm_mean(**kwargs)
+    elif func_type.value == DataType.GBM_SD.value:
+        return _create_gbm_sd(**kwargs)
+    elif func_type.value == DataType.AGG_VAR.value:
+        return _create_agg_var(**kwargs)
+    elif func_type.value == DataType.AGG.value:
+        return _create_agg(**kwargs)
+    elif func_type.value == DataType.VR.value:
+        return _create_vr(**kwargs)
+    elif func_type.value == DataType.BM.value:
+        return _create_bm(**kwargs)
+    elif func_type.value == DataType.ARMA_MEAN.value:
+        return _create_arma_mean(**kwargs)
+    elif func_type.value == DataType.AR1_SD.value:
+        return _create_ar1_sd(**kwargs)
+    elif func_type.value == DataType.MAQ_SD.value:
+        return _create_maq_sd(**kwargs)
+    elif func_type.value == DataType.AR1_OFFSET_MEAN.value:
+        return _create_ar1_offset_mean(**kwargs)
+    elif func_type.value == DataType.AR1_OFFSET_SD.value:
+        return _create_ar1_offset_sd(**kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
 
 ###################################################################################################
 # Create DataFunc objects for specified DataType
 # DataType.PSPEC
-def _create_pspec(schema, **kwargs):
+def _create_pspec(**kwargs):
     fx = lambda x : x[1:]
     fy = lambda x, y : stats.pspec(y)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -236,12 +289,12 @@ def _create_pspec(schema, **kwargs):
                     fx=fx)
 
 # DataType.ACF
-def _create_acf(schema, **kwargs):
+def _create_acf(**kwargs):
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : x[:nlags+1]
     fy = lambda x, y : stats.acf(y, nlags)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=source_data_type,
                     params={"nlags": nlags},
                     fy=fy,
@@ -251,11 +304,11 @@ def _create_acf(schema, **kwargs):
                     fx=fx)
 
 # DataType.PACF
-def _create_pacf(schema, **kwargs):
+def _create_pacf(**kwargs):
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     fx = lambda x : x[1:nlags+1]
     fy = lambda x, y : arima.yw(y, nlags)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"nlags": nlags},
                     fy=fy,
@@ -265,9 +318,9 @@ def _create_pacf(schema, **kwargs):
                     fx=fx)
 
 # DataType.VR_STAT
-def _create_vr_stat(schema, **kwargs):
+def _create_vr_stat(**kwargs):
     fy = lambda x, y : y
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     ylabel=r"$Z^*(s)$",
@@ -277,11 +330,11 @@ def _create_vr_stat(schema, **kwargs):
                     fy=fy)
 
 # DataType.DIFF_1
-def _create_diff(schema, **kwargs):
+def _create_diff(**kwargs):
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
     fx = lambda x : x[:-1]
     fy = lambda x, y : stats.ndiff(y, ndiff)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"ndiff": ndiff},
                     fy=fy,
@@ -291,9 +344,9 @@ def _create_diff(schema, **kwargs):
                     fx=fx)
 
 # DataType.CUMU_MEAN
-def _create_cumu_mean(schema, **kwargs):
+def _create_cumu_mean(**kwargs):
     fy = lambda x, y : stats.cumu_mean(y)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -302,9 +355,9 @@ def _create_cumu_mean(schema, **kwargs):
                     desc="Cumulative Mean")
 
 # DataType.CUMU_SD
-def _create_cumu_sd(schema, **kwargs):
+def _create_cumu_sd(**kwargs):
         fy = lambda x, y : stats.cumu_sd(y)
-        return DataFunc(schema=schema,
+        return DataFunc(data_type=schema,
                         source_data_type=DataType.TIME_SERIES,
                         params={},
                         fy=fy,
@@ -314,12 +367,12 @@ def _create_cumu_sd(schema, **kwargs):
 
 
 # DataType.AR1_ACF
-def _create_ar1_acf(schema, **kwargs):
+def _create_ar1_acf(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     fx = lambda x : x[:nlags +1 ]
     fy = lambda x, y : φ**x
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.ACF,
                     params={"φ": φ},
                     fy=fy,
@@ -330,14 +383,14 @@ def _create_ar1_acf(schema, **kwargs):
                     formula=r"$\varphi^\tau$")
 
 # DataType.MAQ_ACF
-def _create_maq_acf(schema, **kwargs):
+def _create_maq_acf(**kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
     fx = lambda x : x[:nlags]
     fy = lambda x, y : arima.maq_acf(θ, σ, len(x))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.ACF,
                     params={"θ": θ, "σ": σ},
                     fy=fy,
@@ -348,7 +401,7 @@ def _create_maq_acf(schema, **kwargs):
                     formula=r"$\sigma^2 \left( \sum_{i=i}^{q-\tau} \vartheta_i \vartheta_{i+\tau} + \vartheta_\tau \right)$")
 
 # DataType.FBM_MEAN
-def _create_fbm_mean(schema, **kwargs):
+def _create_fbm_mean(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.full(len(x), 0.0)
@@ -363,7 +416,7 @@ def _create_fbm_mean(schema, **kwargs):
                     fx=fx)
 
 # DataType.FBM_SD
-def _create_fbm_sd(schema, **kwargs):
+def _create_fbm_sd(**kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
@@ -379,7 +432,7 @@ def _create_fbm_sd(schema, **kwargs):
                     fx=fx)
 
 # DataType.FBM_ACF
-def _create_fbm_acf(schema, **kwargs):
+def _create_fbm_acf(**kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
@@ -395,13 +448,13 @@ def _create_fbm_acf(schema, **kwargs):
                     fx=fx)
 
 # DataType.FBM_COV
-def _create_fbm_cov(schema, **kwargs):
+def _create_fbm_cov(**kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     s = get_param_throw_if_missing("s", **kwargs)
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : fbm.cov(H, s, x)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.ACF,
                     params={"H": H, "s": s},
                     fy=fy,
@@ -412,12 +465,12 @@ def _create_fbm_cov(schema, **kwargs):
                     fx=fx)
 
 # DataType.BM_MEAN
-def _create_bm_mean(schema, **kwargs):
+def _create_bm_mean(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.full(len(x), μ)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.MEAN,
                     params={"μ": μ},
                     fy=fy,
@@ -428,12 +481,12 @@ def _create_bm_mean(schema, **kwargs):
                     fx=fx)
 
 # DataType.BM_DRIFT_MEAN
-def _create_bm_drift_mean(schema, **kwargs):
+def _create_bm_drift_mean(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : μ*x
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.MEAN,
                     params={"μ": μ},
                     fy=fy,
@@ -444,12 +497,12 @@ def _create_bm_drift_mean(schema, **kwargs):
                     fx=fx)
 
 # DataType.BM_SD
-def _create_bm_sd(schema, **kwargs):
+def _create_bm_sd(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : σ*numpy.sqrt(x)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.SD,
                     params={"σ": σ},
                     fy=fy,
@@ -460,13 +513,13 @@ def _create_bm_sd(schema, **kwargs):
                     fx=fx)
 
 # DataType.GBM_MEAN
-def _create_gbm_mean(schema, **kwargs):
+def _create_gbm_mean(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : S0*numpy.exp(μ*x)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.MEAN,
                     params={"μ": μ, "S0": S0},
                     fy=fy,
@@ -477,14 +530,14 @@ def _create_gbm_mean(schema, **kwargs):
                     fx=fx)
 
 # DataType.GBM_SD
-def _create_gbm_sd(schema, **kwargs):
+def _create_gbm_sd(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y : numpy.sqrt(S0**2*numpy.exp(2*μ*x)*(numpy.exp(x*σ**2)-1))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.SD,
                     params={"σ": σ, "μ": μ, "S0": S0},
                     fy=fy,
@@ -495,14 +548,14 @@ def _create_gbm_sd(schema, **kwargs):
                     fx=fx)
 
 # DataType.AGG_VAR
-def _create_agg_var(schema, **kwargs):
+def _create_agg_var(**kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
     m_max = get_param_throw_if_missing("m_max", **kwargs)
     m_min = get_param_default_if_missing("m_min", 1.0, **kwargs)
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : create_logspace(npts=npts, xmax=m_max, xmin=m_min)
     fy = lambda x, y : stats.agg_var(y, x)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=source_data_type,
                     params={"npts": npts, "m_max": m_max, "m_min": m_min},
                     fy=fy,
@@ -511,12 +564,12 @@ def _create_agg_var(schema, **kwargs):
                     desc="Aggregated Variance",
                     fx=fx)
 # DataType.AGG
-def _create_agg(schema, **kwargs):
+def _create_agg(**kwargs):
     m = get_param_throw_if_missing("m", **kwargs)
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     fx = lambda x : stats.agg_time(x, m)
     fy = lambda x, y : stats.agg(y, m)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=source_data_type,
                     params={"m": m},
                     fy=fy,
@@ -526,13 +579,13 @@ def _create_agg(schema, **kwargs):
                     fx=fx)
 
 # DataType.VR
-def _create_vr(schema, **kwargs):
+def _create_vr(**kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
     fy = lambda x, y :  σ**2*t**(2*H - 1.0)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.SD,
                     params={"H": H, "σ": σ},
                     fy=fy,
@@ -543,9 +596,9 @@ def _create_vr(schema, **kwargs):
                     fx=fx)
 
 # DataType.BM
-def _create_bm(schema, **kwargs):
+def _create_bm(**kwargs):
     fy = lambda x, y : stats.from_noise(y)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -554,9 +607,9 @@ def _create_bm(schema, **kwargs):
                     desc="BM")
 
 # DataType.ARMA_MEAN
-def _create_arma_mean(schema, **kwargs):
+def _create_arma_mean(**kwargs):
     fy = lambda x, y : numpy.full(len(x), 0.0)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -566,11 +619,11 @@ def _create_arma_mean(schema, **kwargs):
                     desc="ARMA(p,q) Mean")
 
 # DataType.AR1_SD
-def _create_ar1_sd(schema, **kwargs):
+def _create_ar1_sd(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"φ": φ, "σ": σ},
                     fy=fy,
@@ -580,11 +633,11 @@ def _create_ar1_sd(schema, **kwargs):
                     desc="AR(1) SD")
 
 # DataType.MAQ_SD
-def _create_maq_sd(schema, **kwargs):
+def _create_maq_sd(**kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"θ": θ, "σ": σ},
                     fy=fy,
@@ -594,11 +647,11 @@ def _create_maq_sd(schema, **kwargs):
                     desc="MA(q) SD")
 
 # DataType.AR1_OFFSET_MEAN
-def _create_ar1_offset_mean(schema, **kwargs):
+def _create_ar1_offset_mean(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"φ": φ, r"$μ^*$": μ},
                     fy=fy,
@@ -608,11 +661,11 @@ def _create_ar1_offset_mean(schema, **kwargs):
                     desc="AR(1) with Offset Mean")
 
 # DataType.AR1_OFFSET_SD
-def _create_ar1_offset_sd(schema, **kwargs):
+def _create_ar1_offset_sd(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, σ))
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={"φ": φ, "σ": σ},
                     fy=fy,
@@ -623,23 +676,22 @@ def _create_ar1_offset_sd(schema, **kwargs):
 
 ###################################################################################################
 ## create function definition applied to lists of data frames for data type
-def create_ensemble_data_func(data_type, **kwargs):
-    schema = DataSchema.create(data_type)
-    if data_type.value == DataType.MEAN.value:
-        return _create_ensemble_mean(schema, **kwargs)
-    elif data_type.value == DataType.SD.value:
-        return _create_ensemble_sd(schema, **kwargs)
-    elif data_type.value == DataType.ACF.value:
-        return _create_ensemble_acf(schema, **kwargs)
+def _create_ensemble_data_func(func_type, **kwargs):
+    if func_type.value == DataType.MEAN.value:
+        return _create_ensemble_mean(**kwargs)
+    elif func_type.value == DataType.SD.value:
+        return _create_ensemble_sd(**kwargs)
+    elif func_type.value == DataType.ACF.value:
+        return _create_ensemble_acf(**kwargs)
     else:
         raise Exception(f"DataType is invalid: {data_type}")
 
 ###################################################################################################
 ## Create dataFunc objects for specified data type
 # DataType.MEAN
-def _create_ensemble_mean(schema, **kwargs):
+def _create_ensemble_mean(**kwargs):
     fy = lambda x, y : stats.ensemble_mean(y)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -648,9 +700,9 @@ def _create_ensemble_mean(schema, **kwargs):
                     desc="Ensemble Mean")
 
 # DataType.SD
-def _create_ensemble_sd(schema, **kwargs):
+def _create_ensemble_sd(**kwargs):
     fy = lambda x, y : stats.ensemble_sd(y)
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
@@ -659,12 +711,12 @@ def _create_ensemble_sd(schema, **kwargs):
                     desc="Ensemble SD")
 
 # DataType.ACF
-def _create_ensemble_acf(schema, **kwargs):
+def _create_ensemble_acf(**kwargs):
     source_data_type = get_param_default_if_missing("source_data_type", DataType.TIME_SERIES, **kwargs)
     nlags = get_param_default_if_missing("nlags", None, **kwargs)
     fy = lambda x, y : stats.ensemble_acf(y, nlags)
     fx = lambda x : x[:nlags]
-    return DataFunc(schema=schema,
+    return DataFunc(data_type=schema,
                     source_data_type=source_data_type,
                     params={"nlags": nlags},
                     fy=fy,

@@ -5,38 +5,12 @@ from pandas import (DataFrame, concat)
 ##################################################################################################################
 # Specify DataTypes used in analysis
 class DataType(Enum):
-    GENERIC = "GENERIC"                    # Unknown data type
-    TIME_SERIES = "TIME_SERIES"            # Time Series
-    PSPEC = "PSPEC"                        # Power Spectrum
-    ACF = "ACF"                            # Autocorrelation function
-    DIFF = "DIFF"                          # Time series difference
-    DIFF_ACF = "DIFF_ACF"                  # ACF Difference
-    CUMU_MEAN = "CUMU_MEAN"                # Cumulative mean
-    CUMU_SD = "CUMU_SD"                    # Cumulative standard deviation
-    MEAN = "MEAN"                          # Mean as a function of time
-    SD = "SD"                              # Standard deviation as a function of time
-    AR1_ACF = "AR1_ACF"                    # AR(1) Autocorrelation function
-    MAQ_ACF = "MAQ_ACF"                    # MA(q) Autocorrelation function
-    FBM_MEAN = "FBM_MEAN"                  # Fractional Brownian Motion mean
-    FBM_SD = "FBM_SD"                      # Fractional Brownian Motion standard deviation
-    FBM_ACF = "FBM_ACF"                    # Fractional Brownian Motion autocorrelation function
-    FBM_COV = "FBM_COV"                    # Fractional Brownian Motion covariance function
-    BM_MEAN = "BM_MEAN"                    # Brownian Motion mean
-    BM_DRIFT_MEAN = "BM_DRIFT_MEAN"        # Brownian Motion model mean with data
-    BM_SD = "BM_SD"                        # Brownian Motion model standard deviation
-    GBM_MEAN = "GBM_MEAN"                  # Geometric Brownian Motion model mean
-    GBM_SD = "GBM_SD"                      # Geometric Brownian Motion model standard deviation
-    AGG_VAR = "AGG_VAR"                    # Aggregated variance
-    AGG = "AGG"                            # Aggregated time series
-    VR = "VR"                              # Variance Ratio use in test for brownian motion
-    VR_STAT = "VR_STAT"                    # FBM variance ratio test statistic
-    PACF = "PACF"                          # Partial Autocorrelation function
-    BM = "BM"                              # Brownian motion computed from brownian motion noise
-    ARMA_MEAN = "ARMA_MEAN"                # ARMA(p,q) MEAN
-    AR1_SD = "AR1_SD"                      # AR(1) standard seviation
-    MAQ_SD = "MAQ_SD"                      # MA(q) standard deviation
-    AR1_OFFSET_MEAN = "AR1_OFFSET_MEAN"    # AR(1) with constant offset mean
-    AR1_OFFSET_SD = "AR1_OFFSET_SD"        # AR(1) with offset standard deviation
+    TIME_SERIES = "TIME_SERIES"              # Time Series
+    FOURIER_SERIES = "FOURIER_SERIES"        # Fourier Series
+    ACF = "ACF"                              # Autocorrelation Functiom
+
+    def schema(self):
+        return _create_schema(self)
 
 ##################################################################################################################
 ## create shema for data type: The schema consists of the DataFrame columns used by the
@@ -57,17 +31,12 @@ class DataSchema:
         return  f"xcol=({self.xcol}), ycol=({self.ycol}), data_type=({self.data_type})"
 
     def get_data(self, df):
-        if not self.is_in(df):
+        if not self._is_in(df):
             raise Exception(f"DataFrame does not contain schema={self}")
         meta_data = df.attrs
         xcol = self.xcol
         ycol = self.ycol
-        if ycol in meta_data.keys():
-            npts = meta_data[ycol]["npts"]
-        else:
-            y = df[ycol]
-            npts = len(y[~numpy.isnan(y)])
-        return df[xcol][:npts], df[ycol][:npts]
+        return df[xcol], df[ycol]
 
     def get_data_from_list(self, dfs):
         data = []
@@ -76,94 +45,79 @@ class DataSchema:
             data.append(y)
         return x, data
 
-    def is_in(self, df):
+    def _is_in(self, df):
         cols = df.columns
         return (self.xcol in cols) and (self.ycol in cols)
 
-    @staticmethod
-    def concatinate(df1, df2):
-        df = concat([df1, df2], axis=1)
-        df.attrs = df1.attrs | df2.attrs
-        return df.loc[:,~df.columns.duplicated()]
-
-    @staticmethod
-    def create_data_frame(x, y, meta_data):
-        schema = meta_data.schema
+    def create_data_frame(self, x, y, metadata):
         df = DataFrame({
-            schema.xcol: x,
-            schema.ycol: y
+            self.xcol: x,
+            self.ycol: y
         })
-        df.attrs[schema.ycol] = meta_data.data
+        df.attrs = metadata
         return df
 
-    @staticmethod
-    def create(data_type):
-        return create_schema(data_type)
+    @classmethod
+    def get_data(cls, df):
+        schema = cls.get_schema(df)
+        return schema.get_data(df)
+
+    @classmethod
+    def get_schema(cls, df):
+        return df.attrs["Schema"]
+
+    @classmethod
+    def set_schema(cls, df, schema):
+        df.attrs["Schema"] = schema
+
+    @classmethod
+    def get_source_schema(cls, df):
+        return df.attrs["SourceSchema"]
+
+    @classmethod
+    def set_source_schema(cls, df, schema):
+        df.attrs["SourceSchema"] = schema
+
+    @classmethod
+    def get_source_name(cls, df):
+        return df.attrs["Name"]
+
+    @classmethod
+    def set_source_name(cls, df, name):
+        df.attrs["SourceName"] = name
+
+    @classmethod
+    def get_name(cls, df):
+        return df.attrs["Name"]
+
+    @classmethod
+    def set_name(cls, df, name):
+        df.attrs["Name"] = name
+
+    @classmethod
+    def get_date(cls, df):
+        return df.attrs["Date"]
+
+    @classmethod
+    def set_date(cls, df):
+        df.attrs["Date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    @classmethod
+    def get_iterations(cls, df):
+        return df.attrs["SchemaIterations"]
+
+    @classmethod
+    def set_iterations(cls, df, iter):
+        df.attrs["SchemaIterations"] = iter
 
 ##################################################################################################################
 ## create shema for data type
-def create_schema(data_type):
-    if data_type.value == DataType.GENERIC.value:
-        return DataSchema("x", "y", data_type)
-    elif data_type.value == DataType.TIME_SERIES.value:
-        return DataSchema("Time", "S(t)", data_type)
-    elif data_type.value == DataType.PSPEC.value:
-        return DataSchema("Frequency", "Power Spectrum", data_type)
+def _create_schema(data_type):
+    if data_type.value == DataType.TIME_SERIES.value:
+        return DataSchema("t", "S(t)", data_type)
+    elif data_type.value == DataType.FOURIER_SERIES.value:
+        return DataSchema("ω", "s(ω)", data_type)
     elif data_type.value == DataType.ACF.value:
-        return DataSchema("ACF Lag", "ACF", data_type)
-    elif data_type.value == DataType.PACF.value:
-        return DataSchema("PACF Lag", "PACF", data_type)
-    elif data_type.value == DataType.VR_STAT.value:
-        return DataSchema("Lag", "Variance Ratio", data_type)
-    elif data_type.value == DataType.DIFF.value:
-        return DataSchema("Difference Time", "Difference", data_type)
-    elif data_type.value == DataType.CUMU_MEAN.value:
-        return DataSchema("Time", "Cumulative Mean", data_type)
-    elif data_type.value == DataType.CUMU_SD.value:
-        return DataSchema("Time", "Cumulative SD", data_type)
-    elif data_type.value == DataType.MEAN.value:
-        return DataSchema("Time", "Mean", data_type)
-    elif data_type.value == DataType.SD.value:
-        return DataSchema("Time", "SD", data_type)
-    elif data_type.value == DataType.AR1_ACF.value:
-        return DataSchema("Lag", "AR(1) ACF", data_type)
-    elif data_type.value == DataType.MAQ_ACF.value:
-        return DataSchema("Lag", "MA(q) ACF", data_type)
-    elif data_type.value == DataType.FBM_MEAN.value:
-        return DataSchema("Time", "FBM Mean", data_type)
-    elif data_type.value == DataType.FBM_SD.value:
-        return DataSchema("Time", "FBM SD", data_type)
-    elif data_type.value == DataType.FBM_ACF.value:
-        return DataSchema("Time", "FBM ACF", data_type)
-    elif data_type.value == DataType.FBM_COV.value:
-        return DataSchema("Time", "FBM COV", data_type)
-    elif data_type.value == DataType.BM_MEAN.value:
-        return DataSchema("Time", "BM Mean", data_type)
-    elif data_type.value == DataType.BM_DRIFT_MEAN.value:
-        return DataSchema("Time", "BM Drift Mean", data_type)
-    elif data_type.value == DataType.BM_SD.value:
-        return DataSchema("Time", "BM SD", data_type)
-    elif data_type.value == DataType.GBM_MEAN.value:
-        return DataSchema("Time", "GBM Mean", data_type)
-    elif data_type.value == DataType.GBM_SD.value:
-        return DataSchema("Time", "GBM SD", data_type)
-    elif data_type.value == DataType.AGG_VAR.value:
-        return DataSchema("Time", "Aggregated Variance", data_type)
-    elif data_type.value == DataType.AGG.value:
-        return DataSchema("Time", "Aggregated", data_type)
-    elif data_type.value == DataType.VR.value:
-        return DataSchema("Time", "Variance Ratio", data_type)
-    elif data_type.value == DataType.BM.value:
-        return DataSchema("Time", "BM", data_type)
-    elif data_type.value == DataType.ARMA_MEAN.value:
-        return DataSchema("Time", "ARMA(p,q) Mean", data_type)
-    elif data_type.value == DataType.AR1_SD.value:
-        return DataSchema("Time", "AR(1) SD", data_type)
-    elif data_type.value == DataType.MAQ_SD.value:
-        return DataSchema("Time", "MA(q) SD", data_type)
-    elif data_type.value == DataType.AR1_OFFSET_MEAN.value:
-        return DataSchema("Time", "AR(1) Offset Mean", data_type)
-    elif data_type.value == DataType.AR1_OFFSET_SD.value:
-        return DataSchema("Time", "AR(1) Offset SD", data_type)
+        return DataSchema("τ", "ρ(τ)", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")
