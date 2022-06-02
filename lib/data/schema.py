@@ -1,4 +1,5 @@
 import numpy
+from datetime import datetime
 from enum import Enum
 from pandas import (DataFrame, concat)
 
@@ -6,7 +7,7 @@ from pandas import (DataFrame, concat)
 # Specify DataTypes used in analysis
 class DataType(Enum):
     TIME_SERIES = "TIME_SERIES"              # Time Series
-    FOURIER_SERIES = "FOURIER_SERIES"        # Fourier Series
+    FOURIER_TRANS = "FOURIER_TRANS"          # Fourier transform
     ACF = "ACF"                              # Autocorrelation Functiom
 
     def schema(self):
@@ -49,18 +50,25 @@ class DataSchema:
         cols = df.columns
         return (self.xcol in cols) and (self.ycol in cols)
 
-    def create_data_frame(self, x, y, metadata):
+    def create_data_frame(self, x, y):
         df = DataFrame({
             self.xcol: x,
             self.ycol: y
         })
-        df.attrs = metadata
         return df
 
     @classmethod
     def get_data(cls, df):
         schema = cls.get_schema(df)
         return schema.get_data(df)
+
+    @classmethod
+    def get_type(cls, df):
+        return df.attrs["Type"]
+
+    @classmethod
+    def set_type(cls, df, type):
+        df.attrs["Type"] = type
 
     @classmethod
     def get_schema(cls, df):
@@ -72,15 +80,23 @@ class DataSchema:
 
     @classmethod
     def get_source_schema(cls, df):
-        return df.attrs["SourceSchema"]
+        return df.attrs["Schema"]
 
     @classmethod
     def set_source_schema(cls, df, schema):
-        df.attrs["SourceSchema"] = schema
+        df.attrs["Schema"] = schema
+
+    @classmethod
+    def get_source_type(cls, df):
+        return df.attrs["SourceType"]
+
+    @classmethod
+    def set_source_type(cls, df, schema):
+        df.attrs["SourceType"] = schema
 
     @classmethod
     def get_source_name(cls, df):
-        return df.attrs["Name"]
+        return df.attrs["SourceName"]
 
     @classmethod
     def set_source_name(cls, df, name):
@@ -115,7 +131,7 @@ class DataSchema:
 def _create_schema(data_type):
     if data_type.value == DataType.TIME_SERIES.value:
         return DataSchema("t", "S(t)", data_type)
-    elif data_type.value == DataType.FOURIER_SERIES.value:
+    elif data_type.value == DataType.FOURIER_TRANS.value:
         return DataSchema("ω", "s(ω)", data_type)
     elif data_type.value == DataType.ACF.value:
         return DataSchema("τ", "ρ(τ)", data_type)

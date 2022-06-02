@@ -1,6 +1,5 @@
 import numpy
 from enum import Enum
-from datetime import datetime
 from pandas import (DataFrame)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
@@ -53,11 +52,11 @@ class MetaData:
                f"source_schema=({self.source_schema}) " \
                f"formula=({self.formula}) "
 
-def create_dict_from_estimates(ests):
-    result = {}
-    for key in ests.keys():
-        result[key] = ests[key].data
-    return result
+    def create_dict_from_estimates(ests):
+        result = {}
+        for key in ests.keys():
+            result[key] = ests[key].data
+        return result
 
     def insert_estimate(self, est):
         self.ests[est.key()] = est
@@ -75,6 +74,41 @@ def create_dict_from_estimates(ests):
 
     def get_estimate(self, est_key):
         return self.ests[est_key]
+
+    @classmethod
+    def get_data_type(cls, df, data_type):
+        schema = data_type.schema()
+        return MetaData.get(df, schema)
+
+    @classmethod
+    def get(cls, df):
+        type = DataSchema.get_type(df)
+        return MetaData.from_dict(df.attrs[type.value])
+
+    @classmethod
+    def get_source_meta_data(cls, df):
+        type = DataSchema.get_source_type(df)
+        if type is not None:
+            return MetaData.from_dict(df.attrs[type.value])
+        else:
+            return None
+
+    @classmethod
+    def set(cls, df, meta_data):
+        type = DataSchema.get_type(df)
+        df.attrs[type.value] = meta_data.data
+
+    @classmethod
+    def add_estimate(cls, df, est):
+        meta_data = MetaData.get(df)
+        meta_data.insert_estimate(est)
+        MetaData.set(df, meta_data)
+
+    @classmethod
+    def add_test(cls, df, data_type, test):
+        meta_data = MetaData.get_data_type(df, data_type)
+        meta_data.insert_test(test)
+        MetaData.set(df, data_type, meta_data)
 
     @staticmethod
     def from_dict(meta_data):
@@ -103,41 +137,6 @@ def create_dict_from_estimates(ests):
             source_schema=source_schema,
             formula=formula
         )
-
-    @classmethod
-    def get_data_type(cls, df, data_type):
-        schema = data_type.schema()
-        return MetaData.get(df, schema)
-
-    @classmethod
-    def get(cls, df):
-        schema = cls.get_schema(df)
-        return MetaData.from_dict(df.attrs[schema.ycol])
-
-    @classmethod
-    def get_source_meta_data(cls, df):
-        schema = cls.get_source_schema(df)
-        if schema is not None:
-            return MetaData.from_dict(df.attrs[schema.ycol])
-        else:
-            return None
-
-    @classmethod
-    def set(cls, df, meta_data):
-        schema = cls.get_schema(df)
-        df.attrs[schema.ycol]  = meta_data.data
-
-    @classmethod
-    def add_estimate(cls, df, est):
-        meta_data = MetaData.get(df)
-        meta_data.insert_estimate(est)
-        MetaData.set(df, meta_data)
-
-    @classmethod
-    def add_test(cls, df, data_type, test):
-        meta_data = MetaData.get_data_type(df, data_type)
-        meta_data.insert_test(test)
-        MetaData.set(df, data_type, meta_data)
 
     @staticmethod
     def params_to_str(params):

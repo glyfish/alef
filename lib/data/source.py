@@ -55,7 +55,8 @@ class SourceType(Enum):
 # conmtining the DataType.
 #
 class DataSource:
-    def __init__(self, schema, name, params, ylabel, xlabel, desc, f, x=None):
+    def __init__(self, source_type, schema, name, params, ylabel, xlabel, desc, f, x=None):
+        self.source_type = source_type
         self.schema = schema
         self.name = name
         self.params = params
@@ -90,13 +91,16 @@ class DataSource:
 
     def create(self):
         y = self.f(self.x)
-        df = self.schema.create_data_frame(self.x, y, self.meta_data(len(y)))
-        DataSchema.set_date(df)
-        DataSchema.set_name(df, self.name)
-        DataSchema.set_source_schema(df, None)
+        df = self.schema.create_data_frame(self.x, y)
+        DataSchema.set_source_type(df, None)
         DataSchema.set_source_name(df, None)
+        DataSchema.set_source_schema(df, None)
+        DataSchema.set_date(df)
+        DataSchema.set_type(df, self.source_type)
+        DataSchema.set_name(df, self.name)
         DataSchema.set_schema(df, self.schema)
         DataSchema.set_iterations(df, None)
+        MetaData.set(df, self.meta_data(len(y)))
         return df
 
 ###################################################################################################
@@ -126,47 +130,48 @@ def _create_data_source(source_type, **kwargs):
 
 def _get_data_source(source_type, x, **kwargs):
     if source_type.value == SourceType.AR.value:
-        return _create_ar_source(x, **kwargs)
+        return _create_ar_source(source_type, x, **kwargs)
     if source_type.value == SourceType.AR_DRIFT.value:
-        return _create_ar_drift_source(x, **kwargs)
+        return _create_ar_drift_source(source_type, x, **kwargs)
     if source_type.value == SourceType.AR_OFFSET.value:
-        return _create_ar_offset_source(x, **kwargs)
+        return _create_ar_offset_source(source_type, x, **kwargs)
     if source_type.value == SourceType.MA.value:
-        return _create_ma_source(x, **kwargs)
+        return _create_ma_source(source_type, x, **kwargs)
     if source_type.value == SourceType.ARMA.value:
-        return _create_arma_source(x, **kwargs)
+        return _create_arma_source(source_type, x, **kwargs)
     if source_type.value == SourceType.ARIMA.value:
-        return _create_arima_source(x, **kwargs)
+        return _create_arima_source(source_type, x, **kwargs)
     if source_type.value == SourceType.ARIMA_FROM_ARMA.value:
-        return _create_arima_from_arms_source(x, **kwargs)
+        return _create_arima_from_arms_source(source_type, x, **kwargs)
     if source_type.value == SourceType.BM_NOISE.value:
-        return _create_bm_noise_source(x, **kwargs)
+        return _create_bm_noise_source(source_type, x, **kwargs)
     if source_type.value == SourceType.BM.value:
-        return _create_bm_source(x, **kwargs)
+        return _create_bm_source(source_type, x, **kwargs)
     if source_type.value == SourceType.BM_DRIFT.value:
-        return _create_bm_drift_source(x, **kwargs)
+        return _create_bm_drift_source(source_type, x, **kwargs)
     if source_type.value == SourceType.BM_GEO.value:
-        return _create_bm_geo_source(x, **kwargs)
+        return _create_bm_geo_source(source_type, x, **kwargs)
     if source_type.value == SourceType.FBM_NOISE_CHOL.value:
-        return _create_fbm_noise_chol_source(x, **kwargs)
+        return _create_fbm_noise_chol_source(source_type, x, **kwargs)
     if source_type.value == SourceType.FBM_NOISE_FFT.value:
-        return _create_fbm_noise_fft_source(x, **kwargs)
+        return _create_fbm_noise_fft_source(source_type, x, **kwargs)
     if source_type.value == SourceType.FBM_CHOL.value:
-        return _create_fbm_chol_source(x, **kwargs)
+        return _create_fbm_chol_source(source_type, x, **kwargs)
     if source_type.value == SourceType.FBM_FFT.value:
-        return _create_fbm_fft_source(x, **kwargs)
+        return _create_fbm_fft_source(source_type, x, **kwargs)
     else:
         raise Exception(f"Source type is invalid: {data_type}")
 
 ###################################################################################################
 # Create DataSource objects for specified DataType
 # SourceType.AR
-def _create_ar_source(x, **kwargs):
+def _create_ar_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
     f = lambda x : arima.arp(numpy.array(φ), len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"AR({len(φ)})-Simulation-{str(uuid.uuid4())}",
                       params={"φ": φ, "σ": σ},
                       ylabel=r"$S_t$",
@@ -176,14 +181,15 @@ def _create_ar_source(x, **kwargs):
                       x=x)
 
 # SourceType.AR_DRIFT
-def _create_ar_drift_source(x, **kwargs):
+def _create_ar_drift_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
     γ = get_param_throw_if_missing("γ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
     f = lambda x : arima.arp_drift(numpy.array(φ), μ, γ, len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"AR({len(φ)})-Simulation-{str(uuid.uuid4())}",
                       params={"φ": φ, "μ": μ, "γ": γ, "σ": σ},
                       ylabel=r"$S_t$",
@@ -193,13 +199,14 @@ def _create_ar_drift_source(x, **kwargs):
                       x=x)
 
 # SourceType.AR_OFFSET
-def _create_ar_offset_source(x, **kwargs):
+def _create_ar_offset_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
     f = lambda x : arima.arp_offset(numpy.array(φ), μ, len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"AR({len(φ)})-Simulation-{str(uuid.uuid4())}",
                       params={"φ": φ, "μ": μ, "σ": σ},
                       ylabel=r"$S_t$",
@@ -209,12 +216,13 @@ def _create_ar_offset_source(x, **kwargs):
                       x=x)
 
 # SourceType.MA
-def _create_ma_source(x, **kwargs):
+def _create_ma_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
     f = lambda x : arima.maq(numpy.array(θ), len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"MA({len(θ)})-Simulation-{str(uuid.uuid4())}",
                       params={"θ": θ, "σ": σ},
                       ylabel=r"$S_t$",
@@ -224,13 +232,14 @@ def _create_ma_source(x, **kwargs):
                       x=x)
 
 # SourceType.ARMA
-def _create_arma_source(x, **kwargs):
+def _create_arma_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     φ = get_param_throw_if_missing("φ", **kwargs)
     verify_type(θ, list)
     verify_type(φ, list)
     f = lambda x : arima.arma(numpy.array(φ), numpy.array(θ), len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"ARMA({len(φ)}, {len(θ)})-Simulation-{str(uuid.uuid4())}",
                       params={"θ": θ, "φ": φ, "σ": σ},
                       ylabel=r"$S_t$",
@@ -240,14 +249,15 @@ def _create_arma_source(x, **kwargs):
                       x=x)
 
 # SourceType.ARIMA
-def _create_arima_source(x, **kwargs):
+def _create_arima_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     φ = get_param_throw_if_missing("φ", **kwargs)
     d = get_param_throw_if_missing("d", **kwargs)
     verify_type(θ, list)
     verify_type(φ, list)
     f = lambda x : arima.arima(numpy.array(φ), numpy.array(θ), d, len(x), σ)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"ARIMA({len(φ)}, {d}, {len(θ)})-Simulation-{str(uuid.uuid4())}",
                       params={"θ": θ, "φ": φ, "σ": σ, "d": d},
                       ylabel=r"$S_t$",
@@ -257,13 +267,14 @@ def _create_arima_source(x, **kwargs):
                       x=x)
 
 # SourceType.ARIMA_FROM_ARMA
-def _create_arima_from_arma_source(x, **kwargs):
+def _create_arima_from_arma_source(source_type, x, **kwargs):
     samples_df = get_param_throw_if_missing("samples", **kwargs)
     d = get_param_throw_if_missing("d", **kwargs)
     samples_schema = DataType.TIME_SERIES.schema()
     _, samples = samples_schema.get_data(samples_df)
     f = lambda x : arima.arima_from_arma(samples, d)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"ARIMA(p, {d}, q)-Simulation-{str(uuid.uuid4())}",
                       params={"d": d},
                       ylabel=r"$S_t$",
@@ -273,9 +284,10 @@ def _create_arima_from_arma_source(x, **kwargs):
                       x=x)
 
 # SourceType.BM_NOISE
-def _create_bm_noise_source(x, **kwargs):
+def _create_bm_noise_source(source_type, x, **kwargs):
     f = lambda x : bm.noise(len(x))
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"BM-Noise-Simulation-{str(uuid.uuid4())}",
                       params={},
                       ylabel=r"$\Delta S_t$",
@@ -285,10 +297,11 @@ def _create_bm_noise_source(x, **kwargs):
                       x=x)
 
 # SourceType.BM
-def _create_bm_source(x, **kwargs):
+def _create_bm_source(source_type, x, **kwargs):
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     f = lambda x : bm.bm(len(x), Δx)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       params={"Δx": Δx},
                       name=f"BM-Simulation-{str(uuid.uuid4())}",
                       ylabel=r"$S_t$",
@@ -298,12 +311,13 @@ def _create_bm_source(x, **kwargs):
                       x=x)
 
 # SourceType.BM_WITH_DRIFT
-def _create_bm_drift_source(x, **kwargs):
+def _create_bm_drift_source(source_type, x, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     f = lambda x : bm.bm_with_drift(μ, σ, len(x), Δx)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"BM-Simulation-{str(uuid.uuid4())}",
                       params={"σ": σ, "μ": μ, "Δt": Δx},
                       ylabel=r"$S_t$",
@@ -313,13 +327,14 @@ def _create_bm_drift_source(x, **kwargs):
                       x=x)
 
 # SourceType.BM_GEO
-def _create_bm_geo_source(x, **kwargs):
+def _create_bm_geo_source(source_type, x, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     f = lambda x : bm.bm_geometric(μ, σ, S0, len(x), Δx)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",
                       params={"σ": σ, "μ": μ, "Δt": Δx, "S0": S0},
                       ylabel=r"$S_t$",
@@ -329,7 +344,7 @@ def _create_bm_geo_source(x, **kwargs):
                       x=x)
 
 # SourceType.FBM_NOISE_CHOL
-def _create_fbm_noise_chol_source(x, **kwargs):
+def _create_fbm_noise_chol_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
@@ -339,7 +354,8 @@ def _create_fbm_noise_chol_source(x, **kwargs):
     else:
         ΔB = None
     f = lambda x : fbm.cholesky_noise(H, len(x[:-1]), Δx, ΔB, L)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"Cholesky-FBM-Noise-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
@@ -349,7 +365,7 @@ def _create_fbm_noise_chol_source(x, **kwargs):
                       x=x)
 
 # SourceType.FBM_NOISE_FFT
-def _create_fbm_noise_fft_source(x, **kwargs):
+def _create_fbm_noise_fft_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
@@ -358,7 +374,8 @@ def _create_fbm_noise_fft_source(x, **kwargs):
     else:
         ΔB = None
     f = lambda x : fbm.fft_noise(H, len(x), Δx, ΔB)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"FFT-FBM-Noise-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
@@ -368,7 +385,7 @@ def _create_fbm_noise_fft_source(x, **kwargs):
                       x=x)
 
 # SourceType.FBM_CHOL
-def _create_fbm_chol_source(x, **kwargs):
+def _create_fbm_chol_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
@@ -378,7 +395,8 @@ def _create_fbm_chol_source(x, **kwargs):
     else:
         ΔB = None
     f = lambda x : fbm.generate_cholesky(H, len(x[:-1]), Δx, ΔB, L)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"Cholesky-FBM-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
@@ -388,7 +406,7 @@ def _create_fbm_chol_source(x, **kwargs):
                       x=x)
 
 # SourceType.FBM_FFT
-def _create_fbm_fft_source(x, **kwargs):
+def _create_fbm_fft_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
@@ -397,7 +415,8 @@ def _create_fbm_fft_source(x, **kwargs):
     else:
         ΔB = None
     f = lambda x : fbm.generate_fft(H, len(x), Δx, ΔB)
-    return DataSource(schema=DataType.TIME_SERIES.schema(),
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
                       name=f"FFT-FBM-Simulation-{str(uuid.uuid4())}",
                       params={"H": H, "Δt": Δx},
                       ylabel=r"$S_t$",
