@@ -5,7 +5,7 @@ from matplotlib import pyplot
 from lib import stats
 
 from lib.data.meta_data import (MetaData)
-from lib.data.meta_data import (EstType)
+from lib.data.meta_data import (Est)
 from lib.data.schema import (DataType, DataSchema)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,

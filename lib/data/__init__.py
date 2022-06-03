@@ -1,3 +1,3 @@
-from lib.data.source import (SourceType)
-from lib.data.func import (DataFunc)
-from lib.data.meta_data import (EstType)
+from lib.data.source import (Source)
+from lib.data.func import (Func)
+from lib.data.meta_data import (Est)

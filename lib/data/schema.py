@@ -58,7 +58,7 @@ class DataSchema:
         return df
 
     @classmethod
-    def get_data(cls, df):
+    def get_schema_data(cls, df):
         schema = cls.get_schema(df)
         return schema.get_data(df)
 

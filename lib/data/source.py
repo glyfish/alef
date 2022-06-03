@@ -22,7 +22,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # f: Function used to compute ycol from xcol, fy is assumed to have the form
 #     f(x) -> ycol
 #
-class SourceType(Enum):
+class Source(Enum):
     AR = "AR"                            # AR(p) simulation
     AR_DRIFT = "AR_DRIFT"                # AR(p) with drift
     AR_OFFSET = "AR_OFFSET"              # AR(p) with offset
@@ -129,42 +129,42 @@ def _create_data_source(source_type, **kwargs):
     return source.create()
 
 def _get_data_source(source_type, x, **kwargs):
-    if source_type.value == SourceType.AR.value:
+    if source_type.value == Source.AR.value:
         return _create_ar_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.AR_DRIFT.value:
+    if source_type.value == Source.AR_DRIFT.value:
         return _create_ar_drift_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.AR_OFFSET.value:
+    if source_type.value == Source.AR_OFFSET.value:
         return _create_ar_offset_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.MA.value:
+    if source_type.value == Source.MA.value:
         return _create_ma_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.ARMA.value:
+    if source_type.value == Source.ARMA.value:
         return _create_arma_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.ARIMA.value:
+    if source_type.value == Source.ARIMA.value:
         return _create_arima_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.ARIMA_FROM_ARMA.value:
+    if source_type.value == Source.ARIMA_FROM_ARMA.value:
         return _create_arima_from_arms_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.BM_NOISE.value:
+    if source_type.value == Source.BM_NOISE.value:
         return _create_bm_noise_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.BM.value:
+    if source_type.value == Source.BM.value:
         return _create_bm_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.BM_DRIFT.value:
+    if source_type.value == Source.BM_DRIFT.value:
         return _create_bm_drift_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.BM_GEO.value:
+    if source_type.value == Source.BM_GEO.value:
         return _create_bm_geo_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.FBM_NOISE_CHOL.value:
+    if source_type.value == Source.FBM_NOISE_CHOL.value:
         return _create_fbm_noise_chol_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.FBM_NOISE_FFT.value:
+    if source_type.value == Source.FBM_NOISE_FFT.value:
         return _create_fbm_noise_fft_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.FBM_CHOL.value:
+    if source_type.value == Source.FBM_CHOL.value:
         return _create_fbm_chol_source(source_type, x, **kwargs)
-    if source_type.value == SourceType.FBM_FFT.value:
+    if source_type.value == Source.FBM_FFT.value:
         return _create_fbm_fft_source(source_type, x, **kwargs)
     else:
-        raise Exception(f"Source type is invalid: {data_type}")
+        raise Exception(f"Source type is invalid: {source_type}")
 
 ###################################################################################################
 # Create DataSource objects for specified DataType
-# SourceType.AR
+# Source.AR
 def _create_ar_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -180,7 +180,7 @@ def _create_ar_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.AR_DRIFT
+# Source.AR_DRIFT
 def _create_ar_drift_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
@@ -198,7 +198,7 @@ def _create_ar_drift_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.AR_OFFSET
+# Source.AR_OFFSET
 def _create_ar_offset_source(source_type, x, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
@@ -215,7 +215,7 @@ def _create_ar_offset_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.MA
+# Source.MA
 def _create_ma_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -231,7 +231,7 @@ def _create_ma_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.ARMA
+# Source.ARMA
 def _create_arma_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     φ = get_param_throw_if_missing("φ", **kwargs)
@@ -248,7 +248,7 @@ def _create_arma_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.ARIMA
+# Source.ARIMA
 def _create_arima_source(source_type, x, **kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     φ = get_param_throw_if_missing("φ", **kwargs)
@@ -266,7 +266,7 @@ def _create_arima_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.ARIMA_FROM_ARMA
+# Source.ARIMA_FROM_ARMA
 def _create_arima_from_arma_source(source_type, x, **kwargs):
     samples_df = get_param_throw_if_missing("samples", **kwargs)
     d = get_param_throw_if_missing("d", **kwargs)
@@ -283,7 +283,7 @@ def _create_arima_from_arma_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.BM_NOISE
+# Source.BM_NOISE
 def _create_bm_noise_source(source_type, x, **kwargs):
     f = lambda x : bm.noise(len(x))
     return DataSource(source_type=source_type,
@@ -296,7 +296,7 @@ def _create_bm_noise_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.BM
+# Source.BM
 def _create_bm_source(source_type, x, **kwargs):
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     f = lambda x : bm.bm(len(x), Δx)
@@ -310,7 +310,7 @@ def _create_bm_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.BM_WITH_DRIFT
+# Source.BM_WITH_DRIFT
 def _create_bm_drift_source(source_type, x, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -326,7 +326,7 @@ def _create_bm_drift_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.BM_GEO
+# Source.BM_GEO
 def _create_bm_geo_source(source_type, x, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -343,7 +343,7 @@ def _create_bm_geo_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.FBM_NOISE_CHOL
+# Source.FBM_NOISE_CHOL
 def _create_fbm_noise_chol_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
@@ -364,7 +364,7 @@ def _create_fbm_noise_chol_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.FBM_NOISE_FFT
+# Source.FBM_NOISE_FFT
 def _create_fbm_noise_fft_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
@@ -384,7 +384,7 @@ def _create_fbm_noise_fft_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.FBM_CHOL
+# Source.FBM_CHOL
 def _create_fbm_chol_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
@@ -405,7 +405,7 @@ def _create_fbm_chol_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# SourceType.FBM_FFT
+# Source.FBM_FFT
 def _create_fbm_fft_source(source_type, x, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)

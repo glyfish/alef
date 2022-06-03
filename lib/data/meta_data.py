@@ -2,6 +2,11 @@ import numpy
 from enum import Enum
 from pandas import (DataFrame)
 
+from lib import stats
+from lib.models import fbm
+from lib.models import bm
+from lib.models import arima
+
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 from lib.data.schema import (DataType, DataSchema)
@@ -170,7 +175,7 @@ class MetaData:
 ##################################################################################################################
 # Parameter Estimates
 ##################################################################################################################
-class EstType(Enum):
+class Est(Enum):
     AR = "AR"                     # Autoregressive model parameters
     AR_OFFSET = "AR_OFFSET"       # Autoregressive model with constant offset parameters
     MA = "MA"                     # Moving average model parameters
@@ -187,7 +192,7 @@ class EstType(Enum):
         return f"{self.value}({order})"
 
     def perform(self, df, **kwargs):
-        x, y = DataSchema.get_data(df)
+        x, y = DataSchema.get_schema_data(df)
         result, est = perform_est_for_type(x, y, self, **kwargs)
         MetaData.add_estimate(df, est)
         return result
@@ -274,13 +279,13 @@ class ARMAEst:
         return self.type.arma_key(self.order)
 
     def get_formula():
-        if self.type.value == EstType.AR.value:
+        if self.type.value == Est.AR.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
-        elif self.type.value == EstType.AR_OFFSET.value:
+        elif self.type.value == Est.AR_OFFSET.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
-        elif self.type.value == EstType.MA.value:
+        elif self.type.value == Est.MA.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
-        elif self.type.value == EstType.MA_OFFSET.value:
+        elif self.type.value == Est.MA_OFFSET.value:
             return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
@@ -295,10 +300,10 @@ class ARMAEst:
 
     def _set_param_labels(self, i):
         param = self.params[i]
-        if self.type.value == EstType.AR.value or self.type.value == EstType.AR_OFFSET.value:
+        if self.type.value == Est.AR.value or self.type.value == Est.AR_OFFSET.value:
             param.set_labels(est_label=f"$\hat{{\phi_{{{i}}}}}$",
                              err_label=f"$\sigma_{{$\hat{{\phi_{{{i}}}}}}}$")
-        elif self.type.value == EstType.MA.value or self.type.value == EstType.MA_OFFSET.value:
+        elif self.type.value == Est.MA.value or self.type.value == Est.MA_OFFSET.value:
             param.set_labels(est_label=f"$\hat{{\\theta_{{{i}}}}}$",
                              err_label=f"$\sigma_{{$\hat{{\theta_{{{i}}}}}}}$")
         else:
@@ -409,18 +414,18 @@ class OLSSinlgeVarTrans:
 
 ##################################################################################################################
 def _create_ols_single_var_trans(est_type, param, const):
-    if est_type.value == EstType.AGG_VAR.value:
+    if est_type.value == Est.AGG_VAR.value:
         return _create_agg_var_trans(param, const)
-    elif est_type.value == EstType.PERGRAM.value:
+    elif est_type.value == Est.PERGRAM.value:
         return _create_pergram_trans(param, const)
-    elif est_type.value == EstType.LINEAR.value:
+    elif est_type.value == Est.LINEAR.value:
         return _create_linear_trans(param, const)
-    elif est_type.value == EstType.LOG.value:
+    elif est_type.value == Est.LOG.value:
         return _create_log_trans(param, const)
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
 
-# EstType.AGG_VAR
+# Est.AGG_VAR
 def _create_agg_var_trans(param, const):
     formula = r"$\sigma^2 m^{2\left(H-1\right)}$"
     param = ParamEst(est=1.0 + param.est/2.0,
@@ -434,7 +439,7 @@ def _create_agg_var_trans(param, const):
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
     return OLSSinlgeVarTrans(formula, const, param)
 
-# EstType.PERGRAM
+# Est.PERGRAM
 def _create_pergram_trans(param, const):
     formula = r"$C\omega^{1 - 2H}$"
     param = ParamEst(est=(1.0 - param.est)/2.0,
@@ -448,11 +453,11 @@ def _create_pergram_trans(param, const):
                      err_label=r"$\sigma_{\hat{C}}$")
     return OLSSinlgeVarTrans(formula, const, param)
 
-# EstType.LINEAR
+# Est.LINEAR
 def _create_linear_trans(param, const):
     return OLSSinlgeVarTrans(r"$\alpha + \beta x$", const, param)
 
-# EstType.LOG
+# Est.LOG
 def _create_log_trans(param, const):
     return OLSSinlgeVarTrans(r"$10^\alpha x^\beta$", const, param)
 
@@ -466,21 +471,21 @@ def create_estimates_from_dict(dict):
 
 def create_estimate_from_dict(dict):
     est_type = dict["Type"]
-    if est_type.value == EstType.AR.value:
+    if est_type.value == Est.AR.value:
         return ARMAEst.from_dict(dict)
-    elif est_type.value == EstType.AR_OFFSET.value:
+    elif est_type.value == Est.AR_OFFSET.value:
         return ARMAEst.from_dict(dict)
-    elif est_type.value == EstType.MA.value:
+    elif est_type.value == Est.MA.value:
         return ARMAEst.from_dict(dict)
-    elif est_type.value == EstType.MA_OFFSET.value:
+    elif est_type.value == Est.MA_OFFSET.value:
         return ARMAEst.from_dict(dict)
-    elif est_type.value == EstType.PERGRAM.value:
+    elif est_type.value == Est.PERGRAM.value:
         return OLSSingleVarEst.from_dict(dict)
-    elif est_type.value == EstType.AGG_VAR.value:
+    elif est_type.value == Est.AGG_VAR.value:
         return OLSSingleVarEst.from_dict(dict)
-    elif est_type.value == EstType.LINEAR.value:
+    elif est_type.value == Est.LINEAR.value:
         return OLSSingleVarEst.from_dict(dict)
-    elif est_type.value == EstType.LOG.value:
+    elif est_type.value == Est.LOG.value:
         return OLSSingleVarEst.from_dict(dict)
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
@@ -494,21 +499,21 @@ def create_dict_from_estimates(ests):
 ##################################################################################################################
 # Perform esimate for specified esimate types
 def perform_est_for_type(x, y, est_type, **kwargs):
-    if est_type.value == EstType.AR.value:
+    if est_type.value == Est.AR.value:
         return _ar_estimate(y, **kwargs)
-    elif est_type.value == EstType.AR_OFFSET.value:
+    elif est_type.value == Est.AR_OFFSET.value:
         return _ar_offset_estimate(y, **kwargs)
-    elif est_type.value == EstType.MA.value:
+    elif est_type.value == Est.MA.value:
         return _ma_estimate(y, **kwargs)
-    elif est_type.value == EstType.MA_OFFSET.value:
+    elif est_type.value == Est.MA_OFFSET.value:
         return _ma_offset_estimate(y, **kwargs)
-    elif est_type.value == EstType.PERGRAM.value:
+    elif est_type.value == Est.PERGRAM.value:
         return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
-    elif est_type.value == EstType.AGG_VAR.value:
+    elif est_type.value == Est.AGG_VAR.value:
         return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
-    elif est_type.value == EstType.LINEAR.value:
+    elif est_type.value == Est.LINEAR.value:
         return _ols_estimate(x, y, stats.RegType.LINEAR, est_type, **kwargs)
-    elif est_type.value == EstType.LOG.value:
+    elif est_type.value == Est.LOG.value:
         return _ols_estimate(x, y, stats.RegType.LOG, est_type, **kwargs)
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
@@ -533,31 +538,31 @@ def _ols_estimate_from_result(x, y, reg_type, est_type, result):
     r2 = result.rsquared
     return OLSSingleVarEst(est_type, reg_type, const, param, r2)
 
-# EstType.AR
+# Est.AR
 def _ar_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ar_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.AR)
+    return result, _arma_estimate_from_result(result, Est.AR)
 
-# EstType.AR_OFFSET
+# Est.AR_OFFSET
 def _ar_offset_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ar_offset_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.AR_OFFSET)
+    return result, _arma_estimate_from_result(result, Est.AR_OFFSET)
 
-# EstType.MA
+# Est.MA
 def _ma_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ma_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.MA)
+    return result, _arma_estimate_from_result(result, Est.MA)
 
-# EstType.MA_OFFSET
+# Est.MA_OFFSET
 def _ma_offset_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ma_offset_fit(samples, order)
-    return result, _arma_estimate_from_result(result, EstType.MA_OFFSET)
+    return result, _arma_estimate_from_result(result, Est.MA_OFFSET)
 
-# EstType.PERGRAM, EstType.AGG_VAR, EstType.LINEAR, EstType.LOG
+# Est.PERGRAM, Est.AGG_VAR, Est.LINEAR, Est.LOG
 def _ols_estimate(x, y, reg_type, est_type, **kwargs):
     result = stats.OLS_fit(y, x, reg_type)
     return result, _ols_estimate_from_result(x, y, reg_type, est_type, result)
@@ -565,7 +570,7 @@ def _ols_estimate(x, y, reg_type, est_type, **kwargs):
 ##################################################################################################################
 # Tests
 ##################################################################################################################
-class TestType(Enum):
+class Test(Enum):
     ADF = "ADF"                    # Augmented Dickey Fuller test
     ADF_OFF_SET = "ADF_OFF_SET"    # Augmented Dickey Fuller with off set test
     ADF_DRIFT = "ADF_DRIFT"        # Augmented Dickey Fuller with drift test
