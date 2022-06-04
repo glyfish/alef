@@ -142,7 +142,7 @@ def _get_data_source(source_type, x, **kwargs):
     if source_type.value == Source.ARIMA.value:
         return _create_arima_source(source_type, x, **kwargs)
     if source_type.value == Source.ARIMA_FROM_ARMA.value:
-        return _create_arima_from_arms_source(source_type, x, **kwargs)
+        return _create_arima_from_arma_source(source_type, x, **kwargs)
     if source_type.value == Source.BM_NOISE.value:
         return _create_bm_noise_source(source_type, x, **kwargs)
     if source_type.value == Source.BM.value:
@@ -268,7 +268,7 @@ def _create_arima_source(source_type, x, **kwargs):
 
 # Source.ARIMA_FROM_ARMA
 def _create_arima_from_arma_source(source_type, x, **kwargs):
-    samples_df = get_param_throw_if_missing("samples", **kwargs)
+    samples_df = get_param_throw_if_missing("arma", **kwargs)
     d = get_param_throw_if_missing("d", **kwargs)
     samples_schema = DataType.TIME_SERIES.schema()
     _, samples = samples_schema.get_data(samples_df)
@@ -350,7 +350,7 @@ def _create_fbm_noise_chol_source(source_type, x, **kwargs):
     dB = get_param_default_if_missing("dB", None, **kwargs)
     L = get_param_default_if_missing("L", None, **kwargs)
     if dB is not None:
-        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+        _, ΔB = DataSchema.get_schema_data(dB)
     else:
         ΔB = None
     f = lambda x : fbm.cholesky_noise(H, len(x[:-1]), Δx, ΔB, L)
@@ -370,7 +370,7 @@ def _create_fbm_noise_fft_source(source_type, x, **kwargs):
     Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
     dB = get_param_default_if_missing("dB", None, **kwargs)
     if dB is not None:
-        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+        _, ΔB = DataSchema.get_schema_data(dB)
     else:
         ΔB = None
     f = lambda x : fbm.fft_noise(H, len(x), Δx, ΔB)
@@ -391,7 +391,7 @@ def _create_fbm_chol_source(source_type, x, **kwargs):
     dB = get_param_default_if_missing("dB", None, **kwargs)
     L = get_param_default_if_missing("L", None, **kwargs)
     if dB is not None:
-        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+        _, ΔB = DataSchema.get_data_type(dB)
     else:
         ΔB = None
     f = lambda x : fbm.generate_cholesky(H, len(x[:-1]), Δx, ΔB, L)

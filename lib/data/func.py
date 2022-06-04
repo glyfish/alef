@@ -51,6 +51,9 @@ class Func(Enum):
     def create(self, **kwargs):
         return _create_func_type(self, **kwargs)
 
+    def create_parameter_scan(self, *args):
+        return _create_func_type_parameter_scan(self, *args)
+
     def apply(self, df, **kwargs):
         return _apply_func_type(self, df, **kwargs)
 
@@ -60,8 +63,8 @@ class Func(Enum):
     def apply_to_list(self, dfs, **kwargs):
         return _apply_func_type_to_list(self, dfs, **kwargs)
 
-    def apply_to_parameter_scan(self, df, *args):
-        return _apply_func_type_to_parameter_scan(self, df, *args)
+    def apply_parameter_scan(self, df, *args):
+        return _apply_func_type_parameter_scan(self, df, *args)
 
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
@@ -177,10 +180,15 @@ class DataFunc:
     def create(self, x):
         y = self.fy(x, None)
         df = self.create_data_frame(x, y)
-        DataSchema.set_date(df)
+        DataSchema.set_source_type(df, None)
+        DataSchema.set_source_name(df, None)
         DataSchema.set_source_schema(df, self.source_schema)
+        DataSchema.set_date(df)
+        DataSchema.set_type(df, self.func_type)
+        DataSchema.set_name(df, self._name())
         DataSchema.set_schema(df, self.schema)
-        DataSchema.set_name(df, self.desc)
+        DataSchema.set_iterations(df, None)
+        MetaData.set(df, self.meta_data(len(y)))
         return df
 
     def create_data_frame(self, x, y):
@@ -206,10 +214,10 @@ def _apply_func_type_to_list(func_type, dfs, **kwargs):
 
 ###################################################################################################
 ## create function definition for data type
-def _apply_func_type_to_parameter_scan(func_type, df, *args):
+def _apply_func_type_parameter_scan(func_type, df, *args):
     dfs = []
     for kwargs in args:
-        dfs.append(_apply_func_type(df, func_type, **kwargs))
+        dfs.append(_apply_func_type(func_type, df, **kwargs))
     return dfs
 
 ###################################################################################################
@@ -221,6 +229,14 @@ def _create_func_type(func_type, **kwargs):
     kwargs["npts"] = len(x)
     data_func = _create_func(func_type, **kwargs, npolt=len(x))
     return data_func.create(x)
+
+###################################################################################################
+# Create a parameter scan of specified DataSource with specied parameters
+def _create_func_type_parameter_scan(func_type, *args):
+    dfs = []
+    for kwargs in args:
+        dfs.append(_create_func_type(func_type, **kwargs))
+    return dfs
 
 ###################################################################################################
 ## create function definition for data type
@@ -345,14 +361,14 @@ def _create_vr_stat(func_type, **kwargs):
 # DataType.DIFF
 def _create_diff(func_type, **kwargs):
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
-    fx = lambda x : x[:-1]
+    fx = lambda x : x[:-ndiff]
     fy = lambda x, y : stats.ndiff(y, ndiff)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
                     source_type=DataType.TIME_SERIES,
                     params={"ndiff": ndiff},
                     fy=fy,
-                    ylabel=r"$\Delta S_t$",
+                    ylabel=f"$\Delta^{{{ndiff}}} S_t$",
                     xlabel=r"$t$",
                     desc="Difference",
                     fx=fx)
@@ -425,7 +441,7 @@ def _create_fbm_mean(func_type, **kwargs):
     fy = lambda x, y : numpy.full(len(x), 0.0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
-                    source_type=DataType.MEAN,
+                    source_type=DataType.TIME_SERIES,
                     params={},
                     fy=fy,
                     ylabel=r"$\mu_t$",

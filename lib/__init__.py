@@ -5,7 +5,7 @@ from lib.plots.reg import (single_var)
 
 from lib.data.source import (Source)
 from lib.data.func import (Func)
-from lib.data.meta_data import (Est)
+from lib.data.meta_data import (Est, Test)
 
 from lib.models import arima
 from lib.models import bm
