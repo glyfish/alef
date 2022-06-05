@@ -150,7 +150,7 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefm
         if stat >= lower_critical_value and stat <= upper_critical_value:
             npass += 1
 
-    result = npass >= nstats/2.0
+    result = npass >= 1
 
     cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
@@ -172,7 +172,7 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, table
         if stat <= upper_critical_value:
             npass += 1
 
-    result = npass >= nstats/2.0
+    result = npass >= 1
 
     cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [1.0 - cdf(stat) for stat in test_stats]
@@ -194,7 +194,7 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, table
         if stat >= lower_critical_value:
             npass += 1
 
-    result = npass >= nstats/2.0
+    result = npass >= 1
 
     cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
     p_values = [cdf(stat) for stat in test_stats]

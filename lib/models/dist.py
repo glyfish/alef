@@ -7,50 +7,43 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 
 # Supported Distributions
 class DistType(Enum):
-    NORMAL = 1  # Normal distribution with parameters σ and μ
+    NORMAL = 1          # Normal distribution
 
     def create(self, **kwargs):
-        return _create_distribution(**kwargs)
-
-# Supported distribution functions
-class DistFuncType(Enum):
-    PDF = 1     # Probability density funcxtion
-    CDF = 2     # Cummulative distribution function
-    PPF = 3     # Percent point function (Inverse of CDF)
-    TAIL = 4    # Tail distribution function (1 - CDF)
-    SAMP = 5    # Return specied number of distribution samples
-    RANGE = 6   # Distribution range for plotting
+        return _create_distribution(self, **kwargs)
 
 # Specify hypothesis test type
 class HypothesisType(Enum):
-    TWO_TAIL = 1
-    LOWER_TAIL = 2
-    UPPER_TAIL = 3
+    TWO_TAIL = "TWO_TAIL"
+    LOWER_TAIL = "LOWER_TAIL"
+    UPPER_TAIL = "UPPER_TAIL"
+
+# Test result
+class TestResult(Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
 
 # Create specified distribution function with specifoed parameters
-def _create_distribution(**kwargs):
-    dist_type = get_param_throw_if_missing("dist_type", **kwargs)
-    func_type = get_param_throw_if_missing("func_type", **kwargs)
+def _create_distribution(dist_type, **kwargs):
+    loc = get_param_default_if_missing("loc", 0.0, **kwargs)
+    scale = get_param_default_if_missing("scale", 1.0, **kwargs)
     if dist_type.value == DistType.NORMAL.value:
-        return _normal(func_type, **kwargs)
+        return DistSingleVar(dist=stats.norm, loc=loc, scale=scale)
     else:
         raise Exception(f"Distribution type is invalid: {type}")
 
 # Normal distributions with scale σ and loc μ
-def _normal(func_type, **kwargs):
-    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    if func_type.value == DistFuncType.PDF.value:
-        return lambda x : stats.norm.pdf(x, loc=μ, scale=σ)
-    elif func_type.value == DistFuncType.CDF.value:
-        return lambda x : stats.norm.cdf(x, loc=μ, scale=σ)
-    elif func_type.value == DistFuncType.PPF.value:
-        return lambda x : stats.norm.ppf(x, loc=μ, scale=σ)
-    elif func_type.value == DistFuncType.TAIL.value:
-        return lambda x : 1.0 - stats.norm.cdf(x, loc=μ, scale=σ)
-    elif func_type.value == DistFuncType.SAMP.value:
-        return lambda x=1 : stats.norm.rvs(loc=μ, scale=σ, size=x)
-    elif func_type.value == DistFuncType.RANGE.value:
-        return lambda x : numpy.linspace(-5.0*σ, 5.0*σ, x)
-    else:
-        raise Exception(f"Distribution function type is invalid: {func_type}")
+class DistSingleVar:
+    def _init_(self, dist, loc, scale):
+        self.dist = dist
+        self.loc = loc
+        self.scale = scale
+
+    def pdf(self, x):
+        return self.dist.pdf(x, loc=self.loc, scale=self.scale)
+
+    def cdf(self, x):
+        return self.dist.cdf(x, loc=self.loc, scale=self.scale)
+
+    def ppf(self, x):
+        return self.dist.ppf(x, loc=self.loc, scale=self.scale)

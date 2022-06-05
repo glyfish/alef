@@ -6,6 +6,7 @@ from lib import stats
 from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
+from lib.models import (TestResult, HypothesisType)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -35,8 +36,8 @@ class MetaData:
           "xlabel": xlabel,
           "SourceSchema": source_schema,
           "Formula": formula,
-          "Estimates": create_dict_from_estimates(ests),
-          "Tests": create_dict_from_tests(tests)
+          "Estimates": _create_dict_from_estimates(ests),
+          "Tests": _create_dict_from_tests(tests)
         }
 
     def __repr__(self):
@@ -193,7 +194,7 @@ class Est(Enum):
 
     def perform(self, df, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, est = perform_est_for_type(x, y, self, **kwargs)
+        result, est = _perform_est_for_type(x, y, self, **kwargs)
         MetaData.add_estimate(df, est)
         return result
 
@@ -498,7 +499,7 @@ def create_dict_from_estimates(ests):
 
 ##################################################################################################################
 # Perform esimate for specified esimate types
-def perform_est_for_type(x, y, est_type, **kwargs):
+def _perform_est_for_type(x, y, est_type, **kwargs):
     if est_type.value == Est.AR.value:
         return _ar_estimate(y, **kwargs)
     elif est_type.value == Est.AR_OFFSET.value:
@@ -568,14 +569,62 @@ def _ols_estimate(x, y, reg_type, est_type, **kwargs):
     return result, _ols_estimate_from_result(x, y, reg_type, est_type, result)
 
 ##################################################################################################################
-# Tests
+# Test
 ##################################################################################################################
 class Test(Enum):
-    ADF = "ADF"                    # Augmented Dickey Fuller test
-    ADF_OFF_SET = "ADF_OFF_SET"    # Augmented Dickey Fuller with off set test
-    ADF_DRIFT = "ADF_DRIFT"        # Augmented Dickey Fuller with drift test
-    VR = "VR"                      # Variance Ratio test
+    STATIONAITY = "STATIONAITY"           # Test for stationarity
+    BM = "BM"                             # Test for brownian motion
+    AUTO_CORR = "AUTO_CORR"               # Test for autocorrelated fractional brownian motion
+    NEG_AUTO_CORR = "NEG_AUTO_CORR"       # Test for negative autocorrelated fractional brownian motion
 
+    def perform(self, df, **kwargs):
+        x, y = DataSchema.get_schema_data(df)
+        result, test = _perform_test_for_type(x, y, self, **kwargs)
+        MetaData.add_test(df, test)
+        return result
+
+##################################################################################################################
+# Test Implementation
+##################################################################################################################
+class TestImpl(Enum):
+    ADF = "ADF"                       # Augmented Dickey Fuller test for staionarity
+    ADF_OFF_SET = "ADF_OFF_SET"       # Augmented Dickey Fuller with off set test test for staionarity
+    ADF_DRIFT = "ADF_DRIFT"           # Augmented Dickey Fuller with drift test test for staionarity
+    VR_TWO_TAILED = "VR_TWO_TAILED"   # Variance ratio test for brownian motion
+    VR_LOWER_TAIL = "VR_LOWER_TAIL"   # Variance ratio test for anti-autocorrelated fractional brownian motion
+    VR_UPPER_TAIL = "VR_UPPER_TAIL"   # Variance ratio test for autocorrelated fractional brownian motion
+
+    def perform(self, x, y, **kwargs):
+
+
+##################################################################################################################
+# Test Data
+class TestData:
+    def __init__(self, hyp, result, stat, pval, param, sig, lower, upper):
+        self.hyp = hyp
+        self.result = result
+        self.stat = stat
+        self.pval = pval
+        self.param = param
+        self.sig = sig
+        self.lower = lower
+        self.upper = upper
+        self.data = {}
+
+##################################################################################################################
+# Test Report
+class TestReport:
+    def __init__(self, type, impl, stat_label, param_label, desc, test_data):
+        self.type = type
+        self.impl = impl
+        self.stat_label = stat_label
+        self.param_label = param_label
+        self.test_data = test_data
+        self.desc = desc
+        self.data = data
+
+##################################################################################################################
+# Create tests
 def create_dict_from_tests(tests):
     result = {}
     for key in tests.keys():
@@ -594,3 +643,10 @@ def create_test_from_dict(dict):
     # if est_type.value == TestType.ADF.value:
     # else:
     #     raise Exception(f"Esitmate type is invalid: {est_type}")
+
+##################################################################################################################
+# perform test for specified type
+def _perform_test_for_type(x, y, test_type, **kwargs):
+    if est_type.value == TestType.ADF.value:
+    else:
+        raise Exception(f"Esitmate type is invalid: {est_type}")
