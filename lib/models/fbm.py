@@ -5,7 +5,7 @@ import numpy
 from tabulate import tabulate
 
 from lib.models import bm
-from lib.models.dist import (HypothesisType, DistType, DistFuncType)
+from lib.models.dist import (HypothesisType, DistType)
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation

@@ -27,7 +27,7 @@ class MetaData:
         self.formula = formula
         self.ests = ests
         self.tests = tests
-        self.data = {
+        self.dict = {
           "npts": npts,
           "DataType": data_type,
           "Parameters": params,
@@ -58,19 +58,19 @@ class MetaData:
                f"source_schema=({self.source_schema}) " \
                f"formula=({self.formula}) "
 
-    def create_dict_from_estimates(ests):
+    def _create_dict_from_estimates(ests):
         result = {}
         for key in ests.keys():
-            result[key] = ests[key].data
+            result[key] = ests[key].dict
         return result
 
     def insert_estimate(self, est):
         self.ests[est.key()] = est
-        self.data["Estimates"][est.key()] = est.data
+        self.data["Estimates"][est.key()] = est.dict
 
     def insert_test(self, test):
-        self.ests[test.key()] = test
-        self.data["Tests"][test.key()] = test.data
+        self.tests[test.key()] = test
+        self.data["Tests"][test.key()] = test.dict
 
     def params_str(self):
         return MetaData.params_to_str(self.params)
@@ -102,7 +102,7 @@ class MetaData:
     @classmethod
     def set(cls, df, meta_data):
         type = DataSchema.get_type(df)
-        df.attrs[type.value] = meta_data.data
+        df.attrs[type.value] = meta_data.dict
 
     @classmethod
     def add_estimate(cls, df, est):
@@ -122,12 +122,12 @@ class MetaData:
         formula =  meta_data["Formula"] if "Formula" in meta_data else None
 
         if "Estimates" in meta_data:
-            ests = create_estimates_from_dict(meta_data["Estimates"])
+            ests = _create_estimates_from_dict(meta_data["Estimates"])
         else:
             ests = {}
 
         if "Tests" in meta_data:
-            tests = create_tests_from_dict(meta_data["Tests"])
+            tests = _create_tests_from_dict(meta_data["Tests"])
         else:
             tests = {}
 
@@ -206,12 +206,12 @@ class ParamEst:
             self.err = err
             self.est_label = est_label
             self.err_label = err_label
-            self._set_data()
+            self._set_dict()
 
     def set_labels(self, est_label, err_label):
         self.est_label = est_label
         self.err_label = err_label
-        self._set_data()
+        self._set_dict()
 
     def __repr__(self):
         return f"ParamEst({self._props()})"
@@ -225,8 +225,8 @@ class ParamEst:
                f"est_label=({self.est_label}), "\
                f"err_label=({self.err_label})"
 
-    def _set_data(self):
-        self.data = {"Estimate": self.est,
+    def _set_dict(self):
+        self.dict = {"Estimate": self.est,
                      "Error": self.err,
                      "Estimate Label": self.est_label,
                      "Error Label": self.err_label}
@@ -259,10 +259,10 @@ class ARMAEst:
         self._set_const_labels()
         self._set_params_labels()
         self._set_sigma2_labels()
-        self.data = {"Type": type,
-                     "Const": const.data,
-                     "Parameters": [p.data for p in params],
-                     "Sigma2": sigma2.data}
+        self.dict = {"Type": type,
+                     "Const": const.dict,
+                     "Parameters": [p.dict for p in params],
+                     "Sigma2": sigma2.dict}
 
     def __repr__(self):
         return f"ARMAEst({self._props()})"
@@ -336,10 +336,10 @@ class OLSSingleVarEst:
                               err_label=r"$\sigma_{\hat{\alpha}}$")
         self.param.set_labels(est_label=r"$\hat{\beta}$",
                               err_label=r"$\sigma_{\hat{beta}}$")
-        self.data = {"Type": type,
+        self.dict = {"Type": type,
                      "Regression Type": reg_type,
-                     "Constant": const.data,
-                     "Parameter": param.data,
+                     "Constant": const.dict,
+                     "Parameter": param.dict,
                      "R2": r2}
         self.trans = _create_ols_single_var_trans(type, self.param, self.const)
 
@@ -464,13 +464,13 @@ def _create_log_trans(param, const):
 
 ##################################################################################################################
 # Create estimates
-def create_estimates_from_dict(dict):
+def _create_estimates_from_dict(dict):
     result = {}
     for key in dict.keys():
-        result[key] = create_estimate_from_dict(dict[key])
+        result[key] = _create_estimate_from_dict(dict[key])
     return result
 
-def create_estimate_from_dict(dict):
+def _create_estimate_from_dict(dict):
     est_type = dict["Type"]
     if est_type.value == Est.AR.value:
         return ARMAEst.from_dict(dict)
@@ -491,7 +491,7 @@ def create_estimate_from_dict(dict):
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
 
-def create_dict_from_estimates(ests):
+def _create_dict_from_estimates(ests):
     result = {}
     for key in ests.keys():
         result[key] = ests[key].data
@@ -595,7 +595,7 @@ class TestImpl(Enum):
     VR_UPPER_TAIL = "VR_UPPER_TAIL"   # Variance ratio test for autocorrelated fractional brownian motion
 
     def perform(self, x, y, **kwargs):
-
+        ""
 
 ##################################################################################################################
 # Test Data
@@ -609,7 +609,7 @@ class TestData:
         self.sig = sig
         self.lower = lower
         self.upper = upper
-        self.data = {}
+        self.dict = {}
 
 ##################################################################################################################
 # Test Report
@@ -621,23 +621,23 @@ class TestReport:
         self.param_label = param_label
         self.test_data = test_data
         self.desc = desc
-        self.data = data
+        self.dict = {}
 
 ##################################################################################################################
 # Create tests
-def create_dict_from_tests(tests):
+def _create_dict_from_tests(tests):
     result = {}
     for key in tests.keys():
-        result[key] = tests[key].data
+        result[key] = tests[key].dict
     return result
 
-def create_tests_from_dict(dict):
+def _create_tests_from_dict(dict):
     result = {}
     for key in dict.keys():
-        result[key] = create_test_from_dict(dict[key])
+        result[key] = _create_test_from_dict(dict[key])
     return result
 
-def create_test_from_dict(dict):
+def _create_test_from_dict(dict):
     test_type = dict["Type"]
     return dict
     # if est_type.value == TestType.ADF.value:
@@ -648,5 +648,6 @@ def create_test_from_dict(dict):
 # perform test for specified type
 def _perform_test_for_type(x, y, test_type, **kwargs):
     if est_type.value == TestType.ADF.value:
+        ""
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
