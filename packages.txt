@@ -2,3 +2,6 @@ jupyterlab
 jupyterlab-snippets
 jupyterlab-spellchecker
 tabulate
+matplotlib
+pandas
+statsmodels
