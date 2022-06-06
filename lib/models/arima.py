@@ -8,7 +8,7 @@ from pandas import DataFrame
 import uuid
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
-from tabulate import tabulate
+from lib.models.reports import ADFTestReport
 
 ###############################################################################################
 ## MA(q) standard deviation amd ACF
@@ -169,34 +169,15 @@ def ma_offset_fit(df, order):
 
 ###############################################################################################
 ## ADF Test
-def adf_test(samples, report=False, tablefmt="fancy_grid"):
-    return _adfuller_test(samples, 'nc', report, tablefmt)
+def adf_test(samples):
+    return _adfuller_test(samples, 'nc')
 
-def adf_test_offset(samples, report=False, tablefmt="fancy_grid"):
-    return _adfuller_test(samples, 'c', report, tablefmt)
+def adf_test_offset(samples):
+    return _adfuller_test(samples, 'c')
 
-def adf_test_drift(samples, report=False, tablefmt="fancy_grid"):
-    return _adfuller_test(samples, 'ct', report, tablefmt)
+def adf_test_drift(samples):
+    return _adfuller_test(samples, 'ct')
 
-def _adfuller_test(samples, test_type, report, tablefmt):
-    results = sm.tsa.stattools.adfuller(samples, regression=test_type)
-    _adfuller_report(results, report, tablefmt)
-    stat = results[0]
-    status = stat >= results[4]["10%"]
-    return status
-
-def _adfuller_report(results, report, tablefmt):
-    if not report:
-        return
-    stat = results[0]
-    header = [["Test Statistic", stat],
-              ["pvalue", results[1]],
-              ["Lags", results[2]],
-              ["Number Obs", results[3]]]
-    status = ["Passed" if stat >= results[4][sig] else "Failed" for sig in ["1%", "5%", "10%"]]
-    results = [["1%", results[4]["1%"], status[0]],
-               ["5%", results[4]["5%"], status[1]],
-               ["10%", results[4]["10%"], status[2]]]
-    headers = ["Significance", "Critical Value", "Result"]
-    print(tabulate(header, tablefmt=tablefmt))
-    print(tabulate(results, tablefmt=tablefmt, headers=headers))
+def _adfuller_test(samples, test_type):
+    result = sm.tsa.stattools.adfuller(samples, regression=test_type)
+    return ADFTestReport(result)

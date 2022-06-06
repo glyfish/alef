@@ -18,11 +18,6 @@ class TestHypothesis(Enum):
     LOWER_TAIL = "LOWER_TAIL"
     UPPER_TAIL = "UPPER_TAIL"
 
-# Test result
-class TestResult(Enum):
-    PASS = "PASS"
-    FAIL = "FAIL"
-
 # Create specified distribution function with specifoed parameters
 def _create_distribution(dist_type, **kwargs):
     loc = get_param_default_if_missing("loc", 0.0, **kwargs)

@@ -6,7 +6,7 @@ from lib import stats
 from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
-from lib.models import (TestResult, TestHypothesis)
+from lib.models import (TestHypothesis)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -498,7 +498,7 @@ def _create_dict_from_estimates(ests):
     return result
 
 ##################################################################################################################
-# Perform esimate for specified esimate types
+# Perform esimate for specified estimate types
 def _perform_est_for_type(x, y, est_type, **kwargs):
     if est_type.value == Est.AR.value:
         return _ar_estimate(y, **kwargs)
@@ -580,10 +580,8 @@ class Test(Enum):
     NEG_AUTO_CORR = "NEG_AUTO_CORR"       # Test for negative autocorrelated fractional brownian motion
 
     def perform(self, df, **kwargs):
-        impl = self_.impl()
-        result, test = impl.perform(df, self, **kwargs)
-        # MetaData.add_test(df, test)
-        return result
+        impl = self._impl()
+        return impl.perform(df, self, **kwargs)
 
     def _impl(self):
         if self.value == Test.STATIONARITY.value:
@@ -610,59 +608,57 @@ class _TestImpl(Enum):
 
     def perform(self, df, test_type, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, test = _perform_test_for_impl(x, y, test_type, self, **kwargs)
-        MetaData.add_test(df, test)
+        result, report = _perform_test_for_impl(x, y, test_type, self, **kwargs)
+        # MetaData.add_test(df, test)
         return result
 
 ##################################################################################################################
 # Perform test forspecified implementaion
 def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
-    if impl_type.value == TestImpl.ADF.value:
-        return _adf_test(y, test_type, **kwargs)
-    elif impl_type.value == TestImpl.ADF_OFFSET.value:
-        return _adf_offset_test(y, test_type, **kwargs)
-    elif impl_type.value == TestImpl.ADF_DRIFT.value:
-        return _adf_drift_test(y, test_type, **kwargs)
-    elif impl_type.value == TestImpl.VR_TWO_TAILED.value:
-        return _vr_test(y, TestHypothesisType.TWO_TAIL, test_type, **kwargs)
-    elif impl_type.value == TestImpl.VR_LOWER_TAIL.value:
-        return _vr_test(y, TestHypothesisType.LOWER_TAIL, test_type, **kwargs)
-    elif impl_type.value == TestImpl.VR_UPPER_TAIL.value:
-        return _vr_test(y, TestHypothesisType.UPPER_TAIL, test_type, **kwargs)
+    if impl_type.value == _TestImpl.ADF.value:
+        return _adf_test(y, test_type, impl_type, **kwargs)
+    elif impl_type.value == _TestImpl.ADF_OFFSET.value:
+        return _adf_offset_test(y, test_type, impl_type, **kwargs)
+    elif impl_type.value == _TestImpl.ADF_DRIFT.value:
+        return _adf_drift_test(y, test_type, impl_type, **kwargs)
+    elif impl_type.value == _TestImpl.VR_TWO_TAILED.value:
+        return _vr_test(y, TestHypothesisType.TWO_TAIL, test_type, impl_type, **kwargs)
+    elif impl_type.value == _TestImpl.VR_LOWER_TAIL.value:
+        return _vr_test(y, TestHypothesisType.LOWER_TAIL, test_type, impl_type, **kwargs)
+    elif impl_type.value == _TestImpl.VR_UPPER_TAIL.value:
+        return _vr_test(y, TestHypothesisType.UPPER_TAIL, test_type, impl_type, **kwargs)
     else:
         raise Exception(f"Test type is invalid: {self}")
 
-# TestImpl.ADF
-def _adf_test(y, test_type, **kwargs):
+# _TestImpl.ADF
+def _adf_test(y, test_type, impl_type, **kwargs):
     result = arima.adf_test(y)
     return result, _adf_report_from_result(result, test_type, impl_type)
 
-# TestImpl.ADF_OFFSET
-def _adf_offset_test(y, test_type, **kwargs):
-    result = arima.adf_test_offset(y, report, tablefmt)
+# _TestImpl.ADF_OFFSET
+def _adf_offset_test(y, test_type, impl_type, **kwargs):
+    result = arima.adf_test_offset(y)
     return result, _adf_report_from_result(result, test_type, impl_type)
 
-# TestImpl.ADF_DRIFT
-def _adf_drift_test(y, test_type, **kwargs):
-    result = arima.adf_test_drift(y, report, tablefmt)
+# _TestImpl.ADF_DRIFT
+def _adf_drift_test(y, test_type, impl_type, **kwargs):
+    result = arima.adf_test_drift(y)
     return result, _adf_report_from_result(result, test_type, impl_type)
 
-# TestImpl.VR_TWO_TAILED
-def _vr_test(y, hypo_type, test_type, **kwargs):
+# _TestImpl.VR_TWO_TAILED
+def _vr_test(y, hypo_type, test_type, impl_type, **kwargs):
     sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
     s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
     verify_type(s, list)
-    result = fbm.vr_test(y, s, sig_level, hypo_type, report, tablefmt)
+    result = fbm.vr_test(y, s, sig_level, hypo_type)
     return result, _vr_report_from_result(result, test_type, impl_type)
 
 ##################################################################################################################
 # Constrct test report from result object
-def _adf_report_from_result(result, impl_type):
-    print(result)
+def _adf_report_from_result(result, test_type, impl_type):
     return result
 
 def _vr_report_from_result(result, test_type, impl_type):
-    print(result)
     return result
 
 ##################################################################################################################

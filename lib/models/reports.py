@@ -1,14 +1,14 @@
 from tabulate import tabulate
 
 ##################################################################################################################
-# variance ratio test summary
-class VarianceRatioTestSummary:
-    def __init__(self, status, sig_level, test_type, s, statistics, p_values, critical_values):
-        self.status = status
+# Variance ratio test report
+##################################################################################################################
+class VarianceRatioTestReport:
+    def __init__(self, sig_level, test_type, s, stats, p_values, critical_values):
         self.sig_level = sig_level
         self.test_type = test_type
         self.s = s
-        self.statistics = statistics
+        self.stats = stats
         self.p_values = p_values
         self.critical_values = critical_values
 
@@ -64,3 +64,28 @@ class VarianceRatioTestSummary:
         table = self.table(tablefmt)
         print(table[0])
         print(table[1])
+
+##################################################################################################################
+# ADF test report
+##################################################################################################################
+class ADFTestReport:
+    def __init__(self, result):
+        self.stat = result[0]
+        self.pvalue = result[1]
+        self.lags = result[2]
+        self.nobs = result[3]
+        self.sig_str = ["1%", "5%", "10%"]
+        self.sig = [0.01, 0.05, 0.1]
+        self.status_vals = [True if self.stat >= result[4][sig] else False for sig in self.sig_str]
+        self.status_str = ["Passed" if self.status_vals[i] else "Failed" for i in range(3)]
+        self.critical_values = [result[4][sig] for sig in self.sig_str]
+
+    def summary(self, tablefmt="fancy_grid"):
+        headers = ["Significance", "Critical Value", "Result"]
+        header = [["Test Statistic", self.stat],
+                  ["pvalue", self.pvalue],
+                  ["Lags", self.lags],
+                  ["Number Obs", self.nobs]]
+        results = [[self.sig_str[i], self.critical_values[i], self.status_str[i]] for i in range(3)]
+        print(tabulate(header, tablefmt=tablefmt))
+        print(tabulate(results, tablefmt=tablefmt, headers=headers))
