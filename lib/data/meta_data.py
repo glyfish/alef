@@ -6,7 +6,7 @@ from lib import stats
 from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
-from lib.models import (TestResult, HypothesisType)
+from lib.models import (TestResult, TestHypothesis)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -66,11 +66,11 @@ class MetaData:
 
     def insert_estimate(self, est):
         self.ests[est.key()] = est
-        self.data["Estimates"][est.key()] = est.dict
+        self.dict["Estimates"][est.key()] = est.dict
 
     def insert_test(self, test):
         self.tests[test.key()] = test
-        self.data["Tests"][test.key()] = test.dict
+        self.dict["Tests"][test.key()] = test.dict
 
     def params_str(self):
         return MetaData.params_to_str(self.params)
@@ -112,9 +112,9 @@ class MetaData:
 
     @classmethod
     def add_test(cls, df, data_type, test):
-        meta_data = MetaData.get_data_type(df, data_type)
+        meta_data = MetaData.get(df)
         meta_data.insert_test(test)
-        MetaData.set(df, data_type, meta_data)
+        MetaData.set(df, meta_data)
 
     @staticmethod
     def from_dict(meta_data):
@@ -519,26 +519,6 @@ def _perform_est_for_type(x, y, est_type, **kwargs):
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
 
-def _arma_estimate_from_result(result, type):
-    nparams = len(result.params)
-    params = []
-    for i in range(1, nparams-1):
-        params.append(ParamEst.from_dictionary({"Estimate": result.params.iloc[i],
-                                                "Error": result.bse.iloc[i]}))
-    const = ParamEst.from_dictionary({"Estimate": result.params.iloc[0],
-                                      "Error": result.bse.iloc[0]})
-    sigma2 = ParamEst.from_dictionary({"Estimate": result.params.iloc[nparams-1],
-                                       "Error": result.bse.iloc[nparams-1]})
-    return ARMAEst(type, const, sigma2, params)
-
-def _ols_estimate_from_result(x, y, reg_type, est_type, result):
-    const = ParamEst.from_dictionary({"Estimate": result.params[0],
-                                      "Error": result.bse[0]})
-    param = ParamEst.from_dictionary({"Estimate": result.params[1],
-                                      "Error": result.bse[1]})
-    r2 = result.rsquared
-    return OLSSingleVarEst(est_type, reg_type, const, param, r2)
-
 # Est.AR
 def _ar_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
@@ -569,33 +549,121 @@ def _ols_estimate(x, y, reg_type, est_type, **kwargs):
     return result, _ols_estimate_from_result(x, y, reg_type, est_type, result)
 
 ##################################################################################################################
+# Construct estimate objects from result object
+def _arma_estimate_from_result(result, type):
+    nparams = len(result.params)
+    params = []
+    for i in range(1, nparams-1):
+        params.append(ParamEst.from_dictionary({"Estimate": result.params.iloc[i],
+                                                "Error": result.bse.iloc[i]}))
+    const = ParamEst.from_dictionary({"Estimate": result.params.iloc[0],
+                                      "Error": result.bse.iloc[0]})
+    sigma2 = ParamEst.from_dictionary({"Estimate": result.params.iloc[nparams-1],
+                                       "Error": result.bse.iloc[nparams-1]})
+    return ARMAEst(type, const, sigma2, params)
+
+def _ols_estimate_from_result(x, y, reg_type, est_type, result):
+    const = ParamEst.from_dictionary({"Estimate": result.params[0],
+                                      "Error": result.bse[0]})
+    param = ParamEst.from_dictionary({"Estimate": result.params[1],
+                                      "Error": result.bse[1]})
+    r2 = result.rsquared
+    return OLSSingleVarEst(est_type, reg_type, const, param, r2)
+
+##################################################################################################################
 # Test
 ##################################################################################################################
 class Test(Enum):
-    STATIONAITY = "STATIONAITY"           # Test for stationarity
+    STATIONARITY = "STATIONARITY"         # Test for stationarity
     BM = "BM"                             # Test for brownian motion
     AUTO_CORR = "AUTO_CORR"               # Test for autocorrelated fractional brownian motion
     NEG_AUTO_CORR = "NEG_AUTO_CORR"       # Test for negative autocorrelated fractional brownian motion
 
     def perform(self, df, **kwargs):
-        x, y = DataSchema.get_schema_data(df)
-        result, test = _perform_test_for_type(x, y, self, **kwargs)
-        MetaData.add_test(df, test)
+        impl = self_.impl()
+        result, test = impl.perform(df, self, **kwargs)
+        # MetaData.add_test(df, test)
         return result
+
+    def _impl(self):
+        if self.value == Test.STATIONARITY.value:
+            return _TestImpl.ADF
+        elif self.value == Test.BM.value:
+            return _TestImpl.VR_TWO_TAILED
+        elif self.value == Test.AUTO_CORR.value:
+            return _TestImpl.VR_UPPER_TAIL
+        elif self.value == Test.NEG_AUTO_CORR.value:
+            return _TestImpl.VR_LOWER_TAIL
+        else:
+            raise Exception(f"Test type is invalid: {self}")
 
 ##################################################################################################################
 # Test Implementation
 ##################################################################################################################
-class TestImpl(Enum):
+class _TestImpl(Enum):
     ADF = "ADF"                       # Augmented Dickey Fuller test for staionarity
-    ADF_OFF_SET = "ADF_OFF_SET"       # Augmented Dickey Fuller with off set test test for staionarity
+    ADF_OFFSET = "ADF_OFFSET"         # Augmented Dickey Fuller with off set test test for staionarity
     ADF_DRIFT = "ADF_DRIFT"           # Augmented Dickey Fuller with drift test test for staionarity
     VR_TWO_TAILED = "VR_TWO_TAILED"   # Variance ratio test for brownian motion
     VR_LOWER_TAIL = "VR_LOWER_TAIL"   # Variance ratio test for anti-autocorrelated fractional brownian motion
     VR_UPPER_TAIL = "VR_UPPER_TAIL"   # Variance ratio test for autocorrelated fractional brownian motion
 
-    def perform(self, x, y, **kwargs):
-        ""
+    def perform(self, df, test_type, **kwargs):
+        x, y = DataSchema.get_schema_data(df)
+        result, test = _perform_test_for_impl(x, y, test_type, self, **kwargs)
+        MetaData.add_test(df, test)
+        return result
+
+##################################################################################################################
+# Perform test forspecified implementaion
+def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
+    if impl_type.value == TestImpl.ADF.value:
+        return _adf_test(y, test_type, **kwargs)
+    elif impl_type.value == TestImpl.ADF_OFFSET.value:
+        return _adf_offset_test(y, test_type, **kwargs)
+    elif impl_type.value == TestImpl.ADF_DRIFT.value:
+        return _adf_drift_test(y, test_type, **kwargs)
+    elif impl_type.value == TestImpl.VR_TWO_TAILED.value:
+        return _vr_test(y, TestHypothesisType.TWO_TAIL, test_type, **kwargs)
+    elif impl_type.value == TestImpl.VR_LOWER_TAIL.value:
+        return _vr_test(y, TestHypothesisType.LOWER_TAIL, test_type, **kwargs)
+    elif impl_type.value == TestImpl.VR_UPPER_TAIL.value:
+        return _vr_test(y, TestHypothesisType.UPPER_TAIL, test_type, **kwargs)
+    else:
+        raise Exception(f"Test type is invalid: {self}")
+
+# TestImpl.ADF
+def _adf_test(y, test_type, **kwargs):
+    result = arima.adf_test(y)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+# TestImpl.ADF_OFFSET
+def _adf_offset_test(y, test_type, **kwargs):
+    result = arima.adf_test_offset(y, report, tablefmt)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+# TestImpl.ADF_DRIFT
+def _adf_drift_test(y, test_type, **kwargs):
+    result = arima.adf_test_drift(y, report, tablefmt)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+# TestImpl.VR_TWO_TAILED
+def _vr_test(y, hypo_type, test_type, **kwargs):
+    sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
+    s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
+    verify_type(s, list)
+    result = fbm.vr_test(y, s, sig_level, hypo_type, report, tablefmt)
+    return result, _vr_report_from_result(result, test_type, impl_type)
+
+##################################################################################################################
+# Constrct test report from result object
+def _adf_report_from_result(result, impl_type):
+    print(result)
+    return result
+
+def _vr_report_from_result(result, test_type, impl_type):
+    print(result)
+    return result
 
 ##################################################################################################################
 # Test Data

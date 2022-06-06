@@ -6,14 +6,14 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
 # Supported Distributions
-class DistType(Enum):
+class Dist(Enum):
     NORMAL = 1          # Normal distribution
 
     def create(self, **kwargs):
         return _create_distribution(self, **kwargs)
 
 # Specify hypothesis test type
-class HypothesisType(Enum):
+class TestHypothesis(Enum):
     TWO_TAIL = "TWO_TAIL"
     LOWER_TAIL = "LOWER_TAIL"
     UPPER_TAIL = "UPPER_TAIL"

@@ -2,10 +2,10 @@
 ## Fractional Brownian Motion variance, covariance, simulators paramemeter esimation
 ## and statistical significance tests
 import numpy
-from tabulate import tabulate
 
 from lib.models import bm
-from lib.models.dist import (HypothesisType, DistType)
+from lib.models.dist import (TestHypothesis, Dist)
+from lib.models.summary import VarianceRatioTestSummary
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation
@@ -124,24 +124,23 @@ def generate_fft(H, n, Δt=1, dB=None):
 ###############################################################################################
 ## Variance Ratio Test
 # The homoscedastic test statistic is used n the analysis.
-def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.05, test_type=HypothesisType.TWO_TAIL, report=False, tablefmt="fancy_grid"):
+def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.10, test_type=TestHypothesis.TWO_TAIL):
     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
-    if test_type.value == HypothesisType.TWO_TAIL.value:
+    if test_type.value == TestHypothesis.TWO_TAIL.value:
         return _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
-    elif test_type.value == HypothesisType.UPPER_TAIL.value:
+    elif test_type.value == TestHypothesis.UPPER_TAIL.value:
         return _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
-    elif test_type.value == HypothesisType.LOWER_TAIL.value:
+    elif test_type.value == TestHypothesis.LOWER_TAIL.value:
         return _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
     else:
         raise Exception(f"Hypothesis test type is invalid: {test_type}")
 
 # perform two tail variance ratio test
-def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
+def _var_test_two_tail(test_stats, s_vals, sig_level, test_type):
     sig_level = sig_level/2.0
-    dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
-    lower_critical_value = ppf(sig_level)
-    upper_critical_value = ppf(1.0 - sig_level)
+    dist = Dist.NORMAL.create()
+    lower_critical_value = dist.ppf(sig_level)
+    upper_critical_value = dist.ppf(1.0 - sig_level)
 
     nstats = len(test_stats)
     npass = 0
@@ -151,19 +150,14 @@ def _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefm
             npass += 1
 
     result = npass >= 1
-
-    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
-    p_values = [2.0*(1.0 - cdf(numpy.abs(stat))) for stat in test_stats]
-
-    results = VarianceRatioTestReport(result,  2.0*sig_level, "Two Tail", s_vals, test_stats, p_values, [lower_critical_value, upper_critical_value])
-    _var_test_report(results, report, tablefmt)
-    return results
+    p_values = [2.0*(1.0 - dist.cdf(numpy.abs(stat))) for stat in test_stats]
+    return VarianceRatioTestSummary(result, 2.0*sig_level, test_type, s_vals, test_stats,
+                                    p_values, [lower_critical_value, upper_critical_value])
 
 # perform upper tail variance ratio test
-def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
-    dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
-    upper_critical_value = ppf(1.0 - sig_level)
+def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type):
+    dist = Dist.NORMAL.create()
+    upper_critical_value = dist.ppf(1.0 - sig_level)
 
     nstats = len(test_stats)
     npass = 0
@@ -173,19 +167,14 @@ def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, table
             npass += 1
 
     result = npass >= 1
-
-    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
-    p_values = [1.0 - cdf(stat) for stat in test_stats]
-
-    results = VarianceRatioTestReport(result, sig_level, "Upper Tail", s_vals, test_stats, p_values, [None, upper_critical_value])
-    _var_test_report(results, report, tablefmt)
-    return results
+    p_values = [1.0 - dist.cdf(stat) for stat in test_stats]
+    return VarianceRatioTestSummary(result, sig_level, test_type, s_vals, test_stats,
+                                    p_values, [None, upper_critical_value])
 
 # perform lower tail variance ratio test
-def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt):
-    dist_params = [1.0, 0.0]
-    ppf = distribution_function(DistType.NORMAL, DistFuncType.PPF, dist_params)
-    lower_critical_value = ppf(sig_level)
+def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type):
+    dist = Dist.NORMAL.create()
+    lower_critical_value = dist.ppf(sig_level)
 
     nstats = len(test_stats)
     npass = 0
@@ -195,21 +184,9 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, table
             npass += 1
 
     result = npass >= 1
-
-    cdf = distribution_function(DistType.NORMAL, DistFuncType.CDF, dist_params)
-    p_values = [cdf(stat) for stat in test_stats]
-
-    results = VarianceRatioTestReport(result, sig_level, "Lower Tail", s_vals, test_stats, p_values, [lower_critical_value, None])
-    _var_test_report(results, report, tablefmt)
-    return results
-
-# print test report
-def _var_test_report(results, report, tablefmt):
-    if not report:
-        return
-    table = results.table(tablefmt)
-    print(table[0])
-    print(table[1])
+    p_values = [dist.cdf(stat) for stat in test_stats]
+    return VarianceRatioTestSummary(result, sig_level, test_type, s_vals, test_stats,
+                                    p_values, [lower_critical_value, None])
 
 # lag variance
 def lag_var(samples, s):
@@ -261,52 +238,3 @@ def theta_factor(samples, s):
         delta = delta_factor(samples, j)
         factor += delta*(2.0*(s-j)/s)**2
     return factor/t**2
-
-# variance ratio test report
-class VarianceRatioTestReport:
-    def __init__(self, status, sig_level, test_type, s, statistics, p_values, critical_values):
-        self.status = status
-        self.sig_level = sig_level
-        self.test_type = test_type
-        self.s = s
-        self.statistics = statistics
-        self.p_values = p_values
-        self.critical_values = critical_values
-
-    def __repr__(self):
-        return f"VarianceRatioTestReport(status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values})"
-
-    def __str__(self):
-        return f"status={self.status}, sig_level={self.sig_level}, s={self.s}, statistics={self.statistics}, p_values={self.p_values}, critical_values={self.critical_values}"
-
-    def _header(self, tablefmt):
-        test_status = "Passed" if self.status else "Failed"
-        header = [["Result", test_status], ["Test Type", self.test_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
-        if self.critical_values[0] is not None:
-            header.append(["Lower Critical Value", format(self.critical_values[0], '1.3f')])
-        if self.critical_values[1] is not None:
-            header.append(["Upper Critical Value", format(self.critical_values[1], '1.3f')])
-        return tabulate(header, tablefmt=tablefmt)
-
-    def _results(self, tablefmt):
-        if self.critical_values[0] is None:
-            z_result = [self.statistics[i] < self.critical_values[1] for i in range(len(self.statistics))]
-        elif self.critical_values[1] is None:
-            z_result = [self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
-        else:
-            z_result = [self.critical_values[1] > self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
-        z_result = ["Passed" if zr else "Failed" for zr in z_result]
-        s_result = [int(s_val) for s_val in self.s]
-        stat_result = [format(stat, '1.3f') for stat in self.statistics]
-        pval_result = [format(pval, '1.3f') for pval in self.p_values]
-        results = [s_result]
-        results.append(stat_result)
-        results.append(pval_result)
-        results.append(z_result)
-        results = numpy.transpose(numpy.array(results))
-        return tabulate(results, headers=["s", "Z(s)", "pvalue", "Result"], tablefmt=tablefmt)
-
-    def table(self, tablefmt):
-        header = self._header(tablefmt)
-        result = self._results(tablefmt)
-        return [header, result]
