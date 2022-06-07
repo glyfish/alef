@@ -232,7 +232,7 @@ class ParamEst:
                      "Error Label": self.err_label}
 
     @staticmethod
-    def from_dictionary(meta_data):
+    def from_dict(meta_data):
         if "Estimate Label" in meta_data:
             est_label = meta_data["Estimate Label"]
         else:
@@ -318,9 +318,9 @@ class ARMAEst:
     def from_dict(meta_data):
         return ARMAEst(
             type=meta_data["Type"],
-            const=ParamEst.from_dictionary(meta_data["Const"]),
-            sigma2=ParamEst.from_dictionary(meta_data["Sigma2"]),
-            params=[ParamEst.from_dictionary(est) for est in  meta_data["Parameters"]]
+            const=ParamEst.from_dict(meta_data["Const"]),
+            sigma2=ParamEst.from_dict(meta_data["Sigma2"]),
+            params=[ParamEst.from_dict(est) for est in  meta_data["Parameters"]]
         )
 
 ##################################################################################################################
@@ -390,8 +390,8 @@ class OLSSingleVarEst:
     def from_dict(meta_data):
         return OLSSingleVarEst(type=meta_data["Type"],
                                reg_type=meta_data["Regression Type"],
-                               const=ParamEst.from_dictionary(meta_data["Constant"]),
-                               param=ParamEst.from_dictionary(meta_data["Parameter"]),
+                               const=ParamEst.from_dict(meta_data["Constant"]),
+                               param=ParamEst.from_dict(meta_data["Parameter"]),
                                r2=meta_data["R2"])
 
 ##################################################################################################################
@@ -554,19 +554,19 @@ def _arma_estimate_from_result(result, type):
     nparams = len(result.params)
     params = []
     for i in range(1, nparams-1):
-        params.append(ParamEst.from_dictionary({"Estimate": result.params.iloc[i],
-                                                "Error": result.bse.iloc[i]}))
-    const = ParamEst.from_dictionary({"Estimate": result.params.iloc[0],
-                                      "Error": result.bse.iloc[0]})
-    sigma2 = ParamEst.from_dictionary({"Estimate": result.params.iloc[nparams-1],
-                                       "Error": result.bse.iloc[nparams-1]})
+        params.append(ParamEst.from_dict({"Estimate": result.params.iloc[i],
+                                          "Error": result.bse.iloc[i]}))
+    const = ParamEst.from_dict({"Estimate": result.params.iloc[0],
+                                "Error": result.bse.iloc[0]})
+    sigma2 = ParamEst.from_dict({"Estimate": result.params.iloc[nparams-1],
+                                 "Error": result.bse.iloc[nparams-1]})
     return ARMAEst(type, const, sigma2, params)
 
 def _ols_estimate_from_result(x, y, reg_type, est_type, result):
-    const = ParamEst.from_dictionary({"Estimate": result.params[0],
-                                      "Error": result.bse[0]})
-    param = ParamEst.from_dictionary({"Estimate": result.params[1],
-                                      "Error": result.bse[1]})
+    const = ParamEst.from_dict({"Estimate": result.params[0],
+                                "Error": result.bse[0]})
+    param = ParamEst.from_dict({"Estimate": result.params[1],
+                                "Error": result.bse[1]})
     r2 = result.rsquared
     return OLSSingleVarEst(est_type, reg_type, const, param, r2)
 
@@ -654,38 +654,99 @@ def _vr_test(y, hypo_type, test_type, impl_type, **kwargs):
     return result, _vr_report_from_result(result, test_type, impl_type)
 
 ##################################################################################################################
-# Constrct test report from result object
-def _adf_report_from_result(result, test_type, impl_type):
-    return result
+# Test Parameter
+class TestParam:
+    def __init__(self, label, value):
+        self.label = label
+        self.value = value
+        self.dict = {"Value": value,
+                     "Label": label}
 
-def _vr_report_from_result(result, test_type, impl_type):
-    return result
+    def __repr__(self):
+        return f"TestParam({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"label=({self.label}), " \
+               f"value=({self.value})"
+
+    @staticmethod
+    def from_dict(meta_data):
+        return TestParam(label=meta_data["Label"],
+                         value=meta_data["Value"])
 
 ##################################################################################################################
 # Test Data
 class TestData:
-    def __init__(self, hyp, result, stat, pval, param, sig, lower, upper):
+    def __init__(self, hyp, result, stat, pval, params, sig, lower, upper):
         self.hyp = hyp
         self.result = result
         self.stat = stat
         self.pval = pval
-        self.param = param
+        self.params = params
         self.sig = sig
         self.lower = lower
         self.upper = upper
-        self.dict = {}
+        self.dict = {"Hypothesis": hyp,
+                     "Result": result,
+                     "Statistic": stat.dict,
+                     "PValue": pval.dict,
+                     "Parameters": [param.dict for param in params],
+                     "Significance": sig,
+                     "Lower Critical Value": lower.dict,
+                     "Upper Critical Value": upper.dict}
+
+    def __repr__(self):
+        return f"TestData({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"hyp=({self.hyp}), " \
+               f"result=({self.result}), " \
+               f"stat=({self.stat}), " \
+               f"pval=({self.pval}, " \
+               f"params=({self.params}), " \
+               f"sig=({self.sig}), " \
+               f"lower=({self.lower}), " \
+               f"upper=({self.upper}), " \
+
+    @staticmethod
+    def from_dict(meta_data):
+        return TestData(hyp=meta_data["Hypothesis"],
+                        result=meta_data["Result"],
+                        stat=TestParam.from_dict(meta_data["Statistic"]),
+                        pval=TestParam.from_dict(meta_data["PValue"]),
+                        params=[TestParam.from_dict(param) for param in meta_data["Parameters"]],
+                        sig=meta_data["Significance"],
+                        lower=TestParam.from_dict(meta_data["Lower Critical Value"]),
+                        upper=estParam.from_dict(meta_data["Upper Critical Value"]))
 
 ##################################################################################################################
 # Test Report
 class TestReport:
-    def __init__(self, type, impl, stat_label, param_label, desc, test_data):
-        self.type = type
-        self.impl = impl
-        self.stat_label = stat_label
-        self.param_label = param_label
+    def __init__(self, test_type, impl_type, desc, test_data):
+        self.test_type = test_type
+        self.impl_type = impl_type
         self.test_data = test_data
         self.desc = desc
-        self.dict = {}
+        self.dict = {"TestType": test_type,
+                     "ImplType": impl_type,
+                     "Description": desc,
+                     "TestData": [data_item.dict for data_itme in test_data]}
+
+        def key(self):
+            return self.test_type.value()
+
+        @staticmethod
+        def from_dict(meta_data):
+            TestReport(test_type=meta_data["TestType"],
+                       impl_type=meta_data["ImplType"],
+                       desc=meta_data["ImplType"],
+                       test_data=[TestData.from_dict(data) for data in meta_data["TestData"]])
 
 ##################################################################################################################
 # Create tests
@@ -695,23 +756,19 @@ def _create_dict_from_tests(tests):
         result[key] = tests[key].dict
     return result
 
-def _create_tests_from_dict(dict):
+def _create_tests_from_dict(meta_data):
     result = {}
-    for key in dict.keys():
-        result[key] = _create_test_from_dict(dict[key])
+    for key in meta_data.keys():
+        result[key] = _create_test_from_dict(meta_data[key])
     return result
 
-def _create_test_from_dict(dict):
-    test_type = dict["Type"]
-    return dict
-    # if est_type.value == TestType.ADF.value:
-    # else:
-    #     raise Exception(f"Esitmate type is invalid: {est_type}")
+def _create_test_from_dict(meta_data):
+    return TestReport.from_dict(meta_data)
 
 ##################################################################################################################
-# perform test for specified type
-def _perform_test_for_type(x, y, test_type, **kwargs):
-    if est_type.value == TestType.ADF.value:
-        ""
-    else:
-        raise Exception(f"Esitmate type is invalid: {est_type}")
+# Constrct test report from result object
+def _adf_report_from_result(result, test_type, impl_type):
+    return result
+
+def _vr_report_from_result(result, test_type, impl_type):
+    return result
