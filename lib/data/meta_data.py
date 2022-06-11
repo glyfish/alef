@@ -111,7 +111,7 @@ class MetaData:
         MetaData.set(df, meta_data)
 
     @classmethod
-    def add_test(cls, df, data_type, test):
+    def add_test(cls, df, test):
         meta_data = MetaData.get(df)
         meta_data.insert_test(test)
         MetaData.set(df, meta_data)
@@ -120,16 +120,8 @@ class MetaData:
     def from_dict(meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
         formula =  meta_data["Formula"] if "Formula" in meta_data else None
-
-        if "Estimates" in meta_data:
-            ests = _create_estimates_from_dict(meta_data["Estimates"])
-        else:
-            ests = {}
-
-        if "Tests" in meta_data:
-            tests = _create_tests_from_dict(meta_data["Tests"])
-        else:
-            tests = {}
+        ests = _create_estimates_from_dict(meta_data["Estimates"]) if "Estimates" in meta_data else {}
+        tests = _create_tests_from_dict(meta_data["Tests"]) if "Tests" in meta_data else {}
 
         return MetaData(
             npts=meta_data["npts"],
@@ -608,8 +600,8 @@ class _TestImpl(Enum):
 
     def perform(self, df, test_type, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, report = _perform_test_for_impl(x, y, test_type, self, **kwargs)
-        # MetaData.add_test(df, test)
+        result, test = _perform_test_for_impl(x, y, test_type, self, **kwargs)
+        MetaData.add_test(df, test)
         return result
 
 ##################################################################################################################
@@ -680,23 +672,21 @@ class TestParam:
 ##################################################################################################################
 # Test Data
 class TestData:
-    def __init__(self, hyp, result, stat, pval, params, sig, lower, upper):
-        self.hyp = hyp
-        self.result = result
+    def __init__(self, status, stat, pval, params, sig, lower, upper):
+        self.status = status
         self.stat = stat
         self.pval = pval
         self.params = params
         self.sig = sig
         self.lower = lower
         self.upper = upper
-        self.dict = {"Hypothesis": hyp,
-                     "Result": result,
+        self.dict = {"Status": status,
                      "Statistic": stat.dict,
                      "PValue": pval.dict,
                      "Parameters": [param.dict for param in params],
-                     "Significance": sig,
-                     "Lower Critical Value": lower.dict,
-                     "Upper Critical Value": upper.dict}
+                     "Significance": sig.dict,
+                     "Lower Critical Value": lower.dict if lower is not None else None,
+                     "Upper Critical Value": upper.dict if upper is not None else None}
 
     def __repr__(self):
         return f"TestData({self._props()})"
@@ -705,48 +695,68 @@ class TestData:
         return self._props()
 
     def _props(self):
-        return f"hyp=({self.hyp}), " \
-               f"result=({self.result}), " \
+        return f"status=({self.status}), " \
                f"stat=({self.stat}), " \
                f"pval=({self.pval}, " \
                f"params=({self.params}), " \
                f"sig=({self.sig}), " \
                f"lower=({self.lower}), " \
-               f"upper=({self.upper}), " \
+               f"upper=({self.upper})"
 
     @staticmethod
     def from_dict(meta_data):
-        return TestData(hyp=meta_data["Hypothesis"],
-                        result=meta_data["Result"],
+        lower = meta_data["Lower Critical Value"]
+        upper = meta_data["Upper Critical Value"]
+        return TestData(status=meta_data["Status"],
                         stat=TestParam.from_dict(meta_data["Statistic"]),
                         pval=TestParam.from_dict(meta_data["PValue"]),
                         params=[TestParam.from_dict(param) for param in meta_data["Parameters"]],
-                        sig=meta_data["Significance"],
-                        lower=TestParam.from_dict(meta_data["Lower Critical Value"]),
-                        upper=estParam.from_dict(meta_data["Upper Critical Value"]))
+                        sig=TestParam.from_dict(meta_data["Significance"]),
+                        lower=TestParam.from_dict(lower) if lower is not None else None,
+                        upper=TestParam.from_dict(upper) if upper is not None else None)
 
 ##################################################################################################################
 # Test Report
 class TestReport:
-    def __init__(self, test_type, impl_type, desc, test_data):
+    def __init__(self, status, test_hyp, test_type, impl_type, desc, test_data):
+        self.status = status
+        self.test_hyp = test_hyp
         self.test_type = test_type
         self.impl_type = impl_type
         self.test_data = test_data
         self.desc = desc
-        self.dict = {"TestType": test_type,
+        self.dict = {"Status": status,
+                     "TestHypothesis": test_hyp,
+                     "TestType": test_type,
                      "ImplType": impl_type,
                      "Description": desc,
-                     "TestData": [data_item.dict for data_itme in test_data]}
+                     "TestData": [data.dict for data in test_data]}
 
-        def key(self):
-            return self.test_type.value()
+    def __repr__(self):
+        return f"TestReport({self._props()})"
 
-        @staticmethod
-        def from_dict(meta_data):
-            TestReport(test_type=meta_data["TestType"],
-                       impl_type=meta_data["ImplType"],
-                       desc=meta_data["ImplType"],
-                       test_data=[TestData.from_dict(data) for data in meta_data["TestData"]])
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"status=({self.status}), " \
+               f"test_hyp=({self.test_hyp}), " \
+               f"test_type=({self.test_type}), " \
+               f"impl_type=({self.impl_type}, " \
+               f"desc=({self.desc}, " \
+               f"test_data=({self.test_data})"
+
+    def key(self):
+        return self.test_type.value
+
+    @staticmethod
+    def from_dict(meta_data):
+        return TestReport(status=meta_data["Status"],
+                          test_hyp=meta_data["TestHypothesis"],
+                          test_type=meta_data["TestType"],
+                          impl_type=meta_data["ImplType"],
+                          desc=meta_data["Description"],
+                          test_data=[TestData.from_dict(data) for data in meta_data["TestData"]])
 
 ##################################################################################################################
 # Create tests
@@ -768,7 +778,27 @@ def _create_test_from_dict(meta_data):
 ##################################################################################################################
 # Constrct test report from result object
 def _adf_report_from_result(result, test_type, impl_type):
-    return result
+    sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
+    stat = TestParam(label=r"$t$", value=result.stat)
+    pval = TestParam(label="p-value", value = result.pval)
+    lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
+    test_data = []
+    for i in range(3):
+        data = TestData(status=result.status_vals[i],
+                        stat=stat,
+                        pval=pval,
+                        params=[],
+                        sig=sigs[i],
+                        lower=lower_vals[i],
+                        upper=None)
+        test_data.append(data)
+    status = not result.status_vals[0] or not result.status_vals[1] or not result.status_vals[2]
+    return TestReport(status=status,
+                      test_hyp=TestHypothesis.LOWER_TAIL,
+                      test_type=test_type,
+                      impl_type=impl_type,
+                      test_data=test_data,
+                      desc="ADF Test")
 
 def _vr_report_from_result(result, test_type, impl_type):
     return result

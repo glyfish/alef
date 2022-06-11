@@ -71,21 +71,21 @@ class VarianceRatioTestReport:
 class ADFTestReport:
     def __init__(self, result):
         self.stat = result[0]
-        self.pvalue = result[1]
+        self.pval = result[1]
         self.lags = result[2]
         self.nobs = result[3]
         self.sig_str = ["1%", "5%", "10%"]
         self.sig = [0.01, 0.05, 0.1]
-        self.status_vals = [True if self.stat >= result[4][sig] else False for sig in self.sig_str]
-        self.status_str = ["Passed" if self.status_vals[i] else "Failed" for i in range(3)]
-        self.critical_values = [result[4][sig] for sig in self.sig_str]
+        self.critical_vals = [result[4][sig] for sig in self.sig_str]
+        self.status_vals = [self.stat >= val for val in self.critical_vals]
+        self.status_str = ["Passed" if status else "Failed" for status in self.status_vals]
 
     def summary(self, tablefmt="fancy_grid"):
         headers = ["Significance", "Critical Value", "Result"]
         header = [["Test Statistic", self.stat],
-                  ["pvalue", self.pvalue],
+                  ["pvalue", self.pval],
                   ["Lags", self.lags],
                   ["Number Obs", self.nobs]]
-        results = [[self.sig_str[i], self.critical_values[i], self.status_str[i]] for i in range(3)]
+        results = [[self.sig_str[i], self.critical_vals[i], self.status_str[i]] for i in range(3)]
         print(tabulate(header, tablefmt=tablefmt))
         print(tabulate(results, tablefmt=tablefmt, headers=headers))

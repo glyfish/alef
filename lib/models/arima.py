@@ -170,7 +170,7 @@ def ma_offset_fit(df, order):
 ###############################################################################################
 ## ADF Test
 def adf_test(samples):
-    return _adfuller_test(samples, 'nc')
+    return _adfuller_test(samples, 'n')
 
 def adf_test_offset(samples):
     return _adfuller_test(samples, 'c')
