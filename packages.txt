@@ -6,3 +6,4 @@ matplotlib
 pandas
 statsmodels
 ipykernel
+'python-language-server[all]'

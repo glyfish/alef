@@ -792,8 +792,7 @@ def _adf_report_from_result(result, test_type, impl_type):
                         lower=lower_vals[i],
                         upper=None)
         test_data.append(data)
-    status = not result.status_vals[0] or not result.status_vals[1] or not result.status_vals[2]
-    return TestReport(status=status,
+    return TestReport(status=not result.status_vals[2],
                       test_hyp=TestHypothesis.LOWER_TAIL,
                       test_type=test_type,
                       impl_type=impl_type,
