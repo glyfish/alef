@@ -124,40 +124,40 @@ def generate_fft(H, n, Δt=1, dB=None):
 ###############################################################################################
 ## Variance Ratio Test
 # The homoscedastic test statistic is used n the analysis.
-def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.1, test_type=TestHypothesis.TWO_TAIL):
+def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.1, hyp_type=TestHypothesis.TWO_TAIL):
     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
-    if test_type.value == TestHypothesis.TWO_TAIL.value:
-        return _var_test_two_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
-    elif test_type.value == TestHypothesis.UPPER_TAIL.value:
-        return _var_test_upper_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
-    elif test_type.value == TestHypothesis.LOWER_TAIL.value:
-        return _var_test_lower_tail(test_stats, s_vals, sig_level, test_type, report, tablefmt)
+    if hyp_type.value == TestHypothesis.TWO_TAIL.value:
+        return _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
+    elif hyp_type.value == TestHypothesis.UPPER_TAIL.value:
+        return _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
+    elif hyp_type.value == TestHypothesis.LOWER_TAIL.value:
+        return _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
     else:
-        raise Exception(f"Hypothesis test type is invalid: {test_type}")
+        raise Exception(f"Hypothesis test type is invalid: {hyp_type}")
 
 # perform two tail variance ratio test
-def _var_test_two_tail(test_stats, s_vals, sig_level, test_type):
+def _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type):
     sig_level = sig_level/2.0
     dist = Dist.NORMAL.create()
     lower_critical_value = dist.ppf(sig_level)
     upper_critical_value = dist.ppf(1.0 - sig_level)
     p_values = [2.0*(1.0 - dist.cdf(numpy.abs(stat))) for stat in test_stats]
-    return VarianceRatioTestReport(2.0*sig_level, test_type, s_vals, test_stats,
+    return VarianceRatioTestReport(2.0*sig_level, hyp_type, s_vals, test_stats,
                                    p_values, [lower_critical_value, upper_critical_value])
 
 # perform upper tail variance ratio test
-def _var_test_upper_tail(test_stats, s_vals, sig_level, test_type):
+def _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type):
     dist = Dist.NORMAL.create()
     upper_critical_value = dist.ppf(1.0 - sig_level)
     p_values = [1.0 - dist.cdf(stat) for stat in test_stats]
-    return VarianceRatioTestReport(sig_level, test_type, s_vals, test_stats, p_values, [None, upper_critical_value])
+    return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [None, upper_critical_value])
 
 # perform lower tail variance ratio test
-def _var_test_lower_tail(test_stats, s_vals, sig_level, test_type):
+def _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type):
     dist = Dist.NORMAL.create()
     lower_critical_value = dist.ppf(sig_level)
     p_values = [dist.cdf(stat) for stat in test_stats]
-    return VarianceRatioTestReport(sig_level, test_type, s_vals, test_stats, p_values, [lower_critical_value, None])
+    return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [lower_critical_value, None])
 
 # lag variance
 def lag_var(samples, s):

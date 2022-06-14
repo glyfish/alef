@@ -12,3 +12,5 @@ from lib.models import bm
 from lib.models import fbm
 from lib.models import ou
 from lib.models.dist import (Dist, TestHypothesis)
+
+from lib.utils import (create_logspace, create_space)

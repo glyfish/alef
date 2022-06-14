@@ -4,13 +4,19 @@ from tabulate import tabulate
 # Variance ratio test report
 ##################################################################################################################
 class VarianceRatioTestReport:
-    def __init__(self, sig_level, test_type, s, stats, p_values, critical_values):
+    def __init__(self, sig_level, test_hyp, s_vals, stats, p_values, critical_values):
         self.sig_level = sig_level
-        self.test_type = test_type
-        self.s = s
+        self.hyp_type = hyp_type
+        self.s_vals = s_vals
         self.stats = stats
         self.p_values = p_values
         self.critical_values = critical_values
+        if self.critical_values[0] is None:
+            self.status_vals = [self.stats[i] < self.critical_values[1] for i in range(len(self.stats))]
+        elif self.critical_values[1] is None:
+            self.status_vals = [self.stats[i] > self.critical_values[0] for i in range(len(self.stats))]
+        else:
+            self.status_vals = [self.critical_values[1] > self.stats[i] > self.critical_values[0] for i in range(len(self.stats))]
 
     def __repr__(self):
         return f"VarianceRatioTestReport({self._props()})"
@@ -22,13 +28,13 @@ class VarianceRatioTestReport:
         return f"status={self.status}, " \
                f"sig_level={self.sig_level}, " \
                f"s={self.s}, " \
-               f"statistics={self.statistics}, " \
+               f"stats={self.stats}, " \
                f"p_values={self.p_values}, " \
                f"critical_values={self.critical_values}"
 
     def _header(self, tablefmt):
         test_status = "Passed" if self.status else "Failed"
-        header = [["Result", test_status], ["Test Type", self.test_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
+        header = [["Result", test_status], ["Hypothesis Type", self.hyp_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
         if self.critical_values[0] is not None:
             header.append(["Lower Critical Value", format(self.critical_values[0], '1.3f')])
         if self.critical_values[1] is not None:
@@ -36,20 +42,14 @@ class VarianceRatioTestReport:
         return tabulate(header, tablefmt=tablefmt)
 
     def _results(self, tablefmt):
-        if self.critical_values[0] is None:
-            z_result = [self.statistics[i] < self.critical_values[1] for i in range(len(self.statistics))]
-        elif self.critical_values[1] is None:
-            z_result = [self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
-        else:
-            z_result = [self.critical_values[1] > self.statistics[i] > self.critical_values[0] for i in range(len(self.statistics))]
-        z_result = ["Passed" if zr else "Failed" for zr in z_result]
+        status_result = ["Passed" if status else "Failed" for status in self.status_vals]
         s_result = [int(s_val) for s_val in self.s]
-        stat_result = [format(stat, '1.3f') for stat in self.statistics]
+        stat_result = [format(stat, '1.3f') for stat in self.stats]
         pval_result = [format(pval, '1.3f') for pval in self.p_values]
         results = [s_result]
         results.append(stat_result)
         results.append(pval_result)
-        results.append(z_result)
+        results.append(status_result)
         results = numpy.transpose(numpy.array(results))
         return tabulate(results, headers=["s", "Z(s)", "pvalue", "Result"], tablefmt=tablefmt)
 

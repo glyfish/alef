@@ -566,18 +566,49 @@ def _ols_estimate_from_result(x, y, reg_type, est_type, result):
 # Test
 ##################################################################################################################
 class Test(Enum):
-    STATIONARITY = "STATIONARITY"         # Test for stationarity
-    BM = "BM"                             # Test for brownian motion
-    AUTO_CORR = "AUTO_CORR"               # Test for autocorrelated fractional brownian motion
-    NEG_AUTO_CORR = "NEG_AUTO_CORR"       # Test for negative autocorrelated fractional brownian motion
+    STATIONARITY = "STATIONARITY"                  # Test for stationarity
+    STATIONARITY_OFFSET = "STATIONARITY_OFFSET"    # Test for stationarity
+    STATIONARITY_DRIFT = "STATIONARITY_DRIFT"      # Test for stationarity
+    BM = "BM"                                      # Test for brownian motion
+    AUTO_CORR = "AUTO_CORR"                        # Test for autocorrelated fractional brownian motion
+    NEG_AUTO_CORR = "NEG_AUTO_CORR"                # Test for negative autocorrelated fractional brownian motion
 
     def perform(self, df, **kwargs):
         impl = self._impl()
         return impl.perform(df, self, **kwargs)
 
+    def status(self, status):
+        if self.value == Test.STATIONARITY.value:
+            return not status[2]
+        if self.value == Test.STATIONARITY_OFFSET.value:
+            return not status[2]
+        if self.value == Test.STATIONARITY_DRIFT.value:
+            return not status[2]
+        elif self.value == Test.BM.value:
+            for stat in status:
+                if not status:
+                    return False
+            return True
+        elif self.value == Test.AUTO_CORR.value:
+            for stat in status:
+                if not status:
+                    return True
+            return False
+        elif self.value == Test.NEG_AUTO_CORR.value:
+            for stat in status:
+                if not status:
+                    return True
+            return False
+        else:
+            raise Exception(f"Test type is invalid: {self}")
+
     def _impl(self):
         if self.value == Test.STATIONARITY.value:
             return _TestImpl.ADF
+        if self.value == Test.STATIONARITY_OFFSET.value:
+            return _TestImpl.ADF_OFFSET
+        if self.value == Test.STATIONARITY_DRIFT.value:
+            return _TestImpl.ADF_DRIFT
         elif self.value == Test.BM.value:
             return _TestImpl.VR_TWO_TAILED
         elif self.value == Test.AUTO_CORR.value:
@@ -780,7 +811,7 @@ def _create_test_from_dict(meta_data):
 def _adf_report_from_result(result, test_type, impl_type):
     sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
     stat = TestParam(label=r"$t$", value=result.stat)
-    pval = TestParam(label="p-value", value = result.pval)
+    pval = TestParam(label=r"$p-value$", value = result.pval)
     lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
     test_data = []
     for i in range(3):
@@ -792,7 +823,7 @@ def _adf_report_from_result(result, test_type, impl_type):
                         lower=lower_vals[i],
                         upper=None)
         test_data.append(data)
-    return TestReport(status=not result.status_vals[2],
+    return TestReport(status=test_type.status(result.status_vals),
                       test_hyp=TestHypothesis.LOWER_TAIL,
                       test_type=test_type,
                       impl_type=impl_type,
@@ -800,4 +831,29 @@ def _adf_report_from_result(result, test_type, impl_type):
                       desc="ADF Test")
 
 def _vr_report_from_result(result, test_type, impl_type):
-    return result
+    sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
+    s_vals = [TestParam(label=r"$s$", value=s) for s in result.s_vals]
+    stats = [TestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
+    pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.pvals]
+    lower = result.critical_values[0]
+    if lower is not None:
+        lower = TestParam(label=r"$Z_L(s)$", value=lower)
+    upper = result.critical_values[1]
+    if upper is not None:
+        upper = TestParam(label=r"$Z_U(s)$", value=upper)
+    test_data = []
+    for i in range(len(s_vals)):
+        data = TestData(status=result.status_vals[i],
+                        stat=stats[i],
+                        pval=pvals[i],
+                        params=[s_vals[i]],
+                        sig=sig,
+                        lower=lower,
+                        upper=upper)
+        test_data.append(data)
+    return TestReport(status=test_type.status(result.status_vals),
+                      test_hyp=result.test_hyp,
+                      test_type=test_type,
+                      impl_type=impl_type,
+                      test_data=test_data,
+                      desc="ADF Test")
