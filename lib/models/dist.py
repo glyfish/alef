@@ -7,7 +7,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 
 # Supported Distributions
 class Dist(Enum):
-    NORMAL = 1          # Normal distribution
+    NORMAL = "NORMAL"         # Normal distribution
 
     def create(self, **kwargs):
         return _create_distribution(self, **kwargs)
@@ -18,7 +18,7 @@ class TestHypothesis(Enum):
     LOWER_TAIL = "LOWER_TAIL"
     UPPER_TAIL = "UPPER_TAIL"
 
-# Create specified distribution function with specifoed parameters
+# Create specified distribution function with specified parameters
 def _create_distribution(dist_type, **kwargs):
     loc = get_param_default_if_missing("loc", 0.0, **kwargs)
     scale = get_param_default_if_missing("scale", 1.0, **kwargs)
@@ -42,3 +42,8 @@ class DistSingleVar:
 
     def ppf(self, x):
         return self.dist.ppf(x, loc=self.loc, scale=self.scale)
+
+    def range(self, npts, nscale=5.0):
+        xmin = -nscale*self.scale + self.loc
+        xmax = nscale*self.scale + self.loc
+        return numpy.linspace(xmin, xmax, npts)

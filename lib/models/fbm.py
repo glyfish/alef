@@ -165,15 +165,21 @@ def lag_var(samples, s):
     μ = (samples[t] - samples[0]) / t
     m = (t - s + 1.0)*(1.0 - s/t)
     σ = 0.0
-    for i in range(s, t+1):
+    for i in range(int(s), t+1):
         σ += (samples[i] - samples[i-s] - μ*s)**2
     return σ/m
+
+def lag_var_scan(samples, s_vals):
+    return [lag_var(samples, s) for s in s_vals]
 
 # variance ratio
 def vr(samples, s):
     vars = lag_var(samples, s)
     var1 = lag_var(samples, 1)
     return vars/(s*var1)
+
+def vr_scan(samples, s_vals):
+    return [vr(samples, s) for s in s_vals]
 
 # Homoscedastic variance Ratio
 def vr_stat_homo(samples, s):
@@ -183,6 +189,9 @@ def vr_stat_homo(samples, s):
     r = vr(samples, s)
     θ = 2.0*(2.0*s - 1.0)*(s - 1.0)/(3.0*s*t)
     return (r - 1.0)/numpy.sqrt(θ)
+
+def vr_stat_homo_scan(samples, s_vals):
+    return [vr_stat_homo(samples, s) for s in s_vals]
 
 # Heteroscedastic variance Ratio
 def vr_stat_hetero(samples, s):
@@ -209,3 +218,6 @@ def theta_factor(samples, s):
         delta = delta_factor(samples, j)
         factor += delta*(2.0*(s-j)/s)**2
     return factor/t**2
+
+def vr_stat_hetero_scan(samples, s_vals):
+    return [vr_stat_hetero(samples, s) for s in s_vals]

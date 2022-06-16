@@ -486,7 +486,7 @@ def _create_estimate_from_dict(dict):
 def _create_dict_from_estimates(ests):
     result = {}
     for key in ests.keys():
-        result[key] = ests[key].data
+        result[key] = ests[key].dict
     return result
 
 ##################################################################################################################
@@ -749,18 +749,21 @@ class TestData:
 ##################################################################################################################
 # Test Report
 class TestReport:
-    def __init__(self, status, test_hyp, test_type, impl_type, desc, test_data):
+    def __init__(self, status, test_hyp, test_type, impl_type, desc, test_data, dist, **dist_params):
         self.status = status
         self.test_hyp = test_hyp
         self.test_type = test_type
         self.impl_type = impl_type
         self.test_data = test_data
         self.desc = desc
+        self.dist = dist
         self.dict = {"Status": status,
                      "TestHypothesis": test_hyp,
                      "TestType": test_type,
                      "ImplType": impl_type,
                      "Description": desc,
+                     "Distribution": dist,
+                     "Distribution Params": dist_params,
                      "TestData": [data.dict for data in test_data]}
 
     def __repr__(self):
@@ -787,6 +790,8 @@ class TestReport:
                           test_type=meta_data["TestType"],
                           impl_type=meta_data["ImplType"],
                           desc=meta_data["Description"],
+                          dist=meta_data["Distribution"],
+                          dist_params=meta_data["Distribution Params"],
                           test_data=[TestData.from_dict(data) for data in meta_data["TestData"]])
 
 ##################################################################################################################
@@ -828,7 +833,8 @@ def _adf_report_from_result(result, test_type, impl_type):
                       test_type=test_type,
                       impl_type=impl_type,
                       test_data=test_data,
-                      desc="ADF Test")
+                      desc="ADF Test",
+                      dist=None)
 
 def _vr_report_from_result(result, test_type, impl_type):
     sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
@@ -856,4 +862,7 @@ def _vr_report_from_result(result, test_type, impl_type):
                       test_type=test_type,
                       impl_type=impl_type,
                       test_data=test_data,
-                      desc="ADF Test")
+                      desc="ADF Test",
+                      dist=Dist.NORMAL,
+                      loc=0.0,
+                      scale=1.0)
