@@ -127,11 +127,11 @@ def generate_fft(H, n, Δt=1, dB=None):
 def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.1, hyp_type=TestHypothesis.TWO_TAIL):
     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
     if hyp_type.value == TestHypothesis.TWO_TAIL.value:
-        return _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
+        return _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type)
     elif hyp_type.value == TestHypothesis.UPPER_TAIL.value:
-        return _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
+        return _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type)
     elif hyp_type.value == TestHypothesis.LOWER_TAIL.value:
-        return _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type, report, tablefmt)
+        return _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type)
     else:
         raise Exception(f"Hypothesis test type is invalid: {hyp_type}")
 

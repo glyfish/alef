@@ -22,14 +22,14 @@ class TestHypothesis(Enum):
 def _create_distribution(dist_type, **kwargs):
     loc = get_param_default_if_missing("loc", 0.0, **kwargs)
     scale = get_param_default_if_missing("scale", 1.0, **kwargs)
-    if dist_type.value == DistType.NORMAL.value:
+    if dist_type.value == Dist.NORMAL.value:
         return DistSingleVar(dist=stats.norm, loc=loc, scale=scale)
     else:
         raise Exception(f"Distribution type is invalid: {type}")
 
 # Normal distributions with scale σ and loc μ
 class DistSingleVar:
-    def _init_(self, dist, loc, scale):
+    def __init__(self, dist, loc, scale):
         self.dist = dist
         self.loc = loc
         self.scale = scale

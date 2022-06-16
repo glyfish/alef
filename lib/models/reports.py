@@ -1,15 +1,16 @@
 from tabulate import tabulate
+import numpy
 
 ##################################################################################################################
 # Variance ratio test report
 ##################################################################################################################
 class VarianceRatioTestReport:
-    def __init__(self, sig_level, test_hyp, s_vals, stats, p_values, critical_values):
+    def __init__(self, sig_level, hyp_type, s_vals, stats, p_vals, critical_values):
         self.sig_level = sig_level
         self.hyp_type = hyp_type
         self.s_vals = s_vals
         self.stats = stats
-        self.p_values = p_values
+        self.p_vals = p_vals
         self.critical_values = critical_values
         if self.critical_values[0] is None:
             self.status_vals = [self.stats[i] < self.critical_values[1] for i in range(len(self.stats))]
@@ -25,16 +26,15 @@ class VarianceRatioTestReport:
         return self._props()
 
     def _props(self):
-        return f"status={self.status}, " \
+        return f"status_vals={self.status_vals}, " \
                f"sig_level={self.sig_level}, " \
-               f"s={self.s}, " \
+               f"s_vals={self.s_vals}, " \
                f"stats={self.stats}, " \
-               f"p_values={self.p_values}, " \
+               f"p_vals={self.p_vals}, " \
                f"critical_values={self.critical_values}"
 
     def _header(self, tablefmt):
-        test_status = "Passed" if self.status else "Failed"
-        header = [["Result", test_status], ["Hypothesis Type", self.hyp_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
+        header = [["Hypothesis Type", self.hyp_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
         if self.critical_values[0] is not None:
             header.append(["Lower Critical Value", format(self.critical_values[0], '1.3f')])
         if self.critical_values[1] is not None:
@@ -43,9 +43,9 @@ class VarianceRatioTestReport:
 
     def _results(self, tablefmt):
         status_result = ["Passed" if status else "Failed" for status in self.status_vals]
-        s_result = [int(s_val) for s_val in self.s]
+        s_result = [int(s_val) for s_val in self.s_vals]
         stat_result = [format(stat, '1.3f') for stat in self.stats]
-        pval_result = [format(pval, '1.3f') for pval in self.p_values]
+        pval_result = [format(pval, '1.3f') for pval in self.p_vals]
         results = [s_result]
         results.append(stat_result)
         results.append(pval_result)
@@ -59,9 +59,7 @@ class VarianceRatioTestReport:
         return [header, result]
 
     def summary(self, tablefmt="fancy_grid"):
-        if not report:
-            return
-        table = self.table(tablefmt)
+        table = self._table(tablefmt)
         print(table[0])
         print(table[1])
 

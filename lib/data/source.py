@@ -7,6 +7,7 @@ from lib import stats
 from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
+from lib.models import adf
 
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema)
@@ -38,6 +39,7 @@ class Source(Enum):
     FBM_NOISE_FFT = "FBM_NOISE_FFT"      # FBM Noise simulation implemented using the FFT method
     FBM_CHOL = "FBM_CHOL"                # FBM simulation implemented using the Cholesky method
     FBM_FFT = "FBM_FFT"                  # FBM Noise simulation implemented using the FFT method
+    DF = "DF"                            # Dickey-Fuller distribution simulation
 
     def create(self, **kwargs):
         return _create_data_source(self, **kwargs)
@@ -131,34 +133,36 @@ def _create_data_source(source_type, **kwargs):
 def _get_data_source(source_type, x, **kwargs):
     if source_type.value == Source.AR.value:
         return _create_ar_source(source_type, x, **kwargs)
-    if source_type.value == Source.AR_DRIFT.value:
+    elif source_type.value == Source.AR_DRIFT.value:
         return _create_ar_drift_source(source_type, x, **kwargs)
-    if source_type.value == Source.AR_OFFSET.value:
+    elif source_type.value == Source.AR_OFFSET.value:
         return _create_ar_offset_source(source_type, x, **kwargs)
-    if source_type.value == Source.MA.value:
+    elif source_type.value == Source.MA.value:
         return _create_ma_source(source_type, x, **kwargs)
-    if source_type.value == Source.ARMA.value:
+    elif source_type.value == Source.ARMA.value:
         return _create_arma_source(source_type, x, **kwargs)
-    if source_type.value == Source.ARIMA.value:
+    elif source_type.value == Source.ARIMA.value:
         return _create_arima_source(source_type, x, **kwargs)
-    if source_type.value == Source.ARIMA_FROM_ARMA.value:
+    elif source_type.value == Source.ARIMA_FROM_ARMA.value:
         return _create_arima_from_arma_source(source_type, x, **kwargs)
-    if source_type.value == Source.BM_NOISE.value:
+    elif source_type.value == Source.BM_NOISE.value:
         return _create_bm_noise_source(source_type, x, **kwargs)
-    if source_type.value == Source.BM.value:
+    elif source_type.value == Source.BM.value:
         return _create_bm_source(source_type, x, **kwargs)
-    if source_type.value == Source.BM_DRIFT.value:
+    elif source_type.value == Source.BM_DRIFT.value:
         return _create_bm_drift_source(source_type, x, **kwargs)
-    if source_type.value == Source.BM_GEO.value:
+    elif source_type.value == Source.BM_GEO.value:
         return _create_bm_geo_source(source_type, x, **kwargs)
-    if source_type.value == Source.FBM_NOISE_CHOL.value:
+    elif source_type.value == Source.FBM_NOISE_CHOL.value:
         return _create_fbm_noise_chol_source(source_type, x, **kwargs)
-    if source_type.value == Source.FBM_NOISE_FFT.value:
+    elif source_type.value == Source.FBM_NOISE_FFT.value:
         return _create_fbm_noise_fft_source(source_type, x, **kwargs)
-    if source_type.value == Source.FBM_CHOL.value:
+    elif source_type.value == Source.FBM_CHOL.value:
         return _create_fbm_chol_source(source_type, x, **kwargs)
-    if source_type.value == Source.FBM_FFT.value:
+    elif source_type.value == Source.FBM_FFT.value:
         return _create_fbm_fft_source(source_type, x, **kwargs)
+    elif source_type.value == Source.DF.value:
+        return _create_df_source(source_type, x, **kwargs)
     else:
         raise Exception(f"Source type is invalid: {source_type}")
 
@@ -322,7 +326,7 @@ def _create_bm_drift_source(source_type, x, **kwargs):
                       params={"σ": σ, "μ": μ, "Δt": Δx},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
-                      desc=f"Brownian Motion",
+                      desc=f"Brownian Motion With Drift",
                       f=f,
                       x=x)
 
@@ -339,7 +343,7 @@ def _create_bm_geo_source(source_type, x, **kwargs):
                       params={"σ": σ, "μ": μ, "Δt": Δx, "S0": S0},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
-                      desc=f"Brownian Motion",
+                      desc=f"Geometric Brownian Motion",
                       f=f,
                       x=x)
 
@@ -422,5 +426,20 @@ def _create_fbm_fft_source(source_type, x, **kwargs):
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"FFT FBM",
+                      f=f,
+                      x=x)
+
+# Source.DF.value:
+def _create_df_source(source_type, x, **kwargs):
+    tmax = get_param_default_if_missing("tmax", 100, **kwargs)
+    nsim = get_param_default_if_missing("nsim", 100, **kwargs)
+    f = lambda x : adf.dist_ensemble(tmax, nsim)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Dickey-Fuller-Simulation-{str(uuid.uuid4())}",
+                      params={"tmax": tmax, "nsim": nsim},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Dickey-Fuller Distribution",
                       f=f,
                       x=x)

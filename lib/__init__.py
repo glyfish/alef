@@ -2,7 +2,7 @@ from lib.plots.axis import (PlotType)
 from lib.plots.data import (curve, comparison, stack, twinx)
 from lib.plots.func import (fpoints, fcurve)
 from lib.plots.reg import (single_var)
-from lib.plots.hyp_test import (HypTestPlotType, htest)
+from lib.plots.hyp_test import (HypTestPlotType, hyp_test)
 
 from lib.data.source import (Source)
 from lib.data.func import (Func)

@@ -9,6 +9,7 @@ class DataType(Enum):
     TIME_SERIES = "TIME_SERIES"              # Time Series
     FOURIER_TRANS = "FOURIER_TRANS"          # Fourier transform
     ACF = "ACF"                              # Autocorrelation Functiom
+    DIST = "DIST"                            # Probability distribution
 
     def schema(self):
         return _create_schema(self)
@@ -135,5 +136,7 @@ def _create_schema(data_type):
         return DataSchema("ω", "s(ω)", data_type)
     elif data_type.value == DataType.ACF.value:
         return DataSchema("τ", "ρ(τ)", data_type)
+    elif data_type.value == DataType.DIST.value:
+        return DataSchema("x", "p(x)", data_type)
     else:
         raise Exception(f"Data type is invalid: {data_type}")

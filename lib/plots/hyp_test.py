@@ -4,14 +4,14 @@ from matplotlib import pyplot
 
 from lib import stats
 
-from lib.models import (TestHypothesis)
+from lib.models import (TestHypothesis, Dist)
+from lib.data.meta_data import (MetaData)
 from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
 ## Specify DistPlotConfig for distributions plot
 class HypTestPlotType(Enum):
-    VR_TEST = 1         # Variance ration test used to detect brownian motion
-
+    VR_TEST = "VR_TEST"         # Variance ration test used to detect brownian motion
 
 ###############################################################################################
 ## HypTestPlotConfig for distributions plot type
@@ -28,18 +28,18 @@ class HypTestPlotConfig:
 # Create distribution plot type
 def create_dist_plot_type(plot_type):
     if plot_type.value == HypTestPlotType.VR_TEST.value:
-        return DistPlotConfig(xlabel=r"$Z(s)$",
-                              ylabel=r"Normal(CDF)",
-                              plot_type=PlotType.LINEAR,
-                              dist_type=DistType.NORMAL,
-                              loc=0.0,
-                              scale=1.0)
+        return HypTestPlotConfig(xlabel=r"$Z(s)$",
+                                 ylabel=r"Normal(CDF)",
+                                 plot_type=PlotType.LINEAR,
+                                 dist_type=Dist.NORMAL,
+                                 loc=0.0,
+                                 scale=1.0)
     else:
         raise Exception(f"Distribution plot type is invalid: {plot_type}")
 
 ###############################################################################################
 # Hypothesis test plot (Uses DistPlotType config)
-def hyp_test(test_stats, plot_type, **kwargs):
+def hyp_test(df, plot_type, **kwargs):
     title        = kwargs["title"]        if "title"        in kwargs else None
     test_type    = kwargs["test_type"]    if "test_type"    in kwargs else HypothesisType.TWO_TAIL
     npts         = kwargs["npts"]         if "npts"         in kwargs else 100
@@ -50,6 +50,8 @@ def hyp_test(test_stats, plot_type, **kwargs):
     plot_config = create_dist_plot_type(plot_type)
     if plot_config.dist_params is not None:
         dist_params = plot_config.dist_params
+
+    _, test_stats = MetaData.get_schema_data(df)
 
     dist = Dist.NORMAL.create(**kwargs)
     x_vals = dist.range(npts)
@@ -65,16 +67,16 @@ def hyp_test(test_stats, plot_type, **kwargs):
     upper_critical_value = None
     upper_label = None
 
-    if test_type == HypothesisType.TWO_TAIL:
+    if test_type == TestHypothesis.TWO_TAIL:
         sig_level_2 = sig_level/2.0
         lower_critical_value = dist.ppf(sig_level_2)
         upper_critical_value = dist.ppf(1.0 - sig_level_2)
         lower_label = f"Lower Tail={format(sig_level_2, '1.3f')}"
         upper_label = f"Upper Tail={format(1.0 - sig_level_2, '1.3f')}"
-    elif test_type == HypothesisType.LOWER_TAIL:
+    elif test_type == TestHypothesis.LOWER_TAIL:
         lower_critical_value = dist.ppf(sig_level)
         lower_label = f"Lower Tail={format(sig_level, '1.3f')}"
-    elif test_type == HypothesisType.UPPER_TAIL:
+    elif test_type == TestHypothesis.UPPER_TAIL:
         upper_critical_value = dist.ppf(1.0 - sig_level)
         upper_label = f"Upper Tail={format(1.0 - sig_level, '1.3f')}"
 

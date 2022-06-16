@@ -6,7 +6,7 @@ from lib import stats
 from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
-from lib.models import (TestHypothesis)
+from lib.models import (TestHypothesis, Dist)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
@@ -82,9 +82,8 @@ class MetaData:
         return self.ests[est_key]
 
     @classmethod
-    def get_data_type(cls, df, data_type):
-        schema = data_type.schema()
-        return MetaData.get(df, schema)
+    def get_schema_data(cls, df):
+        return cls.get(df).get_data(df)
 
     @classmethod
     def get(cls, df):
@@ -585,20 +584,37 @@ class Test(Enum):
         if self.value == Test.STATIONARITY_DRIFT.value:
             return not status[2]
         elif self.value == Test.BM.value:
+            npass = 0
             for stat in status:
-                if not status:
-                    return False
-            return True
+                if stat:
+                    npass += 1
+            return npass >= len(status)/2
         elif self.value == Test.AUTO_CORR.value:
             for stat in status:
-                if not status:
+                if not stat:
                     return True
             return False
         elif self.value == Test.NEG_AUTO_CORR.value:
             for stat in status:
-                if not status:
+                if not stat:
                     return True
             return False
+        else:
+            raise Exception(f"Test type is invalid: {self}")
+
+    def _desc(self):
+        if self.value == Test.STATIONARITY.value:
+            return "Stationarity Test"
+        if self.value == Test.STATIONARITY_OFFSET.value:
+            return "Stationarity Test"
+        if self.value == Test.STATIONARITY_DRIFT.value:
+            return "Stationarity Test"
+        elif self.value == Test.BM.value:
+            return "Brownian Motion Test"
+        elif self.value == Test.AUTO_CORR.value:
+            return "Autocorrelation Test"
+        elif self.value == Test.NEG_AUTO_CORR.value:
+            return "Negative Autocorrelation Test"
         else:
             raise Exception(f"Test type is invalid: {self}")
 
@@ -645,11 +661,11 @@ def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
     elif impl_type.value == _TestImpl.ADF_DRIFT.value:
         return _adf_drift_test(y, test_type, impl_type, **kwargs)
     elif impl_type.value == _TestImpl.VR_TWO_TAILED.value:
-        return _vr_test(y, TestHypothesisType.TWO_TAIL, test_type, impl_type, **kwargs)
+        return _vr_test(y, TestHypothesis.TWO_TAIL, test_type, impl_type, **kwargs)
     elif impl_type.value == _TestImpl.VR_LOWER_TAIL.value:
-        return _vr_test(y, TestHypothesisType.LOWER_TAIL, test_type, impl_type, **kwargs)
+        return _vr_test(y, TestHypothesis.LOWER_TAIL, test_type, impl_type, **kwargs)
     elif impl_type.value == _TestImpl.VR_UPPER_TAIL.value:
-        return _vr_test(y, TestHypothesisType.UPPER_TAIL, test_type, impl_type, **kwargs)
+        return _vr_test(y, TestHypothesis.UPPER_TAIL, test_type, impl_type, **kwargs)
     else:
         raise Exception(f"Test type is invalid: {self}")
 
@@ -749,19 +765,19 @@ class TestData:
 ##################################################################################################################
 # Test Report
 class TestReport:
-    def __init__(self, status, test_hyp, test_type, impl_type, desc, test_data, dist, **dist_params):
+    def __init__(self, status, hyp_type, test_type, impl_type, test_data, dist, **dist_params):
         self.status = status
-        self.test_hyp = test_hyp
+        self.hyp_type = hyp_type
         self.test_type = test_type
         self.impl_type = impl_type
         self.test_data = test_data
-        self.desc = desc
+        self.desc = test_type._desc()
         self.dist = dist
         self.dict = {"Status": status,
-                     "TestHypothesis": test_hyp,
+                     "TestHypothesis": hyp_type,
                      "TestType": test_type,
                      "ImplType": impl_type,
-                     "Description": desc,
+                     "Description": self.desc,
                      "Distribution": dist,
                      "Distribution Params": dist_params,
                      "TestData": [data.dict for data in test_data]}
@@ -774,7 +790,7 @@ class TestReport:
 
     def _props(self):
         return f"status=({self.status}), " \
-               f"test_hyp=({self.test_hyp}), " \
+               f"hyp_type=({self.hyp_type}), " \
                f"test_type=({self.test_type}), " \
                f"impl_type=({self.impl_type}, " \
                f"desc=({self.desc}, " \
@@ -786,7 +802,7 @@ class TestReport:
     @staticmethod
     def from_dict(meta_data):
         return TestReport(status=meta_data["Status"],
-                          test_hyp=meta_data["TestHypothesis"],
+                          hyp_type=meta_data["TestHypothesis"],
                           test_type=meta_data["TestType"],
                           impl_type=meta_data["ImplType"],
                           desc=meta_data["Description"],
@@ -829,18 +845,17 @@ def _adf_report_from_result(result, test_type, impl_type):
                         upper=None)
         test_data.append(data)
     return TestReport(status=test_type.status(result.status_vals),
-                      test_hyp=TestHypothesis.LOWER_TAIL,
+                      hyp_type=TestHypothesis.LOWER_TAIL,
                       test_type=test_type,
                       impl_type=impl_type,
                       test_data=test_data,
-                      desc="ADF Test",
                       dist=None)
 
 def _vr_report_from_result(result, test_type, impl_type):
     sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
     s_vals = [TestParam(label=r"$s$", value=s) for s in result.s_vals]
     stats = [TestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
-    pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.pvals]
+    pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
     lower = result.critical_values[0]
     if lower is not None:
         lower = TestParam(label=r"$Z_L(s)$", value=lower)
@@ -858,11 +873,10 @@ def _vr_report_from_result(result, test_type, impl_type):
                         upper=upper)
         test_data.append(data)
     return TestReport(status=test_type.status(result.status_vals),
-                      test_hyp=result.test_hyp,
+                      hyp_type=result.hyp_type,
                       test_type=test_type,
                       impl_type=impl_type,
                       test_data=test_data,
-                      desc="ADF Test",
                       dist=Dist.NORMAL,
                       loc=0.0,
                       scale=1.0)

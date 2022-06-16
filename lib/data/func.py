@@ -51,6 +51,8 @@ class Func(Enum):
     MAQ_SD = "MAQ_SD"                      # MA(q) standard deviation
     AR1_OFFSET_MEAN = "AR1_OFFSET_MEAN"    # AR(1) with constant offset mean
     AR1_OFFSET_SD = "AR1_OFFSET_SD"        # AR(1) with offset standard deviation
+    PDF_HIST = "PDF_HIST"                  # Compute PDF histogram from simulation
+    CDF_HIST = "CDF_HIST"                  # Compute CDF histogram from simulation
 
     def create(self, **kwargs):
         return _create_func_type(self, **kwargs)
@@ -243,15 +245,20 @@ def _create_func_type_parameter_scan(func_type, *args):
     return dfs
 
 def _get_s_vals(**kwargs):
+    linear = get_param_default_if_missing("linear", False, **kwargs)
+    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
     s_max = get_param_default_if_missing("s_max", None, **kwargs)
     s_vals = get_param_default_if_missing("s_vals", None, **kwargs)
-    if npts is not None and smax is not None:
-        return create_logspace(npts=npts, xmax=smax, xmin=smin)
-    elif svals is not None:
-        return svals
+    if npts is not None and s_max is not None:
+        if linear:
+            return create_space(npts=npts, xmax=s_max, xmin=s_min)
+        else:
+            return create_logspace(npts=npts, xmax=s_max, xmin=s_min)
+    elif s_vals is not None:
+        return s_vals
     else:
-        raise Exception(f"smax and npts or svals is required")
+        raise Exception(f"s_max and npts or s_vals is required")
 
 ###################################################################################################
 ## create function definition for data type
@@ -318,6 +325,10 @@ def _create_func(func_type, **kwargs):
         return _create_ar1_offset_mean(func_type, **kwargs)
     elif func_type.value == Func.AR1_OFFSET_SD.value:
         return _create_ar1_offset_sd(func_type, **kwargs)
+    elif func_type.value == Func.PDF_HIST.value:
+        return _create_pdf_hist_sd(func_type, **kwargs)
+    elif func_type.value == Func.CDF_HIST.value:
+        return _create_cdf_hist_sd(func_type, **kwargs)
     else:
         raise Exception(f"Func is invalid: {func_type}")
 
@@ -672,8 +683,7 @@ def _create_agg(func_type, **kwargs):
 # Func.LAG_VAR
 def _create_lag_var(func_type, **kwargs):
     source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
-    s_vals = _get_svals(**kwargs)
+    s_vals = _get_s_vals(**kwargs)
     fx = lambda x : [int(s) for s in s_vals]
     fy = lambda x, y : fbm.lag_var_scan(y, x)
     return DataFunc(func_type=func_type,
@@ -690,8 +700,7 @@ def _create_lag_var(func_type, **kwargs):
 # Func.VR
 def _create_vr(func_type, **kwargs):
     source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
-    s_vals = _get_svals(**kwargs)
+    s_vals = _get_s_vals(**kwargs)
     fx = lambda x : [int(s) for s in s_vals]
     fy = lambda x, y : fbm.vr_scan(y, x)
     return DataFunc(func_type=func_type,
@@ -708,8 +717,7 @@ def _create_vr(func_type, **kwargs):
 # Func.VR_STAT
 def _create_vr_stat(func_type, **kwargs):
     source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
-    s_vals = _get_svals(**kwargs)
+    s_vals = _get_s_vals(**kwargs)
     fx = lambda x : [int(s) for s in s_vals]
     fy = lambda x, y : fbm.vr_stat_homo_scan(y, x)
     return DataFunc(func_type=func_type,
@@ -726,8 +734,7 @@ def _create_vr_stat(func_type, **kwargs):
 # Func.VR_HETERO_STAT
 def _create_vr_hetero_stat(func_type, **kwargs):
     source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
-    s_vals = _get_svals(**kwargs)
+    s_vals = _get_s_vals(**kwargs)
     fx = lambda x : [int(s) for s in s_vals]
     fy = lambda x, y : fbm.vr_stat_hetero_scan(y, x)
     return DataFunc(func_type=func_type,
@@ -825,6 +832,37 @@ def _create_ar1_offset_sd(func_type, **kwargs):
                     xlabel=r"$t$",
                     formula=r"$\sqrt{\frac{\sigma^2}{1 - \varphi^2}}$",
                     desc="AR(1) with Offset Mean")
+
+# Func.PDF_HIST
+def _create_pdf_hist_sd(func_type, **kwargs):
+    samp = get_param_throw_if_missing("samp", **kwargs)
+    xmin = get_param_throw_if_missing("xmin", **kwargs)
+    xmax = get_param_throw_if_missing("xmax", **kwargs)
+    nbins = get_param_default_if_missing("nbins", 50, **kwargs)
+    fy = lambda x, y : stats.pdf_hist(samp, [xmin, xmax], nbins)
+    return DataFunc(func_type=func_type,
+                    data_type=DataType.DIST,
+                    source_type=DataType.TIME_SERIES,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$p(x)$",
+                    xlabel=r"$x$",
+                    formula=r"$t \sim \frac{\frac{1}{2}[B^2(1) - 1]}{\sqrt{\int_{0}^{1}B^2(s)ds}}$",
+                    desc="PDF")
+
+
+# Func.CDF_HIST
+def _create_cdf_hist_sd(func_type, **kwargs):
+    fy = lambda x, y : stats.cdf_hist(x, y)
+    return DataFunc(func_type=func_type,
+                    data_type=DataType.DIST,
+                    source_type=DataType.DIST,
+                    params={},
+                    fy=fy,
+                    ylabel=r"$P(x)$",
+                    xlabel=r"$x$",
+                    formula=r"$t \sim \frac{\frac{1}{2}[B^2(1) - 1]}{\sqrt{\int_{0}^{1}B^2(s)ds}}$",
+                    desc="PDF")
 
 ###################################################################################################
 ## create function definition applied to lists of data frames for data type
