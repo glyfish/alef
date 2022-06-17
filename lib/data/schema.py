@@ -89,7 +89,10 @@ class DataSchema:
 
     @classmethod
     def get_source_type(cls, df):
-        return df.attrs["SourceType"]
+        if df.attrs["SourceType"] is None:
+            return cls.get_type(df)
+        else:
+            return df.attrs["SourceType"]
 
     @classmethod
     def set_source_type(cls, df, schema):
@@ -97,7 +100,10 @@ class DataSchema:
 
     @classmethod
     def get_source_name(cls, df):
-        return df.attrs["SourceName"]
+        if df.attrs["SourceName"] is None:
+            return cls.get_name(df)
+        else:
+            return df.attrs["SourceName"]
 
     @classmethod
     def set_source_name(cls, df, name):

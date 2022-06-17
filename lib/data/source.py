@@ -429,15 +429,15 @@ def _create_fbm_fft_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# Source.DF.value:
+# Source.DF:
 def _create_df_source(source_type, x, **kwargs):
-    tmax = get_param_default_if_missing("tmax", 100, **kwargs)
-    nsim = get_param_default_if_missing("nsim", 100, **kwargs)
-    f = lambda x : adf.dist_ensemble(tmax, nsim)
+    nstep = get_param_default_if_missing("nstep", 100, **kwargs)
+    nsim = get_param_default_if_missing("nsim", 1000, **kwargs)
+    f = lambda x : adf.dist_ensemble(nstep, nsim)
     return DataSource(source_type=source_type,
                       schema=DataType.TIME_SERIES.schema(),
                       name=f"Dickey-Fuller-Simulation-{str(uuid.uuid4())}",
-                      params={"tmax": tmax, "nsim": nsim},
+                      params={"nstep": nstep, "nsim": nsim},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Dickey-Fuller Distribution",

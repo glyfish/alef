@@ -35,7 +35,7 @@ class DataPlotConfig:
         title = f"{self.meta_data.desc}"
         params = self.meta_data.params
         formula = self.meta_data.formula
-        
+
         if self.source_meta_data is not None:
             title = f"{self.source_meta_data.desc} {title}"
             params = params | self.source_meta_data.params
@@ -299,14 +299,14 @@ def twinx(**kwargs):
     if ylim is not None:
         axis1.set_ylim(ylim)
 
-    twinx_ticks(axis1, axis2)
+    _twinx_ticks(axis1, axis2)
     axis2.grid(False)
 
     figure.legend(loc=legend_loc, bbox_to_anchor=(0.2, 0.2, 0.6, 0.6))
 
 ###############################################################################################
 # compute twinz ticks so grids align
-def twinx_ticks(axis1, axis2):
+def _twinx_ticks(axis1, axis2):
     y1_lim = axis1.get_ylim()
     y2_lim = axis2.get_ylim()
     f = lambda x : y2_lim[0] + (x - y1_lim[0])*(y2_lim[1] - y2_lim[0])/(y1_lim[1] - y1_lim[0])

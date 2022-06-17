@@ -145,10 +145,10 @@ def pdf_hist(samples, range, nbins=50):
     return numpy.histogram(samples, bins=nbins, range=range, density=True)
 
 def cdf_hist(x, pdf):
-    npoints = len(pdf)
+    npoints = len(x)
     cdf = numpy.zeros(npoints)
+    dx = x[1] - x[0]
     for i in range(npoints):
-        dx = x[i+1] - x[i]
         cdf[i] = numpy.sum(pdf[:i])*dx
     return cdf
 
