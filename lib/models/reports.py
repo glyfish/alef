@@ -87,3 +87,29 @@ class ADFTestReport:
         results = [[self.sig_str[i], self.critical_vals[i], self.status_str[i]] for i in range(3)]
         print(tabulate(header, tablefmt=tablefmt))
         print(tabulate(results, tablefmt=tablefmt, headers=headers))
+
+##################################################################################################################
+# Ornstein-Uhulenbeck processs parameter estimate report
+##################################################################################################################
+class OrnsteinUhlenbeckReport:
+    def __init__(self, results, Δt):
+        conf_int = results.conf_int()
+        self.delta_t = Δt
+        self._offset_est = (conf_int[0][1] - conf_int[0][0])/2.0
+        self._offset_error = self.offset_est - conf_int[0][0]
+        self._coeff_est = (conf_int[1][1] - conf_int[1][0])/2.0
+        self._coeff_error = self.coeff_est - conf_int[1][0]
+        self._sigma2_est = (conf_int[2][1] - conf_int[2][0])/2.0
+        self._sigma2_error = self.sigma2_est - conf_int[2][0]
+
+    def mu_est(self):
+        return self._offset_est
+
+    def lambda_est(self):
+        return numpy.log(self._coeff_est)/self.delta_t
+
+    def lambda_error(self):
+        return -self._coeff_error/(self._coeff_est*self.delta_t)
+
+    def sigma2(self):
+        return 2.0*self.lambda_est()*self._sigma2_est/(1.0 - self._coeff_est**2)

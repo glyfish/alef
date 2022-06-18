@@ -8,6 +8,7 @@ from lib.models import fbm
 from lib.models import bm
 from lib.models import arima
 from lib.models import adf
+from lib.models import ou
 
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema)
@@ -40,6 +41,8 @@ class Source(Enum):
     FBM_CHOL = "FBM_CHOL"                # FBM simulation implemented using the Cholesky method
     FBM_FFT = "FBM_FFT"                  # FBM Noise simulation implemented using the FFT method
     DF = "DF"                            # Dickey-Fuller distribution simulation
+    OU = "OU"                            # Ornstein-Uhlenbeck simulation
+    OU_XT = "OU_XT"                      # Ornstein-Uhlenbeck process solution
 
     def create(self, **kwargs):
         return _create_data_source(self, **kwargs)
@@ -163,6 +166,10 @@ def _get_data_source(source_type, x, **kwargs):
         return _create_fbm_fft_source(source_type, x, **kwargs)
     elif source_type.value == Source.DF.value:
         return _create_df_source(source_type, x, **kwargs)
+    elif source_type.value == Sou.OU_XT.value:
+        return _create_ou_xt_source(source_type, x, **kwargs)
+    elif source_type.value == Sou.OU.value:
+        return _create_ou_source(source_type, x, **kwargs)
     else:
         raise Exception(f"Source type is invalid: {source_type}")
 
@@ -441,5 +448,40 @@ def _create_df_source(source_type, x, **kwargs):
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Dickey-Fuller Distribution",
+                      f=f,
+                      x=x)
+
+# Source.OU_XT
+def _create_ou_xt_source(source_type, x, **kwargs):
+    t = get_param_throw_if_missing("t", **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+    f = lambda x : ou.xt(μ, λ, t, σ, x0, len(x))
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
+                      params={"μ": μ, "λ": λ, "t": t, "X0": x0},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Ornstein-Uhlenbeck Simulation",
+                      f=f,
+                      x=x)
+
+# Source.OU_XT
+def _create_ou_source(source_type, x, **kwargs):
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+    f = lambda x : ou.ou(μ, λ, Δt, len(x), σ, x0)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
+                      params={"μ": μ, "λ": λ, "Δt": Δt, "X0": x0},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Ornstein-Uhlenbeck Simulation",
                       f=f,
                       x=x)

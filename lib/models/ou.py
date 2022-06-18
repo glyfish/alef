@@ -27,11 +27,6 @@ def pdf(x, μ, λ, t, σ=1.0, x0=0):
     σt = std(λ, t, σ)
     return numpy.exp(((x - μt)/(2.0*σt**2))**2)/(σt*numpy(2.0*math.pi))
 
-def pdf(x, μ, λ, t, σ=1.0, x0=0):
-    μt = mean(μ, λ, t, x0)
-    σt = std(λ, t, σ)
-    return numpy.exp(((x - μt)/(2.0*σt**2))**2)/(σt*numpy(2.0*math.pi))
-
 def pdf_limit(x, μ, λ, σ=1.0, x0=0):
     σl = std_limit(λ, σ)
     return
@@ -40,7 +35,7 @@ def mean_halflife(λ):
     return numpy.log(2)/λ
 
 ###############################################################################################
-## generate n samples of xt for a specified t
+## generate n samples of x_t for a specified t
 def xt(μ, λ, t, σ=1.0, x0=0, n=1):
     μt = mean(μ, λ, t, x0)
     σt = std(λ, t, σ)
@@ -59,31 +54,8 @@ def ou(μ, λ, Δt, n, σ=1.0, x0=0):
 
 ###############################################################################################
 ## Estimate model parameters
-def ou_model(samples, Δt=1.0, report=False):
+def ou_model(samples, Δt=1.0):
     return tsa.arima.model.ARIMA(samples, order=(1, 0, 0), trend='c')
 
 def ou_fit(samples, Δt=1.0):
     results = ou_model(samples).fit()
-
-class OrnsteinUhlenbeckResults:
-    def __init__(self, results, Δt):
-        conf_int = results.conf_int()
-        self.delta_t = Δt
-        self._offset_est = (conf_int[0][1] - conf_int[0][0])/2.0
-        self._offset_error = self.offset_est - conf_int[0][0]
-        self._coeff_est = (conf_int[1][1] - conf_int[1][0])/2.0
-        self._coeff_error = self.coeff_est - conf_int[1][0]
-        self._sigma2_est = (conf_int[2][1] - conf_int[2][0])/2.0
-        self._sigma2_error = self.sigma2_est - conf_int[2][0]
-
-    def mu_est(self):
-        return self._offset_est
-
-    def lambda_est(self):
-        return numpy.log(self._coeff_est)/self.delta_t
-
-    def lambda_error(self):
-        return -self._coeff_error/(self._coeff_est*self.delta_t)
-
-    def sigma2(self):
-        return 2.0*self.lambda_est()*self._sigma2_est/(1.0 - self._coeff_est**2)
