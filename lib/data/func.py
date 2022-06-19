@@ -55,18 +55,6 @@ class FuncBase(Enum):
     def _create_ensemble_data_func(self, **kwargs):
         Exception(f"_create_ensemble_data_func not implemented")
 
-##################################################################################################################
-# Specify Funcs used in analysis
-class Func(FuncBase):
-    ## Ornstien-Uhlenbeck Process
-    OU_MEAN = "OU_MEAN"                    # Ornstein-Uhelenbeck process mean
-    OU_VAR = "OU_VAR"                      # Ornstein-Uhelenbeck process variance
-    OU_COV = "OU_COV"                      # Ornstein-Uhelenbeck process covariance
-    OU_PDF = "OU_PDF"                      # Ornstein-Uhelenbeck process PDF
-    OU_CDF = "OU_CDF"                      # Ornstein-Uhelenbeck process CDF
-    OU_PDF_LIMIT = "OU_PDF"                # Ornstein-Uhelenbeck process PDF
-    OU_CDF_LIMIT = "OU_CDF"                # Ornstein-Uhelenbeck process CDF
-
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
 #

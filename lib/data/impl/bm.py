@@ -1,21 +1,19 @@
 from enum import Enum
-from pandas import DataFrame
-from datetime import datetime
 import uuid
 import numpy
 
 from lib.models import bm
-from lib.data.func import (DataFunc, FuncBase)
 
-from lib.data.meta_data import (MetaData)
-from lib.data.schema import (DataType, DataSchema)
+from lib.data.func import (DataFunc, FuncBase)
+from lib.data.source import (DataSource, SourceBase)
+from lib.data.schema import (DataType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
 ###################################################################################################
-# Create Fractional Brownian Motion
-# Func.PSPEC
+# BM Funcs and Sources
 class BM:
+    # Funcs
     class Func(FuncBase):
         MEAN = "BM_MEAN"                    # Brownian Motion mean
         DRIFT_MEAN = "BM_DRIFT_MEAN"        # Brownian Motion model mean with data
@@ -27,8 +25,19 @@ class BM:
         def _create_func(self, **kwargs):
             return _create_func(self, **kwargs)
 
+    # Sources
+    class Source(SourceBase):
+        NOISE = "BM_NOISE"                # Brownian Motion noise simulation
+        MOTION = "BM_MOTION"              # Brownian Motion simulation
+        DRIFT_MOTION= "BM_DRIFT_MOTION"   # Brownoan Motion with drift simulation
+        GEO_MOTION = "BM_GEO_MOTION"      # Geometric Brownian motion simulation
+
+        def _create_data_source(self, x, **kwargs):
+            return _create_data_source(self, x, **kwargs)
+
 ###################################################################################################
-## create function definition for data type
+## Create DataFunc object for func type
+###################################################################################################
 def _create_func(func_type, **kwargs):
     if func_type.value == BM.Func.MEAN.value:
         return _create_bm_mean(func_type, **kwargs)
@@ -43,11 +52,10 @@ def _create_func(func_type, **kwargs):
     elif func_type.value == BM.Func.BM.value:
         return _create_bm(func_type, **kwargs)
     else:
-        raise Exception(f"Func is invalid: {func_type}")
+        raise Exception(f"func_type is invalid: {func_type}")
 
 ###################################################################################################
-# bm
-# Func.BM_MEAN
+# Func.MEAN
 def _create_bm_mean(func_type, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -64,7 +72,7 @@ def _create_bm_mean(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.BM_DRIFT_MEAN
+# Func.DRIFT_MEAN
 def _create_bm_drift_mean(func_type, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
@@ -81,7 +89,7 @@ def _create_bm_drift_mean(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.BM_SD
+# Func.SD
 def _create_bm_sd(func_type, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -146,3 +154,79 @@ def _create_bm(func_type, **kwargs):
                     xlabel=r"$t$",
                     desc="BM",
                     fy=fy)
+
+###################################################################################################
+# Create DataSource objects for specified DataType
+###################################################################################################
+def _create_data_source(source_type, x, **kwargs):
+    if source_type.value == BM.Source.NOISE.value:
+        return _create_bm_noise_source(source_type, x, **kwargs)
+    elif source_type.value == BM.Source.MOTION.value:
+        return _create_bm_source(source_type, x, **kwargs)
+    elif source_type.value == BM.Source.DRIFT_MOTION.value:
+        return _create_bm_drift_source(source_type, x, **kwargs)
+    elif source_type.value == BM.Source.GEO_MOTION.value:
+        return _create_bm_geo_source(source_type, x, **kwargs)
+    else:
+        raise Exception(f"source_type is invalid: {source_type}")
+
+###################################################################################################
+# Source.NOISE
+def _create_bm_noise_source(source_type, x, **kwargs):
+    f = lambda x : bm.noise(len(x))
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"BM-Noise-Simulation-{str(uuid.uuid4())}",
+                      params={},
+                      ylabel=r"$\Delta S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Brownian Noise",
+                      f=f,
+                      x=x)
+
+# Source.MOTION
+def _create_bm_source(source_type, x, **kwargs):
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    f = lambda x : bm.bm(len(x), Δx)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      params={"Δx": Δx},
+                      name=f"BM-Simulation-{str(uuid.uuid4())}",
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Brownian Motion",
+                      f=f,
+                      x=x)
+
+# Source.DRIFT_MOTION
+def _create_bm_drift_source(source_type, x, **kwargs):
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    f = lambda x : bm.bm_with_drift(μ, σ, len(x), Δx)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"BM-Simulation-{str(uuid.uuid4())}",
+                      params={"σ": σ, "μ": μ, "Δt": Δx},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Brownian Motion With Drift",
+                      f=f,
+                      x=x)
+
+# Source.GEO_MOTION
+def _create_bm_geo_source(source_type, x, **kwargs):
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    f = lambda x : bm.bm_geometric(μ, σ, S0, len(x), Δx)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",
+                      params={"σ": σ, "μ": μ, "Δt": Δx, "S0": S0},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Geometric Brownian Motion",
+                      f=f,
+                      x=x)

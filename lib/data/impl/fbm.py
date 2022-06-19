@@ -1,15 +1,19 @@
-from enum import (Enum, EnumMeta)
+from enum import Enum
+import uuid
 import numpy
 
 from lib.models import fbm
+
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
-from lib.data.schema import (DataType)
+from lib.data.source import (DataSource, SourceBase)
+from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
 ###################################################################################################
 # Fractional Brownian Motion Fuctions
 class FBM:
+    # Funcs
     class Func(FuncBase):
         MEAN = "FBM_MEAN"                      # Fractional Brownian Motion mean
         VAR = "FBM_VAR"                        # Fractional Brownian Motion variance
@@ -24,8 +28,19 @@ class FBM:
         def _create_func(self, **kwargs):
             return _create_func(self, **kwargs)
 
+    # Sources
+    class Source(SourceBase):
+        NOISE_CHOL = "FBM_NOISE_CHOL"           # FBM Noise simulation implemented using the Cholesky method
+        NOISE_FFT = "FBM_NOISE_FFT"             # FBM Noise simulation implemented using the FFT method
+        MOTION_CHOL = "FBM_MOTION_CHOL"         # FBM simulation implemented using the Cholesky method
+        MOTION_FFT = "FBM_MOTION_FFT"           # FBM Noise simulation implemented using the FFT method
+
+        def _create_data_source(self, x, **kwargs):
+            return _create_data_source(self, x, **kwargs)
+
 ###################################################################################################
-## create function definition for data type
+## Create DataFunc object for func type
+###################################################################################################
 def _create_func(func_type, **kwargs):
     if func_type.value == FBM.Func.MEAN.value:
         return _create_fbm_mean(func_type, **kwargs)
@@ -46,11 +61,10 @@ def _create_func(func_type, **kwargs):
     elif func_type.value == FBM.Func.VR_HETERO_STAT.value:
         return _create_vr_hetero_stat(func_type, **kwargs)
     else:
-        raise Exception(f"Func is invalid: {func_type}")
+        raise Exception(f"func_type is invalid: {func_type}")
 
 ###################################################################################################
-# Create DataFunc objects for specified Func
-# Func.FBM_MEAN
+# Func.MEAN
 def _create_fbm_mean(func_type, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
@@ -66,7 +80,7 @@ def _create_fbm_mean(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.FBM_SD
+# Func.SD
 def _create_fbm_sd(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1., **kwargs)
@@ -84,7 +98,7 @@ def _create_fbm_sd(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.FBM_VAR
+# Func.VAR
 def _create_fbm_var(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1., **kwargs)
@@ -102,7 +116,7 @@ def _create_fbm_var(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.FBM_ACF
+# Func.ACF
 def _create_fbm_acf(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
@@ -119,7 +133,7 @@ def _create_fbm_acf(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.FBM_VR_STAT
+# Func.VR
 def _create_fbm_vr(func_type, **kwargs):
     nplot = get_param_default_if_missing("nplot", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
@@ -136,7 +150,7 @@ def _create_fbm_vr(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# DataType.FBM_COV
+# DataType.COV
 def _create_fbm_cov(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     s = get_param_throw_if_missing("s", **kwargs)
@@ -204,3 +218,101 @@ def _create_vr_hetero_stat(func_type, **kwargs):
                     formula=r"$\frac{VR(s) - 1}{\sqrt{\theta^\ast (s)}}$",
                     fy=fy,
                     fx=fx)
+
+###################################################################################################
+# Create DataSource objects for specified DataType
+###################################################################################################
+def _create_data_source(source_type, x, **kwargs):
+    if source_type.value == FBM.Source.NOISE_CHOL.value:
+        return _create_fbm_noise_chol_source(source_type, x, **kwargs)
+    elif source_type.value == FBM.Source.NOISE_FFT.value:
+        return _create_fbm_noise_fft_source(source_type, x, **kwargs)
+    elif source_type.value == FBM.Source.MOTION_CHOL.value:
+        return _create_fbm_motion_chol_source(source_type, x, **kwargs)
+    elif source_type.value == FBM.Source.MOTION_FFT.value:
+        return _create_fbm_motion_fft_source(source_type, x, **kwargs)
+    else:
+        raise Exception(f"source_type is invalid: {source_type}")
+
+###################################################################################################
+# Source.NOISE_CHOL
+def _create_fbm_noise_chol_source(source_type, x, **kwargs):
+    H = get_param_throw_if_missing("H", **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    dB = get_param_default_if_missing("dB", None, **kwargs)
+    L = get_param_default_if_missing("L", None, **kwargs)
+    if dB is not None:
+        _, ΔB = DataSchema.get_schema_data(dB)
+    else:
+        ΔB = None
+    f = lambda x : fbm.cholesky_noise(H, len(x[:-1]), Δx, ΔB, L)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Cholesky-FBM-Noise-Simulation-{str(uuid.uuid4())}",
+                      params={"H": H, "Δt": Δx},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Cholesky FBM Noise",
+                      f=f,
+                      x=x)
+
+# Source.NOISE_FFT
+def _create_fbm_noise_fft_source(source_type, x, **kwargs):
+    H = get_param_throw_if_missing("H", **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    dB = get_param_default_if_missing("dB", None, **kwargs)
+    if dB is not None:
+        _, ΔB = DataSchema.get_schema_data(dB)
+    else:
+        ΔB = None
+    f = lambda x : fbm.fft_noise(H, len(x), Δx, ΔB)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"FFT-FBM-Noise-Simulation-{str(uuid.uuid4())}",
+                      params={"H": H, "Δt": Δx},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"FFT FBM Noise",
+                      f=f,
+                      x=x)
+
+# Source.CHOL
+def _create_fbm_motion_chol_source(source_type, x, **kwargs):
+    H = get_param_throw_if_missing("H", **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    dB = get_param_default_if_missing("dB", None, **kwargs)
+    L = get_param_default_if_missing("L", None, **kwargs)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB)
+    else:
+        ΔB = None
+    f = lambda x : fbm.generate_cholesky(H, len(x[:-1]), Δx, ΔB, L)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"Cholesky-FBM-Simulation-{str(uuid.uuid4())}",
+                      params={"H": H, "Δt": Δx},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"Cholesky FBM",
+                      f=f,
+                      x=x)
+
+# Source.FFT
+def _create_fbm_motion_fft_source(source_type, x, **kwargs):
+    H = get_param_throw_if_missing("H", **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    dB = get_param_default_if_missing("dB", None, **kwargs)
+    if dB is not None:
+        _, ΔB = DataSchema.get_data_type(dB, DataType.TIME_SERIES)
+    else:
+        ΔB = None
+    f = lambda x : fbm.generate_fft(H, len(x), Δx, ΔB)
+    return DataSource(source_type=source_type,
+                      schema=DataType.TIME_SERIES.schema(),
+                      name=f"FFT-FBM-Simulation-{str(uuid.uuid4())}",
+                      params={"H": H, "Δt": Δx},
+                      ylabel=r"$S_t$",
+                      xlabel=r"$t$",
+                      desc=f"FFT FBM",
+                      f=f,
+                      x=x)
