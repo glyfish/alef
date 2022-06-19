@@ -6,6 +6,8 @@ from tabulate import tabulate
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
 
+from lib.models.dist import Dist
+
 ###############################################################################################
 ## Ornstein-Uhlenbeck mean, variance, covariance, PDF, halflife
 def mean(μ, λ, t, x0=0):
@@ -25,11 +27,24 @@ def std_limit(λ, σ=1.0):
 def pdf(x, μ, λ, t, σ=1.0, x0=0):
     μt = mean(μ, λ, t, x0)
     σt = std(λ, t, σ)
-    return numpy.exp(((x - μt)/(2.0*σt**2))**2)/(σt*numpy(2.0*math.pi))
+    dist = Dist.NORMAL.create(loc=μt, scale=σt)
+    return dist.pdf(x)
+
+def cdf(x, μ, λ, t, σ=1.0, x0=0):
+    μt = mean(μ, λ, t, x0)
+    σt = std(λ, t, σ)
+    dist = Dist.NORMAL.create(loc=μt, scale=σt)
+    return dist.cdf(x)
 
 def pdf_limit(x, μ, λ, σ=1.0, x0=0):
     σl = std_limit(λ, σ)
-    return
+    dist = Dist.NORMAL.create(loc=μ, scale=σl)
+    return dist.pdf(x)
+
+def cdf_limit(x, μ, λ, σ=1.0, x0=0):
+    σl = std_limit(λ, σ)
+    dist = Dist.NORMAL.create(loc=μ, scale=σl)
+    return dist.pdf(x)
 
 def mean_halflife(λ):
     return numpy.log(2)/λ

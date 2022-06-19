@@ -78,7 +78,7 @@ def fpoints(**kwargs):
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
 
-    axis.set_title(title)
+    axis.set_title(title, y=title_offset)
 
     if plot_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
@@ -121,7 +121,6 @@ def fcurve(**kwargs):
     axis.set_title(title, y=title_offset)
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
-    axis.set_title(title, y=title_offset)
 
     if plot_type.value == PlotType.LOG.value:
         if x[0] == 0.0:

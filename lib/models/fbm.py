@@ -4,6 +4,7 @@
 import numpy
 
 from lib.models import bm
+from lib import stats
 from lib.models.dist import (TestHypothesis, Dist)
 from lib.models.reports import VarianceRatioTestReport
 
@@ -159,23 +160,10 @@ def _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type):
     p_values = [dist.cdf(stat) for stat in test_stats]
     return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [lower_critical_value, None])
 
-# lag variance
-def lag_var(samples, s):
-    t = len(samples) - 1
-    μ = (samples[t] - samples[0]) / t
-    m = (t - s + 1.0)*(1.0 - s/t)
-    σ = 0.0
-    for i in range(int(s), t+1):
-        σ += (samples[i] - samples[i-s] - μ*s)**2
-    return σ/m
-
-def lag_var_scan(samples, s_vals):
-    return [lag_var(samples, s) for s in s_vals]
-
 # variance ratio
 def vr(samples, s):
-    vars = lag_var(samples, s)
-    var1 = lag_var(samples, 1)
+    vars = stats.lag_var(samples, s)
+    var1 = stats.lag_var(samples, 1)
     return vars/(s*var1)
 
 def vr_scan(samples, s_vals):
@@ -208,7 +196,7 @@ def delta_factor(samples, j):
         f1 = (samples[i] - samples[i-1] - μ)**2
         f2 = (samples[i-j] - samples[i-j-1] - μ)**2
         factor += f1*f2
-    return factor / lag_var(samples, 1)**2
+    return factor / stats.lag_var(samples, 1)**2
 
 def theta_factor(samples, s):
     t = len(samples) - 1

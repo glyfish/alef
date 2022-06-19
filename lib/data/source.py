@@ -32,6 +32,7 @@ class Source(Enum):
     ARMA = "ARMA"                        # ARMA(p, q) simulation
     ARIMA = "ARIMA"                      # ARIMA(p, d, q) simulation
     ARIMA_FROM_ARMA = "ARIMA_FROM_ARMA"  # ARIMA(p, d, q) simulation created from ARMA(p,q)
+    DF = "DF"                            # Dickey-Fuller distribution simulation
     BM_NOISE = "BM_NOISE"                # Brownian Motion noise simulation
     BM = "BM"                            # Brownian Motion simulation
     BM_DRIFT = "BM_DRIFT"                # Brownoan Motion with drift simulation
@@ -40,8 +41,7 @@ class Source(Enum):
     FBM_NOISE_FFT = "FBM_NOISE_FFT"      # FBM Noise simulation implemented using the FFT method
     FBM_CHOL = "FBM_CHOL"                # FBM simulation implemented using the Cholesky method
     FBM_FFT = "FBM_FFT"                  # FBM Noise simulation implemented using the FFT method
-    DF = "DF"                            # Dickey-Fuller distribution simulation
-    OU = "OU"                            # Ornstein-Uhlenbeck simulation
+    OU = "OU"                            # Ornstein-Uhlenbeck process simulation
     OU_XT = "OU_XT"                      # Ornstein-Uhlenbeck process solution
 
     def create(self, **kwargs):
@@ -469,7 +469,7 @@ def _create_ou_xt_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# Source.OU_XT
+# Source.OU
 def _create_ou_source(source_type, x, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)

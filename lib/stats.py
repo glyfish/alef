@@ -183,6 +183,20 @@ def agg_time(x, m):
     return numpy.linspace(x[0], x[n-1], d)
 
 ###############################################################################################
+## Lag variance
+def lag_var(samples, s):
+    t = len(samples) - 1
+    μ = (samples[t] - samples[0]) / t
+    m = (t - s + 1.0)*(1.0 - s/t)
+    σ = 0.0
+    for i in range(int(s), t+1):
+        σ += (samples[i] - samples[i-s] - μ*s)**2
+    return σ/m
+
+def lag_var_scan(samples, s_vals):
+    return [lag_var(samples, s) for s in s_vals]
+
+###############################################################################################
 ## OLS
 def OLS(y, x, type=RegType.LINEAR):
     if type == RegType.LOG:
