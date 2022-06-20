@@ -208,6 +208,12 @@ class EstBase(Enum):
         MetaData.add_estimate(df, test)
         return result
 
+    def _formula(self):
+        raise Exception(f"_formula not implemented")
+
+    def _set_param_labels(self, i):
+        raise Exception(f"_set_param_labels not implemented")
+
     def _perform_est_for_type(self, x, y, **kwargs):
         if est_type.value == Est.LINEAR.value:
             return self._ols_estimate(x, y, stats.RegType.LINEAR, **kwargs)
@@ -215,12 +221,6 @@ class EstBase(Enum):
             return self._ols_estimate(x, y, stats.RegType.LOG, **kwargs)
         else:
             raise Exception(f"Esitmate type is invalid: {est_type}")
-
-    def _formula(self):
-        raise Exception(f"_formula not implemented")
-
-    def _set_param_labels(self, i):
-        raise Exception(f"_set_param_labels not implemented")
 
     def _create_ols_single_var_trans(self, param, const):
         if self.value == Est.LINEAR.value:
