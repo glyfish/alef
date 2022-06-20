@@ -8,7 +8,8 @@ from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.source import (DataSource, SourceBase)
 from lib.data.schema import (DataType)
 from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
-                                TestParam, TestData, TestReport)
+                                TestParam, TestData, TestReport,
+                                ParamEst, ARMAEst)
 from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
@@ -43,7 +44,7 @@ class ARIMA:
         def _create_data_source(self, x, **kwargs):
             return _create_data_source(self, x, **kwargs)
 
-    # Tests
+    # Test
     class Test(TestBase):
         STATIONARITY = "STATIONARITY"                  # Test for stationarity
         STATIONARITY_OFFSET = "STATIONARITY_OFFSET"    # Test for stationarity
@@ -72,6 +73,7 @@ class ARIMA:
             else:
                 raise Exception(f"Test type is invalid: {self}")
 
+    # _TestImpl
     class _TestImpl(TestImplBase):
         ADF = "ADF"                          # Augmented Dickey Fuller test for staionarity
         ADF_OFFSET = "ADF_OFFSET"            # Augmented Dickey Fuller with off set test test for staionarity
@@ -79,6 +81,47 @@ class ARIMA:
 
         def _perform_test_for_impl(self, x, y, test_type, **kwargs):
             return _perform_test_for_impl(x, y, test_type, self, **kwargs)
+
+    # Est
+    class Est(EstBase):
+        AR = "AR"                     # Autoregressive model parameters
+        AR_OFFSET = "AR_OFFSET"       # Autoregressive model with constant offset parameters
+        MA = "MA"                     # Moving average model parameters
+        MA_OFFSET = "MA_OFFSET"       # Moving average model  with constant offset parameters
+
+        def _perform_est_for_type(self, x, y, **kwargs):
+            if self.value == ARIMA.Est.AR.value:
+                return _ar_estimate(y, **kwargs)
+            elif self.value == ARIMA.Est.AR_OFFSET.value:
+                return _ar_offset_estimate(y, **kwargs)
+            elif self.value == ARIMA.Est.MA.value:
+                return _ma_estimate(y, **kwargs)
+            elif self.value == ARIMA.Est.MA_OFFSET.value:
+                return _ma_offset_estimate(y, **kwargs)
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _formula(self):
+            if self.type.value == ARIMA.Est.AR.value:
+                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
+            elif self.type.value == ARIMA.Est.AR_OFFSET.value:
+                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
+            elif self.type.value == ARIMA.Est.MA.value:
+                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
+            elif self.type.value == ARIMA.Est.MA_OFFSET.value:
+                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \mu^* + \varepsilon_{t}$"
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _set_param_labels(self, param, i):
+            if self.value == ARIMA.Est.AR.value or self.value == ARIMA.Est.AR_OFFSET.value:
+                param.set_labels(est_label=f"$\hat{{\phi_{{{i}}}}}$",
+                                 err_label=f"$\sigma_{{$\hat{{\phi_{{{i}}}}}}}$")
+            elif self.value == ARIMA.Est.MA.value or self.value == ARIMA.Est.MA_OFFSET.value:
+                param.set_labels(est_label=f"$\hat{{\\theta_{{{i}}}}}$",
+                                 err_label=f"$\sigma_{{$\hat{{\theta_{{{i}}}}}}}$")
+            else:
+                raise Exception(f"Esitmate type is invalid: {est_type}")
 
 ###################################################################################################
 ## Create function definition for data type
@@ -418,3 +461,44 @@ def _adf_report_from_result(result, test_type, impl_type):
                       impl_type=impl_type,
                       test_data=test_data,
                       dist=None)
+
+##################################################################################################################
+# Perform estimate for specified estimate types
+##################################################################################################################
+# Est.AR
+def _ar_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = arima.ar_fit(samples, order)
+    return result, _arma_estimate_from_result(result, ARIMA.Est.AR)
+
+# Est.AR_OFFSET
+def _ar_offset_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = arima.ar_offset_fit(samples, order)
+    return result, _arma_estimate_from_result(result, ARIMA.Est.AR_OFFSET)
+
+# Est.MA
+def _ma_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = arima.ma_fit(samples, order)
+    return result, _arma_estimate_from_result(result, ARIMA.Est.MA)
+
+# Est.MA_OFFSET
+def _ma_offset_estimate(samples, **kwargs):
+    order = get_param_throw_if_missing("order", **kwargs)
+    result = arima.ma_offset_fit(samples, order)
+    return result, _arma_estimate_from_result(result, ARIMA.Est.MA_OFFSET)
+
+##################################################################################################################
+# Construct estimate objects from result object
+def _arma_estimate_from_result(result, est_type):
+    nparams = len(result.params)
+    params = []
+    for i in range(1, nparams-1):
+        params.append(ParamEst.from_dict({"Estimate": result.params.iloc[i],
+                                          "Error": result.bse.iloc[i]}))
+    const = ParamEst.from_dict({"Estimate": result.params.iloc[0],
+                                "Error": result.bse.iloc[0]})
+    sigma2 = ParamEst.from_dict({"Estimate": result.params.iloc[nparams-1],
+                                 "Error": result.bse.iloc[nparams-1]})
+    return ARMAEst(est_type, const, sigma2, params)

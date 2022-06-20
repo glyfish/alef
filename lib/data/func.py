@@ -16,7 +16,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns
-class FuncBase(Enum):
+class FuncBase(str, Enum):
     def create(self, **kwargs):
         x = get_param_default_if_missing("x", None, **kwargs)
         if x is None:

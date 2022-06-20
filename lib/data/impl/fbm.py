@@ -3,12 +3,14 @@ import uuid
 import numpy
 
 from lib.models import fbm
+from lib import stats
 
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.source import (DataSource, SourceBase)
 from lib.data.schema import (DataType, DataSchema)
 from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
-                                TestParam, TestData, TestReport)
+                                TestParam, TestData, TestReport,
+                                OLSSinlgeVarTrans, ParamEst)
 from lib.models import (TestHypothesis, Dist)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
@@ -31,7 +33,7 @@ class FBM:
         def _create_func(self, **kwargs):
             return _create_func(self, **kwargs)
 
-    # Sources
+    # Source
     class Source(SourceBase):
         NOISE_CHOL = "FBM_NOISE_CHOL"           # FBM Noise simulation implemented using the Cholesky method
         NOISE_FFT = "FBM_NOISE_FFT"             # FBM Noise simulation implemented using the FFT method
@@ -41,6 +43,7 @@ class FBM:
         def _create_data_source(self, x, **kwargs):
             return _create_data_source(self, x, **kwargs)
 
+    # Test
     class Test(TestBase):
         BM = "BM"                               # Test for brownian motion
         AUTO_CORR = "AUTO_CORR"                 # Test for autocorrelated fractional brownian motion
@@ -86,6 +89,7 @@ class FBM:
             else:
                 raise Exception(f"Test type is invalid: {self}")
 
+    # _TestImpl
     class _TestImpl(TestImplBase):
         VR_TWO_TAILED = "VR_TWO_TAILED"      # Variance ratio test for brownian motion
         VR_LOWER_TAIL = "VR_LOWER_TAIL"      # Variance ratio test for anti-autocorrelated fractional brownian motion
@@ -93,6 +97,27 @@ class FBM:
 
         def _perform_test_for_impl(self, x, y, test_type, **kwargs):
             return _perform_test_for_impl(x, y, test_type, self, **kwargs)
+
+    # Est
+    class Est(EstBase):
+        PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
+        AGG_VAR = "AGG_VAR"           # Variance Aggregation esimate of FBM Hurst parameter using OLS
+
+        def _perform_est_for_type(self, x, y, **kwargs):
+            if self.value == FBM.Est.PERGRAM.value:
+                return self._ols_estimate(x, y, stats.RegType.LOG, **kwargs)
+            elif self.value == FBM.Est.AGG_VAR.value:
+                return self._ols_estimate(x, y, stats.RegType.LOG, **kwargs)
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _create_ols_single_var_trans(self, param, const):
+            if self.value == FBM.Est.AGG_VAR.value:
+                return _create_agg_var_trans(param, const)
+            elif self.value == FBM.Est.PERGRAM.value:
+                return _create_pergram_trans(param, const)
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
 
 ###################################################################################################
 ## Create DataFunc object for func type
@@ -424,3 +449,33 @@ def _vr_report_from_result(result, test_type, impl_type):
                       dist=Dist.NORMAL,
                       loc=0.0,
                       scale=1.0)
+
+##################################################################################################################
+# OLS Variable Transforms
+# Est.AGG_VAR
+def _create_agg_var_trans(param, const):
+    formula = r"$\sigma^2 m^{2\left(H-1\right)}$"
+    param = ParamEst(est=1.0 + param.est/2.0,
+                     err=param.err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**const.est
+    const = ParamEst(est=c,
+                     err= c*const.err,
+                     est_label=r"$\hat{\sigma}^2$",
+                     err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+    return OLSSinlgeVarTrans(formula, const, param)
+
+# Est.PERGRAM
+def _create_pergram_trans(param, const):
+    formula = r"$C\omega^{1 - 2H}$"
+    param = ParamEst(est=(1.0 - param.est)/2.0,
+                     err=param.err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**const.est
+    const = ParamEst(est=c,
+                     err=c*const.err,
+                     est_label=r"$\hat{C}$",
+                     err_label=r"$\sigma_{\hat{C}}$")
+    return OLSSinlgeVarTrans(formula, const, param)

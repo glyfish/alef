@@ -24,7 +24,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
 # f: Function used to compute ycol from xcol, fy is assumed to have the form
 #     f(x) -> ycol
 #
-class SourceBase(Enum):
+class SourceBase(str, Enum):
     def create(self, **kwargs):
         x = get_param_default_if_missing("x", None, **kwargs)
         if x is None:
