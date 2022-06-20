@@ -36,8 +36,8 @@ class MetaData:
           "xlabel": xlabel,
           "SourceSchema": source_schema,
           "Formula": formula,
-          "Estimates": _create_dict_from_estimates(ests),
-          "Tests": _create_dict_from_tests(tests)
+          "Estimates": self._create_dict_from_estimates(ests),
+          "Tests": self._create_dict_from_tests(tests)
         }
 
     def __repr__(self):
@@ -58,12 +58,6 @@ class MetaData:
                f"source_schema=({self.source_schema}) " \
                f"formula=({self.formula}) "
 
-    def _create_dict_from_estimates(ests):
-        result = {}
-        for key in ests.keys():
-            result[key] = ests[key].dict
-        return result
-
     def insert_estimate(self, est):
         self.ests[est.key()] = est
         self.dict["Estimates"][est.key()] = est.dict
@@ -80,6 +74,18 @@ class MetaData:
 
     def get_estimate(self, est_key):
         return self.ests[est_key]
+
+    def _create_dict_from_estimates(self, ests):
+        result = {}
+        for key in ests.keys():
+            result[key] = ests[key].dict
+        return result
+
+    def _create_dict_from_tests(self, tests):
+        result = {}
+        for key in tests.keys():
+            result[key] = tests[key].dict
+        return result
 
     @classmethod
     def get_schema_data(cls, df):
@@ -115,13 +121,12 @@ class MetaData:
         meta_data.insert_test(test)
         MetaData.set(df, meta_data)
 
-    @staticmethod
-    def from_dict(meta_data):
+    @classmethod
+    def from_dict(cls, meta_data):
         source_schema =  meta_data["SourceSchema"] if "SourceSchema" in meta_data else None
         formula =  meta_data["Formula"] if "Formula" in meta_data else None
-        ests = _create_estimates_from_dict(meta_data["Estimates"]) if "Estimates" in meta_data else {}
-        tests = _create_tests_from_dict(meta_data["Tests"]) if "Tests" in meta_data else {}
-
+        ests = cls._create_estimates_from_dict(meta_data["Estimates"]) if "Estimates" in meta_data else {}
+        tests = cls._create_tests_from_dict(meta_data["Tests"]) if "Tests" in meta_data else {}
         return MetaData(
             npts=meta_data["npts"],
             data_type=meta_data["DataType"],
@@ -134,6 +139,28 @@ class MetaData:
             source_schema=source_schema,
             formula=formula
         )
+
+    @classmethod
+    def _create_estimates_from_dict(cls, dict):
+        result = {}
+        for key in dict.keys():
+            result[key] = cls._create_estimate_from_dict(dict[key])
+        return result
+
+    @classmethod
+    def _create_estimate_from_dict(cls, dict):
+        return _create_estimate_from_dict(dict)
+
+    @classmethod
+    def _create_tests_from_dict(cls, meta_data):
+        result = {}
+        for key in meta_data.keys():
+            result[key] = cls._create_test_from_dict(meta_data[key])
+        return result
+
+    @classmethod
+    def _create_test_from_dict(cls, meta_data):
+        return TestReport.from_dict(meta_data)
 
     @staticmethod
     def params_to_str(params):
@@ -167,16 +194,7 @@ class MetaData:
 ##################################################################################################################
 # Parameter Estimates
 ##################################################################################################################
-class Est(Enum):
-    AR = "AR"                     # Autoregressive model parameters
-    AR_OFFSET = "AR_OFFSET"       # Autoregressive model with constant offset parameters
-    MA = "MA"                     # Moving average model parameters
-    MA_OFFSET = "MA_OFFSET"       # Moving average model  with constant offset parameters
-    PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
-    AGG_VAR = "AGG_VAR"           # Variance Aggregation esimate of FBM Hurst parameter using OLS
-    LINEAR = "LINEAR"             # Simple single variable linear regression
-    LOG = "LOG"                   # Log log single variable linear regression
-
+class EstBase(Enum):
     def ols_key(self):
         return self.value
 
@@ -185,9 +203,22 @@ class Est(Enum):
 
     def perform(self, df, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, est = _perform_est_for_type(x, y, self, **kwargs)
+        result, est = self._perform_est_for_type(x, y, **kwargs)
         MetaData.add_estimate(df, est)
         return result
+
+    def _perform_est_for_type(self, x, y, **kwargs):
+        return _perform_est_for_type(x, y, self, **kwargs)
+
+class Est(EstBase):
+    AR = "AR"                     # Autoregressive model parameters
+    AR_OFFSET = "AR_OFFSET"       # Autoregressive model with constant offset parameters
+    MA = "MA"                     # Moving average model parameters
+    MA_OFFSET = "MA_OFFSET"       # Moving average model  with constant offset parameters
+    PERGRAM = "PERGRAM"           # Periodogram esimate of FBM Hurst parameter using OLS
+    AGG_VAR = "AGG_VAR"           # Variance Aggregation esimate of FBM Hurst parameter using OLS
+    LINEAR = "LINEAR"             # Simple single variable linear regression
+    LOG = "LOG"                   # Log log single variable linear regression
 
 ##################################################################################################################
 # Estimated parameter
@@ -455,12 +486,6 @@ def _create_log_trans(param, const):
 
 ##################################################################################################################
 # Create estimates
-def _create_estimates_from_dict(dict):
-    result = {}
-    for key in dict.keys():
-        result[key] = _create_estimate_from_dict(dict[key])
-    return result
-
 def _create_estimate_from_dict(dict):
     est_type = dict["Type"]
     if est_type.value == Est.AR.value:
@@ -481,12 +506,6 @@ def _create_estimate_from_dict(dict):
         return OLSSingleVarEst.from_dict(dict)
     else:
         raise Exception(f"Esitmate type is invalid: {est_type}")
-
-def _create_dict_from_estimates(ests):
-    result = {}
-    for key in ests.keys():
-        result[key] = ests[key].dict
-    return result
 
 ##################################################################################################################
 # Perform esimate for specified estimate types
@@ -562,135 +581,34 @@ def _ols_estimate_from_result(x, y, reg_type, est_type, result):
     return OLSSingleVarEst(est_type, reg_type, const, param, r2)
 
 ##################################################################################################################
-# Test
+# TestBase
 ##################################################################################################################
-class Test(Enum):
-    STATIONARITY = "STATIONARITY"                  # Test for stationarity
-    STATIONARITY_OFFSET = "STATIONARITY_OFFSET"    # Test for stationarity
-    STATIONARITY_DRIFT = "STATIONARITY_DRIFT"      # Test for stationarity
-    BM = "BM"                                      # Test for brownian motion
-    AUTO_CORR = "AUTO_CORR"                        # Test for autocorrelated fractional brownian motion
-    NEG_AUTO_CORR = "NEG_AUTO_CORR"                # Test for negative autocorrelated fractional brownian motion
-
+class TestBase(Enum):
     def perform(self, df, **kwargs):
         impl = self._impl()
         return impl.perform(df, self, **kwargs)
 
     def status(self, status):
-        if self.value == Test.STATIONARITY.value:
-            return not status[2]
-        if self.value == Test.STATIONARITY_OFFSET.value:
-            return not status[2]
-        if self.value == Test.STATIONARITY_DRIFT.value:
-            return not status[2]
-        elif self.value == Test.BM.value:
-            npass = 0
-            for stat in status:
-                if stat:
-                    npass += 1
-            return npass >= len(status)/2
-        elif self.value == Test.AUTO_CORR.value:
-            for stat in status:
-                if not stat:
-                    return True
-            return False
-        elif self.value == Test.NEG_AUTO_CORR.value:
-            for stat in status:
-                if not stat:
-                    return True
-            return False
-        else:
-            raise Exception(f"Test type is invalid: {self}")
+        raise Exception(f"TestBase.status not implemented")
 
     def _desc(self):
-        if self.value == Test.STATIONARITY.value:
-            return "Stationarity Test"
-        if self.value == Test.STATIONARITY_OFFSET.value:
-            return "Stationarity Test"
-        if self.value == Test.STATIONARITY_DRIFT.value:
-            return "Stationarity Test"
-        elif self.value == Test.BM.value:
-            return "Brownian Motion Test"
-        elif self.value == Test.AUTO_CORR.value:
-            return "Autocorrelation Test"
-        elif self.value == Test.NEG_AUTO_CORR.value:
-            return "Negative Autocorrelation Test"
-        else:
-            raise Exception(f"Test type is invalid: {self}")
+        raise Exception(f"TestBase._desc not implemented")
 
     def _impl(self):
-        if self.value == Test.STATIONARITY.value:
-            return _TestImpl.ADF
-        if self.value == Test.STATIONARITY_OFFSET.value:
-            return _TestImpl.ADF_OFFSET
-        if self.value == Test.STATIONARITY_DRIFT.value:
-            return _TestImpl.ADF_DRIFT
-        elif self.value == Test.BM.value:
-            return _TestImpl.VR_TWO_TAILED
-        elif self.value == Test.AUTO_CORR.value:
-            return _TestImpl.VR_UPPER_TAIL
-        elif self.value == Test.NEG_AUTO_CORR.value:
-            return _TestImpl.VR_LOWER_TAIL
-        else:
-            raise Exception(f"Test type is invalid: {self}")
+        raise Exception(f"TestBase._impl not implemented")
 
 ##################################################################################################################
 # Test Implementation
 ##################################################################################################################
-class _TestImpl(Enum):
-    ADF = "ADF"                       # Augmented Dickey Fuller test for staionarity
-    ADF_OFFSET = "ADF_OFFSET"         # Augmented Dickey Fuller with off set test test for staionarity
-    ADF_DRIFT = "ADF_DRIFT"           # Augmented Dickey Fuller with drift test test for staionarity
-    VR_TWO_TAILED = "VR_TWO_TAILED"   # Variance ratio test for brownian motion
-    VR_LOWER_TAIL = "VR_LOWER_TAIL"   # Variance ratio test for anti-autocorrelated fractional brownian motion
-    VR_UPPER_TAIL = "VR_UPPER_TAIL"   # Variance ratio test for autocorrelated fractional brownian motion
-
+class TestImplBase(Enum):
     def perform(self, df, test_type, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, test = _perform_test_for_impl(x, y, test_type, self, **kwargs)
+        result, test = self._perform_test_for_impl(x, y, test_type, **kwargs)
         MetaData.add_test(df, test)
         return result
 
-##################################################################################################################
-# Perform test forspecified implementaion
-def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
-    if impl_type.value == _TestImpl.ADF.value:
-        return _adf_test(y, test_type, impl_type, **kwargs)
-    elif impl_type.value == _TestImpl.ADF_OFFSET.value:
-        return _adf_offset_test(y, test_type, impl_type, **kwargs)
-    elif impl_type.value == _TestImpl.ADF_DRIFT.value:
-        return _adf_drift_test(y, test_type, impl_type, **kwargs)
-    elif impl_type.value == _TestImpl.VR_TWO_TAILED.value:
-        return _vr_test(y, TestHypothesis.TWO_TAIL, test_type, impl_type, **kwargs)
-    elif impl_type.value == _TestImpl.VR_LOWER_TAIL.value:
-        return _vr_test(y, TestHypothesis.LOWER_TAIL, test_type, impl_type, **kwargs)
-    elif impl_type.value == _TestImpl.VR_UPPER_TAIL.value:
-        return _vr_test(y, TestHypothesis.UPPER_TAIL, test_type, impl_type, **kwargs)
-    else:
-        raise Exception(f"Test type is invalid: {self}")
-
-# _TestImpl.ADF
-def _adf_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test(y)
-    return result, _adf_report_from_result(result, test_type, impl_type)
-
-# _TestImpl.ADF_OFFSET
-def _adf_offset_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test_offset(y)
-    return result, _adf_report_from_result(result, test_type, impl_type)
-
-# _TestImpl.ADF_DRIFT
-def _adf_drift_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test_drift(y)
-    return result, _adf_report_from_result(result, test_type, impl_type)
-
-# _TestImpl.VR_TWO_TAILED
-def _vr_test(y, hypo_type, test_type, impl_type, **kwargs):
-    sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
-    s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
-    verify_type(s, list)
-    result = fbm.vr_test(y, s, sig_level, hypo_type)
-    return result, _vr_report_from_result(result, test_type, impl_type)
+    def _perform_test_for_impl(self, x, y, test_type, **kwargs):
+        raise Exception(f"_perform_test_for_impl not implemented")
 
 ##################################################################################################################
 # Test Parameter
@@ -799,8 +717,8 @@ class TestReport:
     def key(self):
         return self.test_type.value
 
-    @staticmethod
-    def from_dict(meta_data):
+    @classmethod
+    def from_dict(cls, meta_data):
         return TestReport(status=meta_data["Status"],
                           hyp_type=meta_data["TestHypothesis"],
                           test_type=meta_data["TestType"],
@@ -809,74 +727,3 @@ class TestReport:
                           dist=meta_data["Distribution"],
                           dist_params=meta_data["Distribution Params"],
                           test_data=[TestData.from_dict(data) for data in meta_data["TestData"]])
-
-##################################################################################################################
-# Create tests
-def _create_dict_from_tests(tests):
-    result = {}
-    for key in tests.keys():
-        result[key] = tests[key].dict
-    return result
-
-def _create_tests_from_dict(meta_data):
-    result = {}
-    for key in meta_data.keys():
-        result[key] = _create_test_from_dict(meta_data[key])
-    return result
-
-def _create_test_from_dict(meta_data):
-    return TestReport.from_dict(meta_data)
-
-##################################################################################################################
-# Constrct test report from result object
-def _adf_report_from_result(result, test_type, impl_type):
-    sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
-    stat = TestParam(label=r"$t$", value=result.stat)
-    pval = TestParam(label=r"$p-value$", value = result.pval)
-    lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
-    test_data = []
-    for i in range(3):
-        data = TestData(status=result.status_vals[i],
-                        stat=stat,
-                        pval=pval,
-                        params=[],
-                        sig=sigs[i],
-                        lower=lower_vals[i],
-                        upper=None)
-        test_data.append(data)
-    return TestReport(status=test_type.status(result.status_vals),
-                      hyp_type=TestHypothesis.LOWER_TAIL,
-                      test_type=test_type,
-                      impl_type=impl_type,
-                      test_data=test_data,
-                      dist=None)
-
-def _vr_report_from_result(result, test_type, impl_type):
-    sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
-    s_vals = [TestParam(label=r"$s$", value=s) for s in result.s_vals]
-    stats = [TestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
-    pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
-    lower = result.critical_values[0]
-    if lower is not None:
-        lower = TestParam(label=r"$Z_L(s)$", value=lower)
-    upper = result.critical_values[1]
-    if upper is not None:
-        upper = TestParam(label=r"$Z_U(s)$", value=upper)
-    test_data = []
-    for i in range(len(s_vals)):
-        data = TestData(status=result.status_vals[i],
-                        stat=stats[i],
-                        pval=pvals[i],
-                        params=[s_vals[i]],
-                        sig=sig,
-                        lower=lower,
-                        upper=upper)
-        test_data.append(data)
-    return TestReport(status=test_type.status(result.status_vals),
-                      hyp_type=result.hyp_type,
-                      test_type=test_type,
-                      impl_type=impl_type,
-                      test_data=test_data,
-                      dist=Dist.NORMAL,
-                      loc=0.0,
-                      scale=1.0)

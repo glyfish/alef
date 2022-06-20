@@ -7,6 +7,9 @@ from lib.models import fbm
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.source import (DataSource, SourceBase)
 from lib.data.schema import (DataType, DataSchema)
+from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
+                                TestParam, TestData, TestReport)
+from lib.models import (TestHypothesis, Dist)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
@@ -37,6 +40,59 @@ class FBM:
 
         def _create_data_source(self, x, **kwargs):
             return _create_data_source(self, x, **kwargs)
+
+    class Test(TestBase):
+        BM = "BM"                               # Test for brownian motion
+        AUTO_CORR = "AUTO_CORR"                 # Test for autocorrelated fractional brownian motion
+        NEG_AUTO_CORR = "NEG_AUTO_CORR"         # Test for negative autocorrelated fractional brownian motion
+
+        def status(self, status):
+            if self.value == FBM.Test.BM.value:
+                npass = 0
+                for stat in status:
+                    if stat:
+                        npass += 1
+                return npass >= len(status)/2
+            elif self.value == FBM.Test.AUTO_CORR.value:
+                for stat in status:
+                    if not stat:
+                        return True
+                return False
+            elif self.value == FBM.Test.NEG_AUTO_CORR.value:
+                for stat in status:
+                    if not stat:
+                        return True
+                return False
+            else:
+                raise Exception(f"Test type is invalid: {self}")
+
+        def _desc(self):
+            if self.value == FBM.Test.BM.value:
+                return "Brownian Motion Test"
+            elif self.value == FBM.Test.AUTO_CORR.value:
+                return "Autocorrelation Test"
+            elif self.value == FBM.Test.NEG_AUTO_CORR.value:
+                return "Negative Autocorrelation Test"
+            else:
+                raise Exception(f"Test type is invalid: {self}")
+
+        def _impl(self):
+            if self.value == FBM.Test.BM.value:
+                return FBM._TestImpl.VR_TWO_TAILED
+            elif self.value == FBM.Test.AUTO_CORR.value:
+                return FBM._TestImpl.VR_UPPER_TAIL
+            elif self.value == FBM.Test.NEG_AUTO_CORR.value:
+                return FBM._TestImpl.VR_LOWER_TAIL
+            else:
+                raise Exception(f"Test type is invalid: {self}")
+
+    class _TestImpl(TestImplBase):
+        VR_TWO_TAILED = "VR_TWO_TAILED"      # Variance ratio test for brownian motion
+        VR_LOWER_TAIL = "VR_LOWER_TAIL"      # Variance ratio test for anti-autocorrelated fractional brownian motion
+        VR_UPPER_TAIL = "VR_UPPER_TAIL"      # Variance ratio test for autocorrelated fractional brownian motion
+
+        def _perform_test_for_impl(self, x, y, test_type, **kwargs):
+            return _perform_test_for_impl(x, y, test_type, self, **kwargs)
 
 ###################################################################################################
 ## Create DataFunc object for func type
@@ -316,3 +372,55 @@ def _create_fbm_motion_fft_source(source_type, x, **kwargs):
                       desc=f"FFT FBM",
                       f=f,
                       x=x)
+
+##################################################################################################################
+# Perform test forspecified implementaion
+def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
+    if impl_type.value == FBM._TestImpl.VR_TWO_TAILED.value:
+        return _vr_test(y, TestHypothesis.TWO_TAIL, test_type, impl_type, **kwargs)
+    elif impl_type.value == FBM._TestImpl.VR_LOWER_TAIL.value:
+        return _vr_test(y, TestHypothesis.LOWER_TAIL, test_type, impl_type, **kwargs)
+    elif impl_type.value == FBM._TestImpl.VR_UPPER_TAIL.value:
+        return _vr_test(y, TestHypothesis.UPPER_TAIL, test_type, impl_type, **kwargs)
+    else:
+        raise Exception(f"Test type is invalid: {self}")
+
+# _TestImpl.VR_TWO_TAILED, _TestImpl.VR_LOWER_TAIL, _TestImpl.VR_UPPER_TAIL.value
+def _vr_test(y, hypo_type, test_type, impl_type, **kwargs):
+    sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
+    s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
+    verify_type(s, list)
+    result = fbm.vr_test(y, s, sig_level, hypo_type)
+    return result, _vr_report_from_result(result, test_type, impl_type)
+
+##################################################################################################################
+# Construct test report from result object
+def _vr_report_from_result(result, test_type, impl_type):
+    sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
+    s_vals = [TestParam(label=r"$s$", value=s) for s in result.s_vals]
+    stats = [TestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
+    pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
+    lower = result.critical_values[0]
+    if lower is not None:
+        lower = TestParam(label=r"$Z_L(s)$", value=lower)
+    upper = result.critical_values[1]
+    if upper is not None:
+        upper = TestParam(label=r"$Z_U(s)$", value=upper)
+    test_data = []
+    for i in range(len(s_vals)):
+        data = TestData(status=result.status_vals[i],
+                        stat=stats[i],
+                        pval=pvals[i],
+                        params=[s_vals[i]],
+                        sig=sig,
+                        lower=lower,
+                        upper=upper)
+        test_data.append(data)
+    return TestReport(status=test_type.status(result.status_vals),
+                      hyp_type=result.hyp_type,
+                      test_type=test_type,
+                      impl_type=impl_type,
+                      test_data=test_data,
+                      dist=Dist.NORMAL,
+                      loc=0.0,
+                      scale=1.0)

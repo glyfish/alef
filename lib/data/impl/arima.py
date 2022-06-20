@@ -7,6 +7,9 @@ from lib.models import arima
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.source import (DataSource, SourceBase)
 from lib.data.schema import (DataType)
+from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
+                                TestParam, TestData, TestReport)
+from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
@@ -29,16 +32,53 @@ class ARIMA:
 
     # Sources
     class Source(SourceBase):
-        AR = "AR"                              # AR(p) simulation
-        AR_DRIFT = "AR_DRIFT"                  # AR(p) with drift
-        AR_OFFSET = "AR_OFFSET"                # AR(p) with offset
-        MA = "MA"                              # MA(q) simulation
-        ARMA = "ARMA"                          # ARMA(p, q) simulation
-        ARIMA = "ARIMA"                        # ARIMA(p, d, q) simulation
-        ARIMA_FROM_ARMA = "ARIMA_FROM_ARMA"    # ARIMA(p, d, q) simulation created from ARMA(p,q)
+        AR = "AR"                                      # AR(p) simulation
+        AR_DRIFT = "AR_DRIFT"                          # AR(p) with drift
+        AR_OFFSET = "AR_OFFSET"                        # AR(p) with offset
+        MA = "MA"                                      # MA(q) simulation
+        ARMA = "ARMA"                                  # ARMA(p, q) simulation
+        ARIMA = "ARIMA"                                # ARIMA(p, d, q) simulation
+        ARIMA_FROM_ARMA = "ARIMA_FROM_ARMA"            # ARIMA(p, d, q) simulation created from ARMA(p,q)
 
         def _create_data_source(self, x, **kwargs):
             return _create_data_source(self, x, **kwargs)
+
+    # Tests
+    class Test(TestBase):
+        STATIONARITY = "STATIONARITY"                  # Test for stationarity
+        STATIONARITY_OFFSET = "STATIONARITY_OFFSET"    # Test for stationarity
+        STATIONARITY_DRIFT = "STATIONARITY_DRIFT"      # Test for stationarity
+
+        def status(self, status):
+            if self.value == ARIMA.Test.STATIONARITY.value:
+                return not status[2]
+            if self.value == ARIMA.Test.STATIONARITY_OFFSET.value:
+                return not status[2]
+            if self.value == ARIMA.Test.STATIONARITY_DRIFT.value:
+                return not status[2]
+            else:
+                raise Exception(f"Test type is invalid: {self}")
+
+        def _desc(self):
+            return "Stationarity Test"
+
+        def _impl(self):
+            if self.value == ARIMA.Test.STATIONARITY.value:
+                return ARIMA._TestImpl.ADF
+            if self.value == ARIMA.Test.STATIONARITY_OFFSET.value:
+                return ARIMA._TestImpl.ADF_OFFSET
+            if self.value == ARIMA.Test.STATIONARITY_DRIFT.value:
+                return ARIMA._TestImpl.ADF_DRIFT
+            else:
+                raise Exception(f"Test type is invalid: {self}")
+
+    class _TestImpl(TestImplBase):
+        ADF = "ADF"                          # Augmented Dickey Fuller test for staionarity
+        ADF_OFFSET = "ADF_OFFSET"            # Augmented Dickey Fuller with off set test test for staionarity
+        ADF_DRIFT = "ADF_DRIFT"              # Augmented Dickey Fuller with drift test test for staionarity
+
+        def _perform_test_for_impl(self, x, y, test_type, **kwargs):
+            return _perform_test_for_impl(x, y, test_type, self, **kwargs)
 
 ###################################################################################################
 ## Create function definition for data type
@@ -328,3 +368,53 @@ def _create_arima_from_arma_source(source_type, x, **kwargs):
                       desc=f"ARIMA({d}) from ARMA",
                       f=f,
                       x=x)
+
+##################################################################################################################
+# Perform test for specified implementaion
+def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
+    if impl_type.value == ARIMA._TestImpl.ADF.value:
+        return _adf_test(y, test_type, impl_type, **kwargs)
+    elif impl_type.value == ARIMA._TestImpl.ADF_OFFSET.value:
+        return _adf_offset_test(y, test_type, impl_type, **kwargs)
+    elif impl_type.value == ARIMA._TestImpl.ADF_DRIFT.value:
+        return _adf_drift_test(y, test_type, impl_type, **kwargs)
+    else:
+        raise Exception(f"Test type is invalid: {self}")
+
+# _TestImpl.ADF
+def _adf_test(y, test_type, impl_type, **kwargs):
+    result = arima.adf_test(y)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+# _TestImpl.ADF_OFFSET
+def _adf_offset_test(y, test_type, impl_type, **kwargs):
+    result = arima.adf_test_offset(y)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+# _TestImpl.ADF_DRIFT
+def _adf_drift_test(y, test_type, impl_type, **kwargs):
+    result = arima.adf_test_drift(y)
+    return result, _adf_report_from_result(result, test_type, impl_type)
+
+##################################################################################################################
+def _adf_report_from_result(result, test_type, impl_type):
+    sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
+    stat = TestParam(label=r"$t$", value=result.stat)
+    pval = TestParam(label=r"$p-value$", value = result.pval)
+    lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
+    test_data = []
+    for i in range(3):
+        data = TestData(status=result.status_vals[i],
+                        stat=stat,
+                        pval=pval,
+                        params=[],
+                        sig=sigs[i],
+                        lower=lower_vals[i],
+                        upper=None)
+        test_data.append(data)
+    return TestReport(status=test_type.status(result.status_vals),
+                      hyp_type=TestHypothesis.LOWER_TAIL,
+                      test_type=test_type,
+                      impl_type=impl_type,
+                      test_data=test_data,
+                      dist=None)
