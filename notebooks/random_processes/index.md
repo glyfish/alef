@@ -32,6 +32,6 @@
 
 * **[ornstein_uhlenbeck_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_parameter_estimation.ipynb)** Ornstein-Uhlenbeck process parameters parameters are estimated from simulations.
 
-* **[ornstein_uhlenbeck_process.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_process.ipynb)** The Ornstein-Uhlenbeck stochastic differential equation describes a mean reverting random process. Analytic solutions or mean, variance, covariance and distribution are discussed.
+* **[ornstein_uhlenbeck_process.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_process.ipynb)** The Ornstein-Uhlenbeck stochastic differential equation describes a mean reverting random process. Analytic solutions or mean, variance, covariance and distribution are discussed and compared with simulations.
 
-* **[ornstein_uhlenbeck_simulation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_simulation.ipynb)** Simulations of the Ornstein-Uhlenbeck process are compared to simulation results.
+* **[ornstein_uhlenbeck_simulation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_simulation.ipynb)** Simulations of the Ornstein-Uhlenbeck process are compared.

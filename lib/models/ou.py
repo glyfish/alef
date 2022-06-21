@@ -13,38 +13,37 @@ from lib.models.dist import Dist
 def mean(μ, λ, t, x0=0):
     return x0*numpy.exp(-λ*t) + μ*(1.0 - numpy.exp(-λ*t))
 
-def std(λ, t, σ=1.0):
-    var = σ**2*(1.0 - numpy.exp(-2.0*λ*t))/(2.0*λ)
-    return numpy.sqtt(var)
+def var(λ, t, σ=1.0):
+    return σ**2*(1.0 - numpy.exp(-2.0*λ*t))/(2.0*λ)
 
 def cov(λ, s, t, σ=1.0):
     c = numpy.exp(-λ*(t - s)) - numpy.exp(-λ*(t + s))
     return σ**2*c/(2.0*λ)
 
-def std_limit(λ, σ=1.0):
-    return σ/numpy.sqrt(2.0*λ)
+def var_limit(λ, σ=1.0):
+    return  σ**2/(2.0*λ)
 
 def pdf(x, μ, λ, t, σ=1.0, x0=0):
     μt = mean(μ, λ, t, x0)
-    σt = std(λ, t, σ)
+    σt = numpy.sqrt(var(λ, t, σ))
     dist = Dist.NORMAL.create(loc=μt, scale=σt)
     return dist.pdf(x)
 
 def cdf(x, μ, λ, t, σ=1.0, x0=0):
     μt = mean(μ, λ, t, x0)
-    σt = std(λ, t, σ)
+    σt = numpy.sqrt(var(λ, t, σ))
     dist = Dist.NORMAL.create(loc=μt, scale=σt)
     return dist.cdf(x)
 
 def pdf_limit(x, μ, λ, σ=1.0, x0=0):
-    σl = std_limit(λ, σ)
+    σl = numpy.sqrt(var_limit(λ, σ))
     dist = Dist.NORMAL.create(loc=μ, scale=σl)
     return dist.pdf(x)
 
 def cdf_limit(x, μ, λ, σ=1.0, x0=0):
-    σl = std_limit(λ, σ)
+    σl = numpy.sqrt(var_limit(λ, σ))
     dist = Dist.NORMAL.create(loc=μ, scale=σl)
-    return dist.pdf(x)
+    return dist.cdf(x)
 
 def mean_halflife(λ):
     return numpy.log(2)/λ

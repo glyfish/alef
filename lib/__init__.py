@@ -6,7 +6,7 @@ from lib.plots import (HypTestPlotType, hyp_test)
 from lib.plots import (bar)
 
 from lib.data import (Est)
-from lib.data import (ARIMA, BM, FBM, Stats, OU, ADF)
+from lib.data.impl import (ARIMA, BM, FBM, Stats, OU, ADF)
 
 from lib.models import arima
 from lib.models import bm
