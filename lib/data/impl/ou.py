@@ -1,4 +1,5 @@
 from enum import Enum
+import uuid
 import numpy
 
 from lib.models import ou
@@ -217,7 +218,7 @@ def _create_xt_source(source_type, x, **kwargs):
 def _create_proc_source(source_type, x, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
-    Δt = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
     f = lambda x : ou.ou(μ, λ, Δt, len(x), σ, x0)
