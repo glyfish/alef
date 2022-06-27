@@ -54,11 +54,8 @@ class FuncHistPlotConfig:
     def ylabel(self):
         return self.data_meta_data.ylabel
 
-    def legend_labels(self):
+    def labels(self):
         return [self.data_meta_data.ylabel, self.formula()]
-
-    def label(self):
-        return self.meta_data.formula
 
     def formula(self):
         if self.func_meta_data.formula is None:
@@ -156,11 +153,12 @@ def fbar(**kwargs):
     title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", plot_config.xlabel(), **kwargs)
     ylabel         = get_param_default_if_missing("ylabel", plot_config.ylabel(), **kwargs)
-    label          = get_param_default_if_missing("label", plot_config.label(), **kwargs)
-    legend_labels  = get_param_default_if_missing("legend_labels", plot_config.legend_labels(), **kwargs)
+    labels         = get_param_default_if_missing("labels", plot_config.labels(), **kwargs)
     loc            = get_param_default_if_missing("loc", "lup", **kwargs)
 
-    x, y = plot_config.meta_data.get_data(df)
+    x, y = plot_config.data_meta_data.get_data(data)
+    fx, fy = plot_config.func_meta_data.get_data(func)
+
     width = 0.9*(x[1]-x[0])
 
     figure, axis = pyplot.subplots(figsize=(13, 10))
@@ -173,12 +171,9 @@ def fbar(**kwargs):
     axis.set_ylabel(ylabel)
     axis.set_xlabel(xlabel)
 
-    if label is not None:
-        x_text, y_text = _label_loc(loc)
-        bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
-        axis.text(x_text, y_text, label, bbox=bbox, fontsize=18.0, zorder=10, transform=axis.transAxes)
+    axis.bar(x, y, align='center', label=legend_labels[0], width=width)
+    axis.plot(fx, fy, label=legend_labels[1], lw=lw)
 
-    axis.bar(x, y, align='center', width=width, zorder=9)
 
 ###############################################################################################
 # Helpers

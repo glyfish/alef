@@ -3,7 +3,7 @@ from lib.plots import (curve, comparison, stack, twinx)
 from lib.plots import (fpoints, fcurve)
 from lib.plots import (single_var)
 from lib.plots import (HypTestPlotType, hyp_test)
-from lib.plots import (bar)
+from lib.plots import (bar, fbar, hist)
 
 from lib.data import (Est)
 from lib.data.impl import (ARIMA, BM, FBM, Stats, OU, ADF)

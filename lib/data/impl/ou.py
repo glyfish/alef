@@ -20,8 +20,8 @@ class OU:
         COV = "OU_COV"                        # Ornstein-Uhelenbeck process covariance
         PDF = "OU_PDF"                        # Ornstein-Uhelenbeck process PDF
         CDF = "OU_CDF"                        # Ornstein-Uhelenbeck process CDF
-        PDF_LIMIT = "OU_PDF"                  # Ornstein-Uhelenbeck process PDF t->infty limit
-        CDF_LIMIT = "OU_CDF"                  # Ornstein-Uhelenbeck process CDF t->infty limit
+        PDF_LIMIT = "OU_PDF_LIMIT"            # Ornstein-Uhelenbeck process PDF t->infty limit
+        CDF_LIMIT = "OU_CDF_LIMIT"            # Ornstein-Uhelenbeck process CDF t->infty limit
         MEAN_HALF_LIFE = "OU_MEAN_HALF_LIFE"  # Ornstein-Uhelenbeck process halflife
 
         def _create_func(self, **kwargs):
@@ -39,20 +39,20 @@ class OU:
 ## create DataFunc for func_type
 ###################################################################################################
 def _create_func(func_type, **kwargs):
-    if source_type.value == OU.MEAN.value:
-        _create_ou_mean(source_type, **kwargs)
-    elif source_type.value == OU.VAR.value:
-        _create_ou_var(source_type, **kwargs)
-    elif source_type.value == OU.COV.value:
-        _create_ou_cov(source_type, **kwargs)
-    elif source_type.value == OU.PDF.value:
-        _create_ou_pdf(source_type, **kwargs)
-    elif source_type.value == OU.CDF.value:
-        _create_ou_cdf(source_type, **kwargs)
-    elif source_type.value == OU.PDF_LIMIT.value:
-        _create_ou_pdf_limit(source_type, **kwargs)
-    elif source_type.value == OU.CDF_LIMIT.value:
-        _create_ou_cdf_limit(source_type, **kwargs)
+    if func_type.value == OU.Func.MEAN.value:
+        return _create_ou_mean(func_type, **kwargs)
+    elif func_type.value == OU.Func.VAR.value:
+        return _create_ou_var(func_type, **kwargs)
+    elif func_type.value == OU.Func.COV.value:
+        return _create_ou_cov(func_type, **kwargs)
+    elif func_type.value == OU.Func.PDF.value:
+        return _create_ou_pdf(func_type, **kwargs)
+    elif func_type.value == OU.Func.CDF.value:
+        return _create_ou_cdf(func_type, **kwargs)
+    elif func_type.value == OU.Func.PDF_LIMIT.value:
+        return _create_ou_pdf_limit(func_type, **kwargs)
+    elif func_type.value == OU.Func.CDF_LIMIT.value:
+        return _create_ou_cdf_limit(func_type, **kwargs)
     else:
         Exception(f"Func is invalid: {func_type}")
 
@@ -62,10 +62,10 @@ def _create_ou_mean(func_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x : ou.mean(μ, λ, x, x0)
+    fy = lambda x, y : ou.mean(μ, λ, x, x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
-                    source_type=source_type,
+                    source_type=DataType.TIME_SERIES,
                     params={"μ": μ, "λ": λ, "x0": x0},
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
@@ -77,10 +77,10 @@ def _create_ou_mean(func_type, **kwargs):
 def _create_ou_var(func_type, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
-    fy = lambda x : ou.var(λ, x, σ)
+    fy = lambda x, y : ou.var(λ, x, σ)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
-                    source_type=source_type,
+                    source_type=None,
                     params={"σ": σ, "λ": λ},
                     ylabel=r"$\sigma^2_t$",
                     xlabel=r"$t$",
@@ -89,15 +89,15 @@ def _create_ou_var(func_type, **kwargs):
                     fy=fy)
 
 # Func.COV
-def _create_ou_cov(source_type, **kwargs):
+def _create_ou_cov(func_type, **kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
     fx = lambda x : x[s:]
-    fy = lambda x : ou.cov(λ, s, x, σ)
+    fy = lambda x, y : ou.cov(λ, s, x, σ)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
-                    source_type=source_type,
+                    source_type=None,
                     params={"σ": σ, "λ": λ, "s": s},
                     ylabel=r"$\Cov(S_s, S_t)$",
                     xlabel=r"$t$",
@@ -107,81 +107,81 @@ def _create_ou_cov(source_type, **kwargs):
                     fx=fx)
 
 # Func.PDF
-def _create_ou_pdf(source_type, **kwargs):
+def _create_ou_pdf(func_type, **kwargs):
     t = get_param_throw_if_missing("t", **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x : ou.pdf(x, μ, λ, t, σ=σ, x0=x0)
+    fy = lambda x, y : ou.pdf(x, μ, λ, t, σ=σ, x0=x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=source_type,
-                    params={"σ": σ, "λ": λ, "s": s},
+                    source_type=None,
+                    params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
                     ylabel=r"$p(x)$",
                     xlabel=r"$x$",
                     desc="Ornstein-Uhlenbeck PDF",
                     fy=fy)
 
 # Func.CDF
-def _create_ou_cdf(source_type, **kwargs):
+def _create_ou_cdf(func_type, **kwargs):
     t = get_param_throw_if_missing("t", **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x : ou.cdf(x, μ, λ, t, σ=σ, x0=x0)
+    fy = lambda x, y : ou.cdf(x, μ, λ, t, σ=σ, x0=x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=source_type,
-                    params={"σ": σ, "λ": λ, "s": s},
+                    source_type=None,
+                    params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",
                     desc="Ornstein-Uhlenbeck CDF",
                     fy=fy)
 
 # Func.PDF_LIMIT
-def _create_ou_pdf_limit(source_type, **kwargs):
+def _create_ou_pdf_limit(func_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x : ou.pdf_limit(x, μ, λ, σ=σ, x0=x0)
+    fy = lambda x, y : ou.pdf_limit(x, μ, λ, σ=σ, x0=x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=source_type,
-                    params={"σ": σ, "λ": λ, "s": s},
+                    source_type=None,
+                    params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
                     ylabel=r"$p(x)$",
                     xlabel=r"$x$",
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ PDF",
                     fy=fy)
 
 # Func.CDF_LIMIT
-def _create_ou_cdf_limit(source_type, **kwargs):
+def _create_ou_cdf_limit(func_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x : ou.cdf_limit(x, μ, λ, σ=σ, x0=x0)
+    fy = lambda x, y : ou.cdf_limit(x, μ, λ, σ=σ, x0=x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=source_type,
-                    params={"σ": σ, "λ": λ, "s": s},
+                    source_type=v,
+                    params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ CDF",
                     fy=fy)
 
 # Func.MEAN_HALF_LIFE
-def _create_ou_mean_half_life(source_type, **kwargs):
-    fy = lambda x : ou.mean_halflife(x)
+def _create_ou_mean_half_life(func_type, **kwargs):
+    fy = lambda x, y : ou.mean_halflife(x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
-                    source_type=source_type,
-                    params={"σ": σ, "λ": λ, "s": s},
+                    source_type=DataType.TIME_SERIES,
+                    params={},
                     ylabel=r"$t_H(\lambda)$",
                     xlabel=r"$\lambda$",
-                    desc=r"Ornstein-Uhlenbeck $t\to \infty$ CDF",
+                    desc=r"Ornstein-Uhlenbeck Half-Life of Mean Decay",
                     fy=fy)
 
 ###################################################################################################

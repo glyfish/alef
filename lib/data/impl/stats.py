@@ -50,9 +50,9 @@ def _create_func(func_type, **kwargs):
     elif func_type.value == Stats.Func.AGG.value:
         return _create_agg(func_type, **kwargs)
     elif func_type.value == Stats.Func.PDF_HIST.value:
-        return _create_pdf_hist_sd(func_type, **kwargs)
+        return _create_pdf_hist(func_type, **kwargs)
     elif func_type.value == Stats.Func.CDF_HIST.value:
-        return _create_cdf_hist_sd(func_type, **kwargs)
+        return _create_cdf_hist(func_type, **kwargs)
     else:
         raise Exception(f"Func is invalid: {func_type}")
 
@@ -161,7 +161,7 @@ def _create_agg(func_type, **kwargs):
                     fx=fx)
 
 # Func.PDF_HIST
-def _create_pdf_hist_sd(func_type, **kwargs):
+def _create_pdf_hist(func_type, **kwargs):
     xmin = get_param_throw_if_missing("xmin", **kwargs)
     xmax = get_param_throw_if_missing("xmax", **kwargs)
     nbins = get_param_default_if_missing("nbins", 50, **kwargs)
@@ -179,12 +179,12 @@ def _create_pdf_hist_sd(func_type, **kwargs):
                     fyx=fyx)
 
 # Func.CDF_HIST
-def _create_cdf_hist_sd(func_type, **kwargs):
+def _create_cdf_hist(func_type, **kwargs):
     fx = lambda x : x[:-1]
     fy = lambda x, y : stats.cdf_hist(x, y)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=DataType.DIST,
+                    source_type=DataType.TIME_SERIES,
                     params={},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",

@@ -74,7 +74,7 @@ class DataFunc:
         self.func_type = func_type
         self.schema = data_type.schema()
         self.params = params
-        self.source_schema = source_type.schema()
+        self.source_schema = source_type.schema() if source_type is not None else None
         self.ylabel = ylabel
         self.xlabel = xlabel
         self.desc = desc
@@ -116,6 +116,8 @@ class DataFunc:
         DataSchema.set_iterations(df, None)
 
     def apply(self, df):
+        if self.source_schema is None:
+            raise Exception(f"source_schema cannot be None")
         x, y = self.source_schema.get_data(df)
         if self.fy is not None:
             x_result = self.fx(x)
@@ -134,6 +136,8 @@ class DataFunc:
         return df_result
 
     def apply_ensemble(self, dfs):
+        if self.source_schema is None:
+            raise Exception(f"source_schema cannot be None")
         if len(dfs) == 0:
             Exception(f"No DataFrames provided")
         x, y = self.source_schema.get_data_from_list(dfs)
