@@ -52,7 +52,7 @@ def mean_halflife(λ):
 ## generate n samples of x_t for a specified t
 def xt(μ, λ, t, σ=1.0, x0=0, n=1):
     μt = mean(μ, λ, t, x0)
-    σt = std(λ, t, σ)
+    σt = numpy.sqrt(var(λ, t, σ))
     ε = numpy.random.normal(0.0, 1.0, n)
     return μt + σt*ε
 

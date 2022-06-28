@@ -120,6 +120,7 @@ def _create_ou_pdf(func_type, **kwargs):
                     params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
                     ylabel=r"$p(x)$",
                     xlabel=r"$x$",
+                    formula=r"$Normal(\mu_t, \sigma_t)$",
                     desc="Ornstein-Uhlenbeck PDF",
                     fy=fy)
 
@@ -137,6 +138,7 @@ def _create_ou_cdf(func_type, **kwargs):
                     params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",
+                    formula=r"$Normal(\mu_t, \sigma_t)$",
                     desc="Ornstein-Uhlenbeck CDF",
                     fy=fy)
 
@@ -153,6 +155,7 @@ def _create_ou_pdf_limit(func_type, **kwargs):
                     params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
                     ylabel=r"$p(x)$",
                     xlabel=r"$x$",
+                    formula=r"$Normal(\mu_t, \sigma_t)$",
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ PDF",
                     fy=fy)
 
@@ -169,6 +172,7 @@ def _create_ou_cdf_limit(func_type, **kwargs):
                     params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",
+                    formula=r"$Normal(\mu_t, \sigma_t)$",
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ CDF",
                     fy=fy)
 
@@ -207,7 +211,7 @@ def _create_xt_source(source_type, x, **kwargs):
     return DataSource(source_type=source_type,
                       schema=DataType.TIME_SERIES.schema(),
                       name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
-                      params={"μ": μ, "λ": λ, "t": t, "X0": x0},
+                      params={"μ": μ, "λ": λ, "t": t, "x0": x0},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Ornstein-Uhlenbeck Solution",
@@ -225,7 +229,7 @@ def _create_proc_source(source_type, x, **kwargs):
     return DataSource(source_type=source_type,
                       schema=DataType.TIME_SERIES.schema(),
                       name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
-                      params={"μ": μ, "λ": λ, "Δt": Δt, "X0": x0},
+                      params={"μ": μ, "λ": λ, "Δt": Δt, "x0": x0},
                       ylabel=r"$S_t$",
                       xlabel=r"$t$",
                       desc=f"Ornstein-Uhlenbeck Process",

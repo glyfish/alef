@@ -172,9 +172,9 @@ class MetaData:
                 set_param_keys.append(key)
             if isinstance(value, numpy.ndarray) and len(value) > 0:
                 set_param_keys.append(key)
-            if isinstance(value, int) and value != 0:
+            if isinstance(value, int):
                 set_param_keys.append(key)
-            if isinstance(value, float) and value != 0.0:
+            if isinstance(value, float):
                 set_param_keys.append(key)
             if isinstance(value, str) and value != "":
                 set_param_keys.append(key)

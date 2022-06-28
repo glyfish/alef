@@ -61,7 +61,7 @@ class FuncHistPlotConfig:
         if self.func_meta_data.formula is None:
             return self.func_meta_data.ylabel
         else:
-            return self.func_meta_data.ylabel + "=" + self.func_meta_data.formula
+            return self.func_meta_data.formula
 
 ###############################################################################################
 ## Histogram plot (Uses HistPlotType config)
@@ -155,6 +155,7 @@ def fbar(**kwargs):
     ylabel         = get_param_default_if_missing("ylabel", plot_config.ylabel(), **kwargs)
     labels         = get_param_default_if_missing("labels", plot_config.labels(), **kwargs)
     loc            = get_param_default_if_missing("loc", "lup", **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
 
     x, y = plot_config.data_meta_data.get_data(data)
     fx, fy = plot_config.func_meta_data.get_data(func)
@@ -171,9 +172,10 @@ def fbar(**kwargs):
     axis.set_ylabel(ylabel)
     axis.set_xlabel(xlabel)
 
-    axis.bar(x, y, align='center', label=legend_labels[0], width=width)
-    axis.plot(fx, fy, label=legend_labels[1], lw=lw)
+    axis.bar(x, y, align='center', label=labels[0], width=width, zorder=5)
+    axis.plot(fx, fy, label=labels[1], lw=lw, color="#320075", zorder=6)
 
+    axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
 ###############################################################################################
 # Helpers
