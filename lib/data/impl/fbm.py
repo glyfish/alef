@@ -147,8 +147,8 @@ def _create_func(func_type, **kwargs):
 ###################################################################################################
 # Func.MEAN
 def _create_fbm_mean(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : numpy.full(len(x), 0.0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -165,8 +165,8 @@ def _create_fbm_mean(func_type, **kwargs):
 def _create_fbm_sd(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1., **kwargs)
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : Δt*numpy.sqrt(fbm.var(H, x))
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -183,8 +183,8 @@ def _create_fbm_sd(func_type, **kwargs):
 def _create_fbm_var(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1., **kwargs)
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : Δt**2*fbm.var(H, x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -200,8 +200,8 @@ def _create_fbm_var(func_type, **kwargs):
 # Func.ACF
 def _create_fbm_acf(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : fbm.acf(H, x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.ACF,
@@ -216,9 +216,9 @@ def _create_fbm_acf(func_type, **kwargs):
 
 # Func.VR
 def _create_fbm_vr(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     H = get_param_throw_if_missing("H", **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y :  x**(2*H - 1.0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -235,8 +235,8 @@ def _create_fbm_vr(func_type, **kwargs):
 def _create_fbm_cov(func_type, **kwargs):
     H = get_param_throw_if_missing("H", **kwargs)
     s = get_param_throw_if_missing("s", **kwargs)
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : fbm.cov(H, s, x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.ACF,

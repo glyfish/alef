@@ -37,7 +37,6 @@ class DataPlotConfig:
         formula = self.meta_data.formula
 
         if self.source_meta_data is not None:
-            title = f"{self.source_meta_data.desc} {title}"
             params = params | self.source_meta_data.params
         elif formula is not None:
             title = f"{title} {self.meta_data.formula()}"

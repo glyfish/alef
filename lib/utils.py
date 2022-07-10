@@ -28,10 +28,17 @@ def create_space(**kwargs):
         xmax = (npts - 1)*Δx + xmin
     elif npts is None:
         npts = int((xmax-xmin)/Δx) + 1
+    kwargs["npts"] = npts
+    kwargs["xmax"] = xmax
+    kwargs["xmin"] = xmin
+    kwargs["Δx"] = Δx
     return numpy.linspace(xmin, xmax, npts)
 
 def create_logspace(**kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
     xmax = get_param_throw_if_missing("xmax", **kwargs)
     xmin = get_param_default_if_missing("xmin", 1.0, **kwargs)
+    kwargs["npts"] = npts
+    kwargs["xmax"] = xmax
+    kwargs["xmin"] = xmin
     return numpy.logspace(numpy.log10(xmin), numpy.log10(xmax/xmin), npts)

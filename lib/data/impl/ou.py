@@ -16,7 +16,9 @@ class OU:
     # Funcs
     class Func(FuncBase):
         MEAN = "OU_MEAN"                      # Ornstein-Uhelenbeck process mean
+        MEAN_LIMIT = "OU_MEAN_LIMIT"          # Ornstein-Uhelenbeck process mean t -> infty
         VAR = "OU_VAR"                        # Ornstein-Uhelenbeck process variance
+        VAR_LIMIT = "OU_VAR_LIMIT"            # Ornstein-Uhelenbeck process var t -> infty
         COV = "OU_COV"                        # Ornstein-Uhelenbeck process covariance
         PDF = "OU_PDF"                        # Ornstein-Uhelenbeck process PDF
         CDF = "OU_CDF"                        # Ornstein-Uhelenbeck process CDF
@@ -41,8 +43,12 @@ class OU:
 def _create_func(func_type, **kwargs):
     if func_type.value == OU.Func.MEAN.value:
         return _create_ou_mean(func_type, **kwargs)
+    elif func_type.value == OU.Func.MEAN_LIMIT.value:
+        return _create_ou_mean_limit(func_type, **kwargs)
     elif func_type.value == OU.Func.VAR.value:
         return _create_ou_var(func_type, **kwargs)
+    elif func_type.value == OU.Func.VAR_LIMIT.value:
+        return _create_ou_var_limit(func_type, **kwargs)
     elif func_type.value == OU.Func.COV.value:
         return _create_ou_cov(func_type, **kwargs)
     elif func_type.value == OU.Func.PDF.value:
@@ -59,9 +65,11 @@ def _create_func(func_type, **kwargs):
 ###################################################################################################
 # Func.MEAN
 def _create_ou_mean(func_type, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : ou.mean(μ, λ, x, x0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -69,14 +77,36 @@ def _create_ou_mean(func_type, **kwargs):
                     params={"μ": μ, "λ": λ, "x0": x0},
                     ylabel=r"$\mu_t$",
                     xlabel=r"$t$",
-                    formula=r"$X_0 e^{-\lambda t} + \mu \left( 1 - e^{-\lambda t} \right)\hspace{89pt}$",
+                    formula=r"$X_0 e^{-\lambda t} + \mu \left( 1 - e^{-\lambda t} \right)$",
                     desc="Ornstein-Uhlenbeck Mean",
-                    fy=fy)
+                    fy=fy,
+                    fx=fx)
+
+# Func.MEAN_LIMIT
+def _create_ou_mean_limit(func_type, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
+    fy = lambda x, y : ou.mean(μ, λ, x, x0)
+    return DataFunc(func_type=func_type,
+                    data_type=DataType.TIME_SERIES,
+                    source_type=DataType.TIME_SERIES,
+                    params={"μ": μ, "λ": λ, "x0": x0},
+                    ylabel=r"$\mu_t$",
+                    xlabel=r"$t$",
+                    formula=r"$X_0 e^{-\lambda t} + \mu \left( 1 - e^{-\lambda t} \right)$",
+                    desc="Ornstein-Uhlenbeck Mean",
+                    fy=fy,
+                    fx=fx)
 
 # Func.VAR
 def _create_ou_var(func_type, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : ou.var(λ, x, σ)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -86,7 +116,26 @@ def _create_ou_var(func_type, **kwargs):
                     xlabel=r"$t$",
                     formula=r"$\frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda t} \right)$",
                     desc="Ornstein-Uhlenbeck Var",
-                    fy=fy)
+                    fy=fy,
+                    fx=fx)
+
+# Func.VAR_LIMIT
+def _create_ou_var_limit(func_type, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
+    fy = lambda x, y : ou.var(λ, x, σ)
+    return DataFunc(func_type=func_type,
+                    data_type=DataType.TIME_SERIES,
+                    source_type=None,
+                    params={"σ": σ, "λ": λ},
+                    ylabel=r"$\sigma^2_t$",
+                    xlabel=r"$t$",
+                    formula=r"$\frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda t} \right)$",
+                    desc="Ornstein-Uhlenbeck Var",
+                    fy=fy,
+                    fx=fx)
 
 # Func.COV
 def _create_ou_cov(func_type, **kwargs):

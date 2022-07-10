@@ -57,9 +57,9 @@ def _create_func(func_type, **kwargs):
 ###################################################################################################
 # Func.MEAN
 def _create_bm_mean(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : numpy.full(len(x), μ)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -74,9 +74,9 @@ def _create_bm_mean(func_type, **kwargs):
 
 # Func.DRIFT_MEAN
 def _create_bm_drift_mean(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : μ*x
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -91,9 +91,9 @@ def _create_bm_drift_mean(func_type, **kwargs):
 
 # Func.SD
 def _create_bm_sd(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : σ*numpy.sqrt(x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -108,7 +108,7 @@ def _create_bm_sd(func_type, **kwargs):
 
 # Func.GBM_MEAN
 def _create_gbm_mean(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
     fx = lambda x : x[::int(len(x)/(nplot - 1))]
@@ -126,11 +126,11 @@ def _create_gbm_mean(func_type, **kwargs):
 
 # Func.GBM_SD
 def _create_gbm_sd(func_type, **kwargs):
-    nplot = get_param_default_if_missing("nplot", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : numpy.sqrt(S0**2*numpy.exp(2*μ*x)*(numpy.exp(x*σ**2)-1))
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
