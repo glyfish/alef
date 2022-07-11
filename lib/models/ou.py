@@ -14,7 +14,7 @@ def mean(μ, λ, t, x0=0):
     return x0*numpy.exp(-λ*t) + μ*(1.0 - numpy.exp(-λ*t))
 
 def var(λ, t, σ=1.0):
-    return σ**2*(1.0 - numpy.exp(-2.0*λ*t))/(2.0*λ)
+    return (σ**2/(2.0*λ))*(1.0 - numpy.exp(-2.0*λ*t))
 
 def cov(λ, s, t, σ=1.0):
     c = numpy.exp(-λ*(t - s)) - numpy.exp(-λ*(t + s))

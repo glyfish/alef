@@ -59,7 +59,7 @@ def ensemble_mean(samples):
             mean[i] += samples[j][i]/float(nsim)
     return mean
 
-def ensemble_sd(samples):
+def ensemble_var(samples, Δt=1.0):
     if len(samples) == 0:
         raise Exception(f"no data")
     nsim = len(samples)
@@ -69,7 +69,10 @@ def ensemble_sd(samples):
     for i in range(npts):
         for j in range(nsim):
             var[i] += (samples[j][i] - mean[i])**2/float(nsim)
-    return numpy.sqrt(var)
+    return var/Δt
+
+def ensemble_sd(samples, Δt=1.0):
+    return numpy.sqrt(ensemble_var(samples, Δt))
 
 def ensemble_acf(samples, nlags=None):
     if len(samples) == 0:
@@ -94,14 +97,17 @@ def cumu_mean(y):
         mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
     return mean
 
-def cumu_sd(y):
+def cumu_var(y, Δt=1.0):
     mean = cumu_mean(y)
     ny = len(y)
     var = numpy.zeros(ny)
     var[0] = y[0]**2
     for i in range(1, ny):
         var[i] = (float(i)*var[i-1]+y[i]**2)/float(i+1)
-    return numpy.sqrt(var-mean**2)
+    return (var-mean**2)/Δt
+
+def cumu_sd(y, Δt=1.0):
+    return numpy.sqrt(cumu_var(y, Δt))
 
 def cumu_cov(x, y):
     nsample = min(len(x), len(y))

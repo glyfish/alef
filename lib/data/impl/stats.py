@@ -17,12 +17,14 @@ class Stats:
         DIFF = "DIFF"                          # Time series difference
         CUMU_MEAN = "CUMU_MEAN"                # Cumulative mean
         CUMU_SD = "CUMU_SD"                    # Cumulative standard deviation
+        CUMU_VAR = "CUMU_VAR"                  # Cumulative standard variance
         AGG_VAR = "AGG_VAR"                    # Aggregated time series variance
         AGG = "AGG"                            # Aggregated time series
         PDF_HIST = "PDF_HIST"                  # Compute PDF histogram from simulation
         CDF_HIST = "CDF_HIST"                  # Compute CDF histogram from simulation
         MEAN = "MEAN"                          # Mean as a function of time (Ensemble Func)
         SD = "SD"                              # Standard deviation as a function of time (Ensemble Func)
+        VAR = "VAR"                            # Variance as a function of time (Ensemble Func)
 
         def _create_func(self, **kwargs):
             return _create_func(self, **kwargs)
@@ -45,6 +47,8 @@ def _create_func(func_type, **kwargs):
         return _create_cumu_mean(func_type, **kwargs)
     elif func_type.value == Stats.Func.CUMU_SD.value:
         return  _create_cumu_sd(func_type, **kwargs)
+    elif func_type.value == Stats.Func.CUMU_VAR.value:
+        return  _create_cumu_var(func_type, **kwargs)
     elif func_type.value == Stats.Func.AGG_VAR.value:
         return _create_agg_var(func_type, **kwargs)
     elif func_type.value == Stats.Func.AGG.value:
@@ -117,7 +121,8 @@ def _create_cumu_mean(func_type, **kwargs):
 
 # Func.CUMU_SD
 def _create_cumu_sd(func_type, **kwargs):
-        fy = lambda x, y : stats.cumu_sd(y)
+        Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+        fy = lambda x, y : stats.cumu_sd(y, Δt)
         return DataFunc(func_type=func_type,
                         data_type=DataType.TIME_SERIES,
                         source_type=DataType.TIME_SERIES,
@@ -127,6 +132,18 @@ def _create_cumu_sd(func_type, **kwargs):
                         desc="Cumulative SD",
                         fy=fy)
 
+# Func.CUMU_VAR
+def _create_cumu_var(func_type, **kwargs):
+        Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+        fy = lambda x, y : stats.cumu_var(y, Δt)
+        return DataFunc(func_type=func_type,
+                        data_type=DataType.TIME_SERIES,
+                        source_type=DataType.TIME_SERIES,
+                        params={},
+                        ylabel=r"$\sigma_t^2$",
+                        xlabel=r"$t$",
+                        desc="Cumulative VAR",
+                        fy=fy)
 # Func.AGG_VAR
 def _create_agg_var(func_type, **kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
@@ -217,6 +234,8 @@ def _create_ensemble_data_func(func_type, **kwargs):
         return _create_ensemble_mean(func_type, **kwargs)
     elif func_type.value == Stats.Func.SD.value:
         return _create_ensemble_sd(func_type, **kwargs)
+    elif func_type.value == Stats.Func.VAR.value:
+        return _create_ensemble_var(func_type, **kwargs)
     elif func_type.value == Stats.Func.ACF.value:
         return _create_ensemble_acf(func_type, **kwargs)
     else:
@@ -238,16 +257,29 @@ def _create_ensemble_mean(func_type, **kwargs):
 
 # Func.SD
 def _create_ensemble_sd(func_type, **kwargs):
-    fy = lambda x, y : stats.ensemble_sd(y)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    fy = lambda x, y : stats.ensemble_sd(y, Δt)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
                     source_type=DataType.TIME_SERIES,
-                    params={},
+                    params={"Δx": Δx},
                     ylabel=r"$\sigma_t$",
                     xlabel=r"$t$",
                     desc="Ensemble SD",
                     fy=fy)
 
+# Func.VAR
+def _create_ensemble_var(func_type, **kwargs):
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    fy = lambda x, y : stats.ensemble_var(y, Δt)
+    return DataFunc(func_type=func_type,
+                    data_type=DataType.TIME_SERIES,
+                    source_type=DataType.TIME_SERIES,
+                    params={},
+                    ylabel=r"$\sigma_t^2$",
+                    xlabel=r"$t$",
+                    desc="Ensemble VAR",
+                    fy=fy)
 # Func.ACF
 def _create_ensemble_acf(func_type, **kwargs):
     source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)

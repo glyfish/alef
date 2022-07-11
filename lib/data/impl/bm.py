@@ -111,7 +111,7 @@ def _create_gbm_mean(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(nplot - 1))]
+    fx = lambda x : x[::int(len(x)/(npts - 1))]
     fy = lambda x, y : S0*numpy.exp(μ*x)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
