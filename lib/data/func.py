@@ -180,6 +180,7 @@ class DataFunc:
         )
 
     def create(self, x):
+        x = self.fx(x)
         y = self.fy(x, None)
         df = self.create_data_frame(x, y)
         DataSchema.set_source_type(df, None)

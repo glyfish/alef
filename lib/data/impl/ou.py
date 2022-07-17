@@ -9,6 +9,7 @@ from lib.data.schema import (DataType)
 from lib.data.source import (DataSource, SourceBase)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
+from lib.data.meta_data import (EstBase, ARMAEst)
 
 ###################################################################################################
 # Create Ornstien-Uhlenbeck Process Functions
@@ -37,6 +38,29 @@ class OU:
 
         def _create_data_source(self, x, **kwargs):
             return _create_data_source(self, x, **kwargs)
+
+    # Est
+    class Est(EstBase):
+        AR = "OU_AR"                        # Use Autoregressive parameter estimation
+
+        def _perform_est_for_type(self, x, y, **kwargs):
+            if self.value == OU.Est.AR.value:
+                return _ar_estimate(y, **kwargs)
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _formula(self):
+            if self.value == OU.Est.AR.value:
+                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _set_param_labels(self, param, i):
+            if self.value == OU.Est.AR.value:
+                param.set_labels(est_label=f"$\hat{{\phi_{{{i}}}}}$",
+                                 err_label=f"$\sigma_{{$\hat{{\phi_{{{i}}}}}}}$")
+            else:
+                raise Exception(f"Esitmate type is invalid: {est_type}")
 
 ###################################################################################################
 ## create DataFunc for func_type
@@ -141,10 +165,13 @@ def _create_ou_var_limit(func_type, **kwargs):
 # Func.COV
 def _create_ou_cov(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
-    fx = lambda x : x[s:int((len(x)-s)/(npts - 1))]
+    x0 = int(s/Δt)
+    step = lambda x : 1 if len(x)-x0 < npts - 1 else int((len(x)-x0)/(npts-1))
+    fx = lambda x : x[x0::step(x)]
     fy = lambda x, y : ou.cov(λ, s, x, σ)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
@@ -159,9 +186,12 @@ def _create_ou_cov(func_type, **kwargs):
 
 # Func.COV_LIMIT
 def _create_ou_cov_limit(func_type, **kwargs):
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
-    fx = lambda x : x[s:int((len(x)-s)/(npts - 1))]
-    fy = lambda x, y : numpy.full(len(x), 0.0)
+    step = lambda x : 1 if len(x)-x0 < npts - 1 else int((len(x)-x0)/(npts-1))
+    fx = lambda x : x[x0::step(x)]
+    fy = lambda x, y : numpy.full(npts, 0.0)
     return DataFunc(func_type=func_type,
                     data_type=DataType.TIME_SERIES,
                     source_type=DataType.TIME_SERIES,
@@ -302,3 +332,27 @@ def _create_proc_source(source_type, x, **kwargs):
                       desc=f"Ornstein-Uhlenbeck Process",
                       f=f,
                       x=x)
+
+##################################################################################################################
+# Perform estimate for specified estimate types
+##################################################################################################################
+# Est.AR
+def _ar_estimate(samples, **kwargs):
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
+    result = ou.ou_fit(samples, Δt, x0)
+    return result, _arma_estimate_from_result(result, ARIMA.Est.AR)
+
+##################################################################################################################
+# Construct estimate objects from result object
+def _arma_estimate_from_result(result, est_type):
+    nparams = len(result.params)
+    params = []
+    for i in range(1, nparams-1):
+        params.append(ParamEst.from_dict({"Estimate": result.params.iloc[i],
+                                          "Error": result.bse.iloc[i]}))
+    const = ParamEst.from_dict({"Estimate": result.params.iloc[0],
+                                "Error": result.bse.iloc[0]})
+    sigma2 = ParamEst.from_dict({"Estimate": result.params.iloc[nparams-1],
+                                 "Error": result.bse.iloc[nparams-1]})
+    return ARMAEst(est_type, const, sigma2, params)

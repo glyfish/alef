@@ -201,7 +201,7 @@ def _create_cdf_hist(func_type, **kwargs):
     fy = lambda x, y : stats.cdf_hist(x, y)
     return DataFunc(func_type=func_type,
                     data_type=DataType.DIST,
-                    source_type=DataType.TIME_SERIES,
+                    source_type=DataType.DIST,
                     params={},
                     ylabel=r"$P(x)$",
                     xlabel=r"$x$",

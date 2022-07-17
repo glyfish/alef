@@ -8,6 +8,8 @@ import statsmodels.tsa as tsa
 
 from lib.models.dist import Dist
 
+from lib.models.reports import OUReport
+
 ###############################################################################################
 ## Ornstein-Uhlenbeck mean, variance, covariance, PDF, halflife
 def mean(μ, λ, t, x0=0):
@@ -68,8 +70,9 @@ def ou(μ, λ, Δt, n, σ=1.0, x0=0):
 
 ###############################################################################################
 ## Estimate model parameters
-def ou_model(samples, Δt=1.0):
+def ou_model(samples):
     return tsa.arima.model.ARIMA(samples, order=(1, 0, 0), trend='c')
 
-def ou_fit(samples, Δt=1.0):
-    results = ou_model(samples).fit()
+def ou_fit(samples, Δt=1.0, x0=0.0):
+    result = ou_model(samples).fit()
+    return OUReport(result, Δt, x0)

@@ -242,6 +242,7 @@ class EstBase(Enum):
         r2 = result.rsquared
         return OLSSingleVarEst(self, reg_type, const, param, r2)
 
+
 class Est(EstBase):
     LINEAR = "LINEAR"             # Simple single variable linear regression
     LOG = "LOG"                   # Log log single variable linear regression
@@ -252,6 +253,7 @@ class Est(EstBase):
 class EstModel(str, Enum):
     ARMA = "ARMA"                       # Autoregressive model parameters
     OLS_SING_VAR = "OLS_SING_VAR"       # Autoregressive model with constant offset parameters
+    OU = "OU"
 
     def from_dict(self, meta_data):
         if self.value == EstModel.ARMA:
@@ -442,6 +444,65 @@ class OLSSingleVarEst:
                                const=ParamEst.from_dict(meta_data["Constant"]),
                                param=ParamEst.from_dict(meta_data["Parameter"]),
                                r2=meta_data["R2"])
+
+##################################################################################################################
+# ARMA estimated parameters
+class ARMAEst:
+    def __init__(self, est_type, const, sigma2, params):
+        self.est_type = est_type
+        self.model_type = EstModel.ARMA
+        self.const = const
+        self.order = len(params)
+        self.params = params
+        self.sigma2 = sigma2
+        self._set_const_labels()
+        self._set_params_labels()
+        self._set_sigma2_labels()
+        self.dict = {"Estimate Type": est_type,
+                     "Model Type": self.model_type,
+                     "Const": const.dict,
+                     "Parameters": [p.dict for p in params],
+                     "Sigma2": sigma2.dict}
+
+    def __repr__(self):
+        return f"ARMAEst({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"est_type=({self.est_type}), " \
+               f"model_type=({self.model_type}), " \
+               f"const=({self.const}), " \
+               f"params=({self.params}), " \
+               f"sigma2=({self.sigma2})"
+
+    def key(self):
+        return self.est_type.arma_key(self.order)
+
+    def formula(self):
+        return self.est_type._formula()
+
+    def _set_const_labels(self):
+        self.const.set_labels(est_label=r"$\hat{\mu^*}$",
+                              err_label=r"$\sigma_{\hat{\mu^*}}$")
+
+    def _set_params_labels(self):
+        for i in range(len(self.params)):
+            self.est_type._set_param_labels(self.params[i], i)
+
+    def _set_sigma2_labels(self):
+            self.sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
+                                   err_label=r"$\sigma_{\hat{\sigma^2}}$")
+
+    @staticmethod
+    def from_dict(meta_data):
+        return ARMAEst(
+            est_type=meta_data["Estimate Type"],
+            const=ParamEst.from_dict(meta_data["Const"]),
+            sigma2=ParamEst.from_dict(meta_data["Sigma2"]),
+            params=[ParamEst.from_dict(est) for est in  meta_data["Parameters"]]
+        )
 
 ##################################################################################################################
 # transformed parameters
