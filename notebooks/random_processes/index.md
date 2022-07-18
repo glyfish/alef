@@ -14,6 +14,8 @@
 
 * **[bm_ensembles.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/bm_ensembles.ipynb)** Test brownian motion and geometric brownian motion simulations by comparing mean and variance analytic results with calculations from ensembles.
 
+* **[error_correction_model.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/error_correction_model.ipynb)** The error correction model models two cointegrated time series. Simulations and methods for estimating cointegration parameters are tested.
+
 * **[fbm_ensembles.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_ensembles.ipynb)** Test fractional brownian motion simulations using the FFT method by comparing analytic variance and autocorrelation results with calculations from ensembles.
 
 * **[fbm_estimation_periodigram.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_estimation_periodigram.ipynb)** Test software implementing Hurst parameter, `H`, estimation using the periodigram method.
@@ -35,3 +37,7 @@
 * **[ornstein_uhlenbeck_process.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_process.ipynb)** The Ornstein-Uhlenbeck stochastic differential equation describes a mean reverting random process. Analytic solutions or mean, variance, covariance and distribution are discussed and compared with simulations.
 
 * **[ornstein_uhlenbeck_simulation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_simulation.ipynb)** Simulations of the Ornstein-Uhlenbeck process are compared.
+
+* **[var2.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/var2.ipynb)** VAR is the generalization of the Autoregressive process to multiple correlated time series. VAR(2) is the version consisting of two time series. Simulations and parameter estimation are tested.
+
+* **[var3.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/var3.ipynb)** VAR(3) is the version of VAR consisting of three time series. Simulations and parameter estimation are tested.
