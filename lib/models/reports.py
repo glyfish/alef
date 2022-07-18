@@ -91,9 +91,9 @@ class ADFTestReport:
 ##################################################################################################################
 # Ornstein-Uhulenbeck processs parameter estimate report
 ##################################################################################################################
-class OUReport:
+class OUEstReport:
     def __init__(self, result, Δt, x0):
-        conf_int = results.conf_int()
+        self.ar_result = result
         self.delta_t = Δt
         self.x0 = x0
         self._offset_est = result.params.iloc[0]

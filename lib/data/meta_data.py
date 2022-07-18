@@ -204,8 +204,8 @@ class EstBase(Enum):
 
     def perform(self, df, **kwargs):
         x, y = DataSchema.get_schema_data(df)
-        result, test = self._perform_est_for_type(x, y, **kwargs)
-        MetaData.add_estimate(df, test)
+        result, est = self._perform_est_for_type(x, y, **kwargs)
+        MetaData.add_estimate(df, est)
         return result
 
     def _formula(self):
@@ -253,7 +253,6 @@ class Est(EstBase):
 class EstModel(str, Enum):
     ARMA = "ARMA"                       # Autoregressive model parameters
     OLS_SING_VAR = "OLS_SING_VAR"       # Autoregressive model with constant offset parameters
-    OU = "OU"
 
     def from_dict(self, meta_data):
         if self.value == EstModel.ARMA:

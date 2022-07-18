@@ -8,7 +8,7 @@ import statsmodels.tsa as tsa
 
 from lib.models.dist import Dist
 
-from lib.models.reports import OUReport
+from lib.models.reports import OUEstReport
 
 ###############################################################################################
 ## Ornstein-Uhlenbeck mean, variance, covariance, PDF, halflife
@@ -75,4 +75,4 @@ def ou_model(samples):
 
 def ou_fit(samples, Δt=1.0, x0=0.0):
     result = ou_model(samples).fit()
-    return OUReport(result, Δt, x0)
+    return OUEstReport(result, Δt, x0)

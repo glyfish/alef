@@ -9,24 +9,26 @@ from lib.data.schema import (DataType)
 from lib.data.source import (DataSource, SourceBase)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
-from lib.data.meta_data import (EstBase, ARMAEst)
+from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
+                                TestParam, TestData, TestReport,
+                                ParamEst, ARMAEst)
 
 ###################################################################################################
 # Create Ornstien-Uhlenbeck Process Functions
 class OU:
     # Funcs
     class Func(FuncBase):
-        MEAN = "OU_MEAN"                      # Ornstein-Uhelenbeck process mean
-        VAR = "OU_VAR"                        # Ornstein-Uhelenbeck process variance
-        COV = "OU_COV"                        # Ornstein-Uhelenbeck process covariance
-        MEAN_LIMIT = "OU_MEAN_LIMIT"          # Ornstein-Uhelenbeck process mean t -> infty
-        VAR_LIMIT = "OU_VAR_LIMIT"            # Ornstein-Uhelenbeck process var t -> infty
-        COV_LIMIT = "OU_COV_LIMIT"            # Ornstein-Uhelenbeck process covariance
-        PDF = "OU_PDF"                        # Ornstein-Uhelenbeck process PDF
-        CDF = "OU_CDF"                        # Ornstein-Uhelenbeck process CDF
-        PDF_LIMIT = "OU_PDF_LIMIT"            # Ornstein-Uhelenbeck process PDF t->infty limit
-        CDF_LIMIT = "OU_CDF_LIMIT"            # Ornstein-Uhelenbeck process CDF t->infty limit
-        MEAN_HALF_LIFE = "OU_MEAN_HALF_LIFE"  # Ornstein-Uhelenbeck process halflife
+        MEAN = "OU_MEAN"                        # Ornstein-Uhelenbeck process mean
+        VAR = "OU_VAR"                          # Ornstein-Uhelenbeck process variance
+        COV = "OU_COV"                          # Ornstein-Uhelenbeck process covariance
+        MEAN_LIMIT = "OU_MEAN_LIMIT"            # Ornstein-Uhelenbeck process mean t -> infty
+        VAR_LIMIT = "OU_VAR_LIMIT"              # Ornstein-Uhelenbeck process var t -> infty
+        COV_LIMIT = "OU_COV_LIMIT"              # Ornstein-Uhelenbeck process covariance
+        PDF = "OU_PDF"                          # Ornstein-Uhelenbeck process PDF
+        CDF = "OU_CDF"                          # Ornstein-Uhelenbeck process CDF
+        PDF_LIMIT = "OU_PDF_LIMIT"              # Ornstein-Uhelenbeck process PDF t->infty limit
+        CDF_LIMIT = "OU_CDF_LIMIT"              # Ornstein-Uhelenbeck process CDF t->infty limit
+        MEAN_HALF_LIFE = "OU_MEAN_HALF_LIFE"    # Ornstein-Uhelenbeck process halflife
 
         def _create_func(self, **kwargs):
             return _create_func(self, **kwargs)
@@ -41,7 +43,10 @@ class OU:
 
     # Est
     class Est(EstBase):
-        AR = "OU_AR"                        # Use Autoregressive parameter estimation
+        AR = "OU_AR"             # Use Autoregressive parameter estimation
+
+        def arma_key(self, order):
+            return self.value
 
         def _perform_est_for_type(self, x, y, **kwargs):
             if self.value == OU.Est.AR.value:
@@ -51,16 +56,23 @@ class OU:
 
         def _formula(self):
             if self.value == OU.Est.AR.value:
-                return r"$X_t = \sum_{i=1}^p \varphi_i X_{t-i} + \varepsilon_{t}$"
+                return r"$X_{t+\Delta t}=X_t e^{-\lambda \Delta t}+\mu \left( 1 - e^{-\lambda \Delta t} \right)+\sqrt{ \frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda \Delta t} \right)} \hspace{5pt} \varepsilon_t$"
+            else:
+                raise Exception(f"Esitmate type is invalid: {self}")
+
+        def _set_const_labels(self):
+            if self.value == OU.Est.AR.value:
+                self.const.set_labels(est_label=r"$\mu$",
+                                      err_label=r"$\sigma_{\mu}$")
             else:
                 raise Exception(f"Esitmate type is invalid: {self}")
 
         def _set_param_labels(self, param, i):
             if self.value == OU.Est.AR.value:
-                param.set_labels(est_label=f"$\hat{{\phi_{{{i}}}}}$",
-                                 err_label=f"$\sigma_{{$\hat{{\phi_{{{i}}}}}}}$")
+                param.set_labels(est_label=r"$\lambda$",
+                                 err_label=r"$\sigma_{\lambda}$")
             else:
-                raise Exception(f"Esitmate type is invalid: {est_type}")
+                raise Exception(f"Esitmate type is invalid: {self}")
 
 ###################################################################################################
 ## create DataFunc for func_type
@@ -341,18 +353,15 @@ def _ar_estimate(samples, **kwargs):
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
     result = ou.ou_fit(samples, Δt, x0)
-    return result, _arma_estimate_from_result(result, ARIMA.Est.AR)
+    return result, _arma_estimate_from_result(result, OU.Est.AR)
 
 ##################################################################################################################
 # Construct estimate objects from result object
 def _arma_estimate_from_result(result, est_type):
-    nparams = len(result.params)
-    params = []
-    for i in range(1, nparams-1):
-        params.append(ParamEst.from_dict({"Estimate": result.params.iloc[i],
-                                          "Error": result.bse.iloc[i]}))
-    const = ParamEst.from_dict({"Estimate": result.params.iloc[0],
-                                "Error": result.bse.iloc[0]})
-    sigma2 = ParamEst.from_dict({"Estimate": result.params.iloc[nparams-1],
-                                 "Error": result.bse.iloc[nparams-1]})
-    return ARMAEst(est_type, const, sigma2, params)
+    param = ParamEst.from_dict({"Estimate": result.lambda_est(),
+                                "Error": result.lambda_error()})
+    const = ParamEst.from_dict({"Estimate": result.mu_est(),
+                                "Error": result.mu_error()})
+    sigma2 = ParamEst.from_dict({"Estimate": result.sigma2_est(),
+                                 "Error": result.sigma2_error()})
+    return ARMAEst(est_type, const, sigma2, [param])
