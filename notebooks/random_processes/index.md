@@ -10,11 +10,13 @@
 
 * **[arma_order_estimation.ipynb](http://localhost:8888/files/notebooks/random_processes/arma_order_estimation.ipynb?_xsrf=2%7Cdc5622b9%7C972d0332676f9814e33c8e21c7a0a95f%7C1642532355)** Test `ARMA(p,q)` simulations and order determination using autocorrelation function analysis and partial autocorrelation function analysis.
 
-* **[arp_parameter_esimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/arq_parameter_estimation.ipynb)** Test `AR(p)` parameter estimation using the Yule-Walker equations by comparing the parameters used in a simulation with the results obtained by parameter estimation..
+* **[arp_parameter_esimation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/arq_parameter_estimation.ipynb)** Test `AR(p)` parameter estimation using the Yule-Walker equations by comparing the parameters used in a simulation with the results obtained by parameter estimation.
 
-* **[bm_ensembles.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/bm_ensembles.ipynb)** Test brownian motion and geometric brownian motion simulations by comparing mean and variance analytic results with calculations from ensembles.
+* **[bm_ensembles.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/bm_ensembles.ipynb)** Test brownian motion and geometric brownian motion simulations by comparing mean and variance analytic results with calculations from ensembles.
 
-* **[error_correction_model.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/error_correction_model.ipynb)** The error correction model models two cointegrated time series. Simulations and methods for estimating cointegration parameters are tested.
+* **[ecm_parameter_estimation.ipynb](http://localhost:65075/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/ecm_parameter_estimation.ipynb)** Test error correction model parameter estimation using simulation data.
+
+* **[ecm_simulation.ipynb](http://localhost:65075/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/ecm_simulation.ipynb)** The error correction model models two cointegrated time series. Here the model is discussed and simulations are performed for a range of parameters.
 
 * **[fbm_ensembles.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/fbm_ensembles.ipynb)** Test fractional brownian motion simulations using the FFT method by comparing analytic variance and autocorrelation results with calculations from ensembles.
 
@@ -38,6 +40,10 @@
 
 * **[ornstein_uhlenbeck_simulation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_simulation.ipynb)** Simulations of the Ornstein-Uhlenbeck process are compared.
 
-* **[var2.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/var2.ipynb)** VAR is the generalization of the Autoregressive process to multiple correlated time series. VAR(2) is the version consisting of two time series. Simulations and parameter estimation are tested.
+* **[var_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_parameter_estimation.ipynb)** VAR is the generalization of the autoregressive process to multiple coupled time series. Parameter estimation is tested using simulation data.
 
-* **[var3.ipynb](http://localhost:49307/lab/tree/Develop/gly.fish/alef/notebooks/random_processes/var3.ipynb)** VAR(3) is the version of VAR consisting of three time series. Simulations and parameter estimation are tested.
+* **[var_simulation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_simulation.ipynb)** The procedure used to simulate VAR processes is discussed. The results of VAR(2) and VAR(3) simulations are compared with stationary solutions for mean, variance and auto covariance obtained analytically.
+
+* **[vecm_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_parameter_estimation.ipynb)** VECM is the generalization of the Error Correction Model (ECM) to an arbitrary number of cointegrated time series. Parameter estimation is tested using simulated data.
+
+* **[vecm_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_simulation.ipynb)** The VECM simulation procedure is discussed and parameter scan is performed.

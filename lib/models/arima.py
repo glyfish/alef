@@ -139,7 +139,7 @@ def yw(x, max_lag):
     return pacf
 
 def pacf(samples, nlags):
-    return sm.tsa.stattools.pacf(samples, nlags=nlags, method="ywunbiased")
+    return sm.tsa.stattools.pacf(samples, nlags=nlags)
 
 ###############################################################################################
 ## ARIMA parameter estimation
