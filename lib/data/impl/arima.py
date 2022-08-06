@@ -166,7 +166,7 @@ def _create_pacf(func_type, **kwargs):
 def _create_ar1_acf(func_type, **kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
-    fx = lambda x : x[:nlags +1 ]
+    fx = lambda x : x[:nlags +1]
     fy = lambda x, y : φ**x
     return DataFunc(func_type=func_type,
                     data_type=DataType.ACF,
