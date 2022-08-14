@@ -214,5 +214,4 @@ def OLS(y, x, type=RegType.LINEAR):
 def OLS_fit(y, x, type=RegType.LINEAR):
     model = OLS(y, x, type=type)
     results = model.fit()
-    results.summary()
     return results
