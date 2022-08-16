@@ -42,7 +42,9 @@
 
 * **[var_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_parameter_estimation.ipynb)** VAR is the generalization of the autoregressive process to multiple coupled time series. Parameter estimation is tested using simulation data.
 
-* **[var_simulation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_simulation.ipynb)** The procedure used to simulate VAR processes is discussed. The results of VAR(2) and VAR(3) simulations are compared with stationary solutions for mean, variance and auto covariance obtained analytically.
+* **[var_properties.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_properties.ipynb)** The results of VAR(1) and VAR(2) simulations are compared with stationary solutions for mean, variance and auto covariance obtained analytically.
+
+* **[var_simulation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_simulation.ipynb)** The procedure used to simulate VAR processes is discussed.
 
 * **[vecm_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_parameter_estimation.ipynb)** VECM is the generalization of the Error Correction Model (ECM) to an arbitrary number of cointegrated time series. Parameter estimation is tested using simulated data.
 
