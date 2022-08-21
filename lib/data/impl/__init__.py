@@ -4,3 +4,4 @@ from lib.data.impl.fbm import FBM
 from lib.data.impl.stats import Stats
 from lib.data.impl.ou import OU
 from lib.data.impl.adf import ADF
+from lib.data.impl.var import VAR

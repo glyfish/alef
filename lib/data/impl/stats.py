@@ -8,7 +8,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types, create_space, create_logspace)
 
 ###################################################################################################
-# Create Stats Functions
+# Define Stats
 class Stats:
     class Func(FuncBase):
         PSPEC = "PSPEC"                        # Power Spectrum

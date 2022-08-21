@@ -9,6 +9,10 @@ def get_param_throw_if_missing(param, **kwargs):
 def get_param_default_if_missing(param, default, **kwargs):
     return kwargs[param] if param in kwargs else default
 
+def verify_condition(param, condition, condition_string):
+    if !condition:
+        raise Exception(f"{param} should satisfy {condition_string}")
+
 def verify_type(param, expected_type):
     if not isinstance(param, expected_type):
         raise Exception(f"{param} is type {type(param)}. Expected {expected_type}")

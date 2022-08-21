@@ -14,7 +14,7 @@ from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
                                 ParamEst, ARMAEst)
 
 ###################################################################################################
-# Create Ornstien-Uhlenbeck Process Functions
+# Define Ornstien-Uhlenbeck Process
 class OU:
     # Funcs
     class Func(FuncBase):

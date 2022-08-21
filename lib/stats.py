@@ -130,6 +130,18 @@ def cov(x, y):
         c += x[i]*y[i]
     return c/nsample-meanx*meany
 
+def cov_fft(x, y):
+    n = len(x)
+    x_shifted = x - x.mean()
+    y_shifted = y - y.mean()
+    x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
+    y_padded = numpy.concatenate((y_shifted, numpy.zeros(n-1)))
+    x_fft = numpy.fft.fft(x_padded)
+    y_fft = numpy.fft.fft(y_padded)
+    h_fft = numpy.conj(x_fft)*y_fft
+    cc = numpy.fft.ifft(h_fft)
+    return cc[0:n] / float(n)
+
 def acf(samples, nlags):
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True, missing="drop")
 
@@ -215,3 +227,9 @@ def OLS_fit(y, x, type=RegType.LINEAR):
     model = OLS(y, x, type=type)
     results = model.fit()
     return results
+
+
+###############################################################################################
+## Multivariate normal random variable
+def multivariate_normal(μ, Ω, n):
+    return numpy.random.multivariate_normal(μ, Ω, n)
