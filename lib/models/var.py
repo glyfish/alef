@@ -101,16 +101,16 @@ def isStationary(φ):
 # Simulators
 
 def var(x0, μ, φ, Ω, n):
-    m, l = x0.shape
-    xt = numpy.zeros((m, n))
+    x0 = numpy.array(x0.T)
+    l, m = x0.shape
+    xt = numpy.zeros((n, m))
     μ = numpy.squeeze(numpy.array(μ), axis=1)
     ε = numpy.random.multivariate_normal(μ, Ω, n)
     for i in range(l):
-        xt[:,i] = x0[:,i]
+        xt[i] = x0[i]
     for i in range(l, n):
-        xt[:,i] = ε[i]
+        xt[i] = ε[i]
         for j in range(l):
-            t1 = φ[j]*numpy.matrix(xt[:,i-j-1]).T
-            t2 = numpy.squeeze(numpy.array(t1), axis=1)
-            xt[:,i] += t2
-    return xt
+            t1 = φ[j]*numpy.matrix(xt[i-j-1]).T
+            xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
+    return numpy.matrix(xt).T

@@ -40,6 +40,8 @@
 
 * **[ornstein_uhlenbeck_simulation.ipyn](http://localhost:8888/lab/tree/notebooks/random_processes/ornstein_uhlenbeck_simulation.ipynb)** Simulations of the Ornstein-Uhlenbeck process are compared.
 
+* **[var_multivariate_gaussian_noise.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_multivariate_gaussian_noise.ipynb)** The multivariate Gaussian distribution is the noise term in the VAR(n) model. Here, properties of the distribution are investigated.
+
 * **[var_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_parameter_estimation.ipynb)** VAR is the generalization of the autoregressive process to multiple coupled time series. Parameter estimation is tested using simulation data.
 
 * **[var_properties.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/var_properties.ipynb)** The results of VAR(1) and VAR(2) simulations are compared with stationary solutions for mean, variance and auto covariance obtained analytically.
@@ -48,4 +50,4 @@
 
 * **[vecm_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_parameter_estimation.ipynb)** VECM is the generalization of the Error Correction Model (ECM) to an arbitrary number of cointegrated time series. Parameter estimation is tested using simulated data.
 
-* **[vecm_parameter_estimation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_simulation.ipynb)** The VECM simulation procedure is discussed and parameter scan is performed.
+* **[vecm_parameter_simulation.ipynb](http://localhost:8888/lab/tree/notebooks/random_processes/vecm_simulation.ipynb)** The VECM simulation procedure is discussed and parameter scan is performed.

@@ -10,7 +10,7 @@ def get_param_default_if_missing(param, default, **kwargs):
     return kwargs[param] if param in kwargs else default
 
 def verify_condition(param, condition, condition_string):
-    if !condition:
+    if not condition:
         raise Exception(f"{param} should satisfy {condition_string}")
 
 def verify_type(param, expected_type):
