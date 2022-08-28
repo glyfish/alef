@@ -54,15 +54,15 @@ def unvec(v):
 # First and second stationary order moments
 
 def mean(φ, μ):
-    Φ = phi_companion_form(φ)
-    Μ = mean_companion_form(μ)
+    Φ = phi_comp(φ)
+    Μ = mean_comp(μ)
     n, _ = Φ.shape
     tmp = numpy.matrix(numpy.eye(n)) - Φ
     return numpy.linalg.inv(tmp)*Μ
 
 def cov(φ, ω):
-    Ω = omega_companion_form(ω)
-    Φ = phi_companion_form(φ)
+    Ω = omega_comp(ω)
+    Φ = phi_comp(φ)
     n, _ = Φ.shape
     eye = numpy.matrix(numpy.eye(n**2))
     tmp = eye - numpy.kron(Φ, Φ)
@@ -75,8 +75,8 @@ def sd(φ, ω):
 
 def autocovariance(φ, ω, n):
     t = numpy.linspace(0, n-1, n)
-    Φ = phi_companion_form(φ)
-    Σ = stationary_covariance_matrix(φ, ω)
+    Φ = phi_comp(φ)
+    Σ = cov(φ, ω)
     l, _ = Φ.shape
     γ = numpy.zeros((n, l, l))
     γ[0] = numpy.matrix(numpy.eye(l))
@@ -88,7 +88,7 @@ def autocovariance(φ, ω, n):
 
 # Compute eigen values of parameter matrix (for stationarity all eigen values must satisfy |λ| < 1)
 def eig(φ):
-    Φ = phi_companion_form(φ)
+    Φ = phi_comp(φ)
     λ, _ = numpy.linalg.eig(Φ)
     return λ
 
