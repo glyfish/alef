@@ -1,0 +1,7 @@
+{
+    "python.envFile": "${workspaceFolder}/.env",
+    "editor.snippetSuggestions": "top",
+    "python.analysis.extraPaths": [
+        "/Users/troy/Develop/gly.fish/alef"
+    ]
+}

@@ -1,2 +1,15 @@
+.DS_Store
+__pycache__/
 *.pyc
-console.py
+logs/*
+!logs/.gitkeep
+.ropeproject
+*.log
+*.aux
+*.out
+*.gz
+*.fdb_latexmk
+*.fls
+*.pyg
+*.bak
+_minted*
