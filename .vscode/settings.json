@@ -3,5 +3,18 @@
     "editor.snippetSuggestions": "top",
     "python.analysis.extraPaths": [
         "/Users/troy/Develop/gly.fish/alef"
+    ],
+    "cSpell.words": [
+        "arange",
+        "boxstyle",
+        "edgecolor",
+        "facecolor",
+        "fbar",
+        "fontsize",
+        "nlags",
+        "nonposy",
+        "ylimit",
+        "yscale",
+        "zorder"
     ]
 }

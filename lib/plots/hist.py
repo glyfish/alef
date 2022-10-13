@@ -9,7 +9,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_types)
 
 ###############################################################################################
-## Specify Config for historgram plot
+## Specify Config for histogram plot
 class HistPlotConfig:
     def __init__(self, df):
         self.meta_data = MetaData.get(df)
@@ -29,7 +29,7 @@ class HistPlotConfig:
         return self.meta_data.formula
 
 ###############################################################################################
-## Specify Config for function historgram comparison plot
+## Specify Config for function histogram comparison plot
 class FuncHistPlotConfig:
     def __init__(self, data, func):
         self.data_meta_data = MetaData.get(data)
@@ -92,7 +92,7 @@ def hist(df, **kwargs):
         axis.text(x_text, y_text, plot_config.params, bbox=bbox, fontsize=18.0, zorder=7, transform=axis.transAxes)
 
     if plot_config.plot_type.value == PlotType.LOG.value:
-        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity, log=True)
+        _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.density, log=True)
         axis.yscale('log', nonposy='clip')
     elif plot_config.plot_type.value == PlotType.XLOG.value:
         _, bins, _ = axis.hist(samples, nbins, rwidth=0.8, density=plot_config.denity, log=True)

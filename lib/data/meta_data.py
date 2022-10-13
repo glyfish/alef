@@ -215,12 +215,12 @@ class EstBase(Enum):
         raise Exception(f"_set_param_labels not implemented")
 
     def _perform_est_for_type(self, x, y, **kwargs):
-        if est_type.value == Est.LINEAR.value:
+        if self.value == Est.LINEAR.value:
             return self._ols_estimate(x, y, stats.RegType.LINEAR, **kwargs)
-        elif est_type.value == Est.LOG.value:
+        elif self.value == Est.LOG.value:
             return self._ols_estimate(x, y, stats.RegType.LOG, **kwargs)
         else:
-            raise Exception(f"Esitmate type is invalid: {est_type}")
+            raise Exception(f"Estimate type is invalid: {est_type}")
 
     def _create_ols_single_var_trans(self, param, const):
         if self.value == Est.LINEAR.value:
