@@ -23,7 +23,7 @@ class ARIMA:
         MEAN = "ARMA_MEAN"                     # ARMA(p,q) MEAN
         AR1_ACF = "AR1_ACF"                    # AR(1) Autocorrelation function
         MAQ_ACF = "MAQ_ACF"                    # MA(q) Autocorrelation function
-        AR1_SD = "AR1_SD"                      # AR(1) standard seviation
+        AR1_SD = "AR1_SD"                      # AR(1) standard deviation
         MAQ_SD = "MAQ_SD"                      # MA(q) standard deviation
         AR1_OFFSET_MEAN = "AR1_OFFSET_MEAN"    # AR(1) with constant offset mean
         AR1_OFFSET_SD = "AR1_OFFSET_SD"        # AR(1) with offset standard deviation

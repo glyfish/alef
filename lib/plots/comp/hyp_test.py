@@ -6,7 +6,7 @@ from lib import stats
 
 from lib.models import (TestHypothesis, Dist)
 from lib.data.meta_data import (MetaData)
-from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ###############################################################################################
 ## Specify DistPlotConfig for distributions plot
@@ -41,7 +41,7 @@ def create_dist_plot_type(plot_type):
 # Hypothesis test plot (Uses DistPlotType config)
 def hyp_test(df, plot_type, **kwargs):
     title        = kwargs["title"]        if "title"        in kwargs else None
-    test_type    = kwargs["test_type"]    if "test_type"    in kwargs else HypothesisType.TWO_TAIL
+    test_type    = kwargs["test_type"]    if "test_type"    in kwargs else HypTestPlotType.TWO_TAIL
     npts         = kwargs["npts"]         if "npts"         in kwargs else 100
     sig_level    = kwargs["sig_level"]    if "sig_level"    in kwargs else 0.05
     labels       = kwargs["labels"]       if "labels"       in kwargs else None
@@ -82,7 +82,7 @@ def hyp_test(df, plot_type, **kwargs):
 
     figure, axis = pyplot.subplots(figsize=(12, 8))
 
-    text = axis.text(x_vals[0], 0.05*y_vals[-1], f"Signicance={format(100.0*sig_level, '2.0f')}%", fontsize=18)
+    text = axis.text(x_vals[0], 0.05*y_vals[-1], f"Significance={format(100.0*sig_level, '2.0f')}%", fontsize=18)
     text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
     if title is not None:

@@ -1,7 +1,12 @@
-###############################################################################################
-## ARIMA(p,d, q) Model mean variance, autocorrelation, simulators, parameter estimation
-## and statistical significance tests
+"""
+arima.py
 
+Simulations and analysis of ARIMA(p,d,q) random process.
+
+Functions
+---------
+
+"""
 import numpy
 from datetime import datetime
 from pandas import DataFrame
@@ -10,16 +15,34 @@ import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from lib.models.reports import ADFTestReport
 
-###############################################################################################
-## MA(q) standard deviation amd ACF
-def maq_sigma(θ, σ):
-    q = len(θ)
+"""MA(q) standard deviation amd ACF"""
+def maq_sigma(θ: list[float], σ: float=1):
+    """
+    Compute MA(q) standard deviation.
+
+    Parameters
+    ----------
+    θ: list[float]
+        List of MA(q) coefficients.
+    σ: float
+        Standard deviation of noise term.
+    """
     v = 0
     for u in θ:
         v += u**2
     return σ * numpy.sqrt(v + 1)
 
-def maq_cov(θ, σ):
+def maq_cov(θ: list[float], σ: float=1):
+    """
+    Compute MA(q) auto covariance.
+
+    Parameters
+    ----------
+    θ: list[float]
+        List of MA(q) coefficients.
+    σ: float
+        Standard deviation of noise term.
+    """
     q = len(θ)
     c = numpy.zeros(q)
     s = numpy.zeros(q)
@@ -30,7 +53,19 @@ def maq_cov(θ, σ):
         s[n] = θ[n]
     return σ**2 * (c + s)
 
-def maq_acf(θ, σ, max_lag):
+def maq_acf(θ: list[float], σ: float=1, max_lag: float=15):
+    """
+    Compute MA(q) auto correlation function.
+
+    Parameters
+    ----------
+    θ: list[float]
+        List of MA(q) coefficients.
+    σ: float
+        Standard deviation of noise term.
+    max_lag: float
+        Maximum lag setting time lag limit used in calculation.
+    """
     ac = maq_cov(θ, σ) / maq_sigma(θ, σ)**2
     ac_eq = numpy.zeros(max_lag)
     ac_eq[0] = 1
@@ -38,29 +73,90 @@ def maq_acf(θ, σ, max_lag):
         ac_eq[i+1] = ac[i]
     return ac_eq
 
-###############################################################################################
-## AR1 standard deviation and autocorrelation
-def ar1_sigma(φ, σ):
+"""AR(1) standard deviation and autocorrelation"""
+def ar1_sigma(φ: float, σ: float=1):
+    """
+    Compute AR(1) standard deviation.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    σ: float
+        Standard deviation of noise term.
+    """
     return numpy.sqrt(σ**2/(1.0-φ**2))
 
-def ar1_acf(φ, nvals):
+def ar1_acf(φ: float, nvals: int):
+    """
+    Compute AR(1) standard deviation.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    nvals: int
+        Number of terms computed.
+    """
     return [φ**n for n in range(nvals)]
 
-def ar1_offset_mean(φ, μ):
+def ar1_offset_mean(φ: float, μ: float):
+    """
+    Compute AR(1) with offset mean.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    μ: float
+        Constant offset.
+    """
     return μ/(1.0 - φ)
 
-def ar1_offset_sigma(φ, σ):
+def ar1_offset_sigma(φ: float, σ: float):
+    """
+    Compute AR(1) with offset standard deviation.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    μ: float
+        Constant offset.
+    """
     return σ/numpy.sqrt(1.0 - φ**2)
 
-###############################################################################################
-## AR(p) simulators
-def noise(n):
+""" AR(p) simulators """
+def noise(n: int):
+    """
+    Generate gaussian noise with unit variance.
+
+    Parameters
+    ----------
+    n: int
+        Number of values generated.
+    """
     return numpy.random.normal(0.0, 1.0, n)
 
-def ar(φ, x0, n, σ):
+def ar(φ: list[float], x0: list[float], n: int, σ: float):
+    """
+    Generate an AR(p) process using specified parameters.
+
+    Parameters
+    ----------
+    φ: list[float]
+        AR(p) parameters.
+    x0: list[float]
+        List of initial values.
+    n: int
+        number of steps in simulation.
+
+     σ: float
+        Standard deviation of noise term.
+   """
     p = len(φ)
     samples = numpy.zeros(n)
-    for i in range(0, q):
+    for i in range(0, p):
         samples[i] = x0[i]
     ε = σ*noise(n)
     for i in range(p, n):

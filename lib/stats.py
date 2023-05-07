@@ -29,7 +29,7 @@ def to_geometric(samples):
     return numpy.exp(samples)
 
 def from_geometric(samples):
-    return numpy.log(samples/s0)
+    return numpy.log(samples)
 
 def ndiff(samples, ndiff):
     result = deepcopy(samples)
