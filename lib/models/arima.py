@@ -2,15 +2,9 @@
 arima.py
 
 Simulations and analysis of ARIMA(p,d,q) random process.
-
-Functions
----------
-
 """
+
 import numpy
-from datetime import datetime
-from pandas import DataFrame
-import uuid
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from lib.models.reports import ADFTestReport
@@ -496,10 +490,26 @@ def ___ar_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.AR
     """
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
 
-def ar_fit(samples, order):
+def ar_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
+    """
+    Estimate the parameters for the assumed AR(p) model from the samples
+    assuming the specified order.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+    order: int
+        Model order.
+
+    Returns
+    -------
+    tsa.arima.model.ARIMAResults
+        Contains the AR(p) estimation results.
+    """
     return ___ar_model(samples, order).fit()
 
-def __ar_offset_model(samples, order):
+def __ar_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
     """
     Create and AR(p) with an offset of the specified order with the specified samples.
 
@@ -517,9 +527,9 @@ def __ar_offset_model(samples, order):
     """
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')
 
-def ar_offset_fit(samples, order):
+def ar_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
     """
-    Estimate the parameters for the assumed AR(p) models from the samples
+    Estimate the parameters for the assumed AR(p) with offset model from the samples
     assuming the specified order.
 
     Parameters
@@ -531,8 +541,8 @@ def ar_offset_fit(samples, order):
 
     Returns
     -------
-    tsa.arima.model.ARIMA
-        The of AR(p) with offset model.
+    tsa.arima.model.ARIMAResults
+        Contains the AR(p) estimation results.
     """
     return __ar_offset_model(samples, order).fit()
 
@@ -554,10 +564,26 @@ def __ma_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARI
     """
     return tsa.arima.model.ARIMA(samples, order=(0, 0, order))
 
-def ma_fit(samples, order):
+def ma_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
+    """
+    Estimate the parameters for the assumed MA(q) model from the samples
+    assuming the specified order.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+    order: int
+        Model order.
+
+    Returns
+    -------
+    tsa.arima.model.ARIMAResults
+        Contains the AR(p) estimation results.
+    """
     return __ma_model(samples, order).fit()
 
-def __ma_offset_model(samples, order):
+def __ma_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
     """
     Create a MA(p) model with offset of the specified order with the specified samples.
 
@@ -575,20 +601,92 @@ def __ma_offset_model(samples, order):
     """
     return tsa.arima.model.ARIMA(samples, order=(0, 0, order), trend='c')
 
-def ma_offset_fit(samples, order):
+def ma_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
+    """
+    Estimate the parameters for the assumed MA(q) model from the samples
+    assuming the specified order.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+    order: int
+        Model order.
+
+    Returns
+    -------
+    tsa.arima.model.ARIMAResults
+        Contains the AR(p) estimation results.
+    """
     return __ma_offset_model(samples, order).fit()
 
 ###############################################################################################
 ## ADF Test
-def adf_test(samples):
+def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
+    """
+    Perform the ADF test assuming no trend on the specified samples. If the ADF
+    test passes the samples are brownian motion.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+
+    Returns
+    -------
+    ADFTestReport
+        Result of the performed ADF test.
+    """
     return _adfuller_test(samples, 'n')
 
-def adf_test_offset(samples):
+def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
+    """
+    Perform the ADF test assuming a constant offset in the samples. If the ADF
+    test passes the samples are brownian motion.
+    
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+
+    Returns
+    -------
+    ADFTestReport
+        Result of the performed ADF test.
+    """
     return _adfuller_test(samples, 'c')
 
-def adf_test_drift(samples):
+def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
+    """
+    Perform the ADF test assuming a linear drift terms. If the ADF
+    test passes the samples are brownian motion.
+    
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+
+    Returns
+    -------
+    ADFTestReport
+        Result of the performed ADF test.
+    """
     return _adfuller_test(samples, 'ct')
 
-def _adfuller_test(samples, test_type):
+def _adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestReport:
+    """
+    Perform the ADF test assuming no trend on the specified samples. If the ADF
+    test passes the samples are brownian motion.
+    
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+
+    Returns
+    -------
+    ADFTestReport
+        Result of the performed ADF test.
+    """
     result = sm.tsa.stattools.adfuller(samples, regression=test_type)
     return ADFTestReport(result)

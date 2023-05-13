@@ -1,3 +1,10 @@
+"""
+stats.py
+
+Useful statistical functions.
+
+"""
+
 import numpy
 from copy import deepcopy
 from pandas import DataFrame
@@ -5,33 +12,120 @@ import statsmodels.api as sm
 from enum import Enum
 
 class RegType(Enum):
+    """
+    Specify regression model to use for linear repression models.
+
+        Values
+    ------
+    LINEAR : 1
+        Assume a linear relation between regression variables.
+            y = a*x + b
+        where a and b be are regression constants.
+    LOG : 2
+        Assume power law relation between the regression variables.
+            y = b*x**a
+        where a and b be are regression constants.
+    XLOG : 3
+        Assume an exponential relationship between the regression variables.
+            y = b*exp(a*x)
+        where a and b be are regression constants.
+    YLOG : 4
+        Assume a logarithmic relation between the regression variables.
+            y = b*ln(a*x)
+        where a and b be are regression constants.
+    """
+
     LINEAR = 1
     LOG = 2
     XLOG = 3
     YLOG = 4
 
-###############################################################################################
-# Transformations
-def to_noise(samples):
-    npts = len(samples)
-    noise = numpy.zeros(npts-1)
-    for j in range(npts-1):
-        noise[j] = samples[j+1] - samples[j]
-    return noise
+def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Difference the given samples.
 
-def from_noise(dB):
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Differenced data
+    """
+
+    return diff(samples)
+
+def from_noise(dB: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Integrate the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Integrate data.
+    """
+
     B = numpy.zeros(len(dB))
     for i in range(1, len(dB)):
         B[i] = B[i-1] + dB[i]
     return B
 
-def to_geometric(samples):
+def to_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Take the exponential of the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Exponential of sampled data.
+    """
+
     return numpy.exp(samples)
 
-def from_geometric(samples):
+def from_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Take the log of the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Logarithm of sampled data.
+    """
+
     return numpy.log(samples)
 
-def ndiff(samples, ndiff):
+def ndiff(samples: numpy.ndarray[float], ndiff: int) -> numpy.ndarray[float]:
+    """
+    Take the specified number of differences of the samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Samples differenced n times.
+    """
+
     result = deepcopy(samples)
     i = 0
     while i < ndiff:
@@ -39,18 +133,52 @@ def ndiff(samples, ndiff):
         i += 1
     return result
 
-def diff(samples):
+def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Difference the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Differenced data
+    """
+
     n = len(samples)
     d = numpy.zeros(n-1)
     for i in range(n-1):
         d[i] = samples[i+1] - samples[i]
     return d
 
-###############################################################################################
-# Ensemble averages
-def ensemble_mean(samples):
+def ensemble_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Compute the time varying mean of the sampled ensemble.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Differenced data
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array that containsdata.
+    """
+
     if len(samples) == 0:
         raise Exception(f"no data")
+    if len(samples.shape) == 2:
+        raise Exception(f"Input must be a two dimensional array.")
+
     nsim = len(samples)
     npts = len(samples[0])
     mean = numpy.zeros(npts)
