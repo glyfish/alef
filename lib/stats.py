@@ -7,9 +7,9 @@ Useful statistical functions.
 
 import numpy
 from copy import deepcopy
-from pandas import DataFrame
 import statsmodels.api as sm
 from enum import Enum
+from typing import Tuple
 
 class RegType(Enum):
     """
@@ -166,12 +166,12 @@ def ensemble_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     Returns
     -------
     numpy.ndarray[float]
-        Differenced data
+        Ensemble average mean as a function of time.
 
     Raises
     ______
     Exception
-        Samples are not a two dimensional array that containsdata.
+        Samples are not a two dimensional array.
     """
 
     if len(samples) == 0:
@@ -184,180 +184,543 @@ def ensemble_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     mean = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
-            mean[i] += samples[j][i]/float(nsim)
+            mean[i] += samples[j][i] / float(nsim)
     return mean
 
-def ensemble_var(samples, Δt=1.0):
+def ensemble_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+    """
+    Compute the time varying variance of the sampled ensemble.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble average variance oas a function of time.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
     if len(samples) == 0:
         raise Exception(f"no data")
+    if len(samples.shape) == 2:
+        raise Exception(f"Input must be a two dimensional array.")
+
     nsim = len(samples)
     mean = ensemble_mean(samples)
     npts = len(samples[0])
     var = numpy.zeros(npts)
     for i in range(npts):
         for j in range(nsim):
-            var[i] += (samples[j][i] - mean[i])**2/float(nsim)
+            var[i] += (samples[j][i] - mean[i])**2 / float(nsim)
     return var/Δt
 
-def ensemble_sd(samples, Δt=1.0):
+def ensemble_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+    """
+    Compute the time varying standard deviation of the sampled ensemble.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble average standard deviation oas a function of time.
+
+    Raises
+    ______
+    Exception
+        Ensemble averaged
+    """
+
     return numpy.sqrt(ensemble_var(samples, Δt))
 
-def ensemble_acf(samples, nlags=None):
+def ensemble_acf(samples: numpy.ndarray[float], nlags: int=None) -> numpy.ndarray[float]:
+    """
+    Compute the ensemble averaged autocorrelation function of the sampled ensemble.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    nlags: int
+        Number of lags (default len(sample))
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble averaged auto correlation function.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
     if len(samples) == 0:
         raise Exception(f"no data")
+    if len(samples.shape) == 2:
+        raise Exception(f"Input must be a two dimensional array.")
+
     nsim = len(samples)
     if nlags is None or nlags > len(samples):
         nlags = len(samples[0])
     ac_avg = numpy.zeros(nlags)
+
     for j in range(nsim):
         ac = acf(samples[j], nlags).real
         for i in range(nlags):
             ac_avg[i] += ac[i]
-    return ac_avg/float(nsim)
+    return ac_avg / float(nsim)
 
-###############################################################################################
-# Cumulative
-def cumu_mean(y):
-    ny = len(y)
+def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+   Cumulative mean of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Cumulative mean of samples as a function of time.
+    """
+
+    ny = len(samples)
     mean = numpy.zeros(ny)
-    mean[0] = y[0]
+    mean[0] = samples[0]
     for i in range(1, ny):
-        mean[i] = (float(i)*mean[i-1]+y[i])/float(i+1)
+        mean[i] = (float(i) * mean[i-1] + samples[i]) / float(i+1)
     return mean
 
-def cumu_var(y, Δt=1.0):
-    mean = cumu_mean(y)
-    ny = len(y)
+def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+    """
+    Cumulative variance of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Cumulative variance of samples as a function of time.
+    """
+
+    mean = cumu_mean(samples)
+    ny = len(samples)
     var = numpy.zeros(ny)
-    var[0] = y[0]**2
+    var[0] = samples[0]**2
     for i in range(1, ny):
-        var[i] = (float(i)*var[i-1]+y[i]**2)/float(i+1)
-    return (var-mean**2)/Δt
+        var[i] = (float(i) * var[i-1] + samples[i]**2) / float(i + 1)
+    return (var - mean**2) / Δt
 
-def cumu_sd(y, Δt=1.0):
-    return numpy.sqrt(cumu_var(y, Δt))
+def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+    """
+    Cumulative standard deviation of samples.
 
-def cumu_cov(x, y):
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Cumulative variance of samples as a function of time.
+    """
+
+    return numpy.sqrt(cumu_var(samples, Δt))
+
+def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Cumulative covariance of the samples.
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        Sampled data.
+    y: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Cumulative covariance of samples as a function of time.
+    """
+
     nsample = min(len(x), len(y))
     cov = numpy.zeros(nsample)
     meanx = cumu_mean(x)
     meany = cumu_mean(y)
-    cov[0] = x[0]*y[0]
-    for i in range(1, nsample):
-        cov[i] = (float(i)*cov[i-1]+x[i]*y[i])/float(i+1)
-    return cov-meanx*meany
+    cov[0] = x[0] * y[0]
 
-###############################################################################################
-# Covaraince and auto covariance implementations
-def cov(x, y):
+    for i in range(1, nsample):
+        cov[i] = (float(i) * cov[i-1] + x[i] * y[i]) / float(i + 1)
+    return cov - meanx * meany
+
+def cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> float:
+    """
+    Covariance of samples computed using brute force summation.
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        Sampled data.
+    y: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    float
+        Covariance of samples.
+    """
+
     nsample = len(x)
     meanx = numpy.mean(x)
     meany = numpy.mean(y)
     c = 0.0
-    for i in range(nsample):
-        c += x[i]*y[i]
-    return c/nsample-meanx*meany
 
-def cov_fft(x, y):
+    for i in range(nsample):
+        c += x[i] * y[i]
+
+    return c / nsample - meanx * meany
+
+def cov_fft(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Covariance of samples computed using FFT with isotropic truncation summation.
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        Sampled data.
+    y: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Covariance of samples as a function of time.
+    """
+
     n = len(x)
     x_shifted = x - x.mean()
     y_shifted = y - y.mean()
+
     x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
     y_padded = numpy.concatenate((y_shifted, numpy.zeros(n-1)))
+
     x_fft = numpy.fft.fft(x_padded)
     y_fft = numpy.fft.fft(y_padded)
-    h_fft = numpy.conj(x_fft)*y_fft
+    h_fft = numpy.conj(x_fft) * y_fft
     cc = numpy.fft.ifft(h_fft)
+
     return cc[0:n] / float(n)
 
-def acf(samples, nlags):
+def acf(samples: numpy.ndarray[float], nlags: int) -> numpy.ndarray[float]:
+    """
+    Autocorrelation function of samples computed using sm.tsa.stattools.acf.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    nlags: int
+        max number of lags computed.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Covariance of samples as a function of lag.
+    """
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True, missing="drop")
 
-###############################################################################################
-# Power spec
-def pspec(x):
+def pspec(x: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Power spectrum computed using FFT methods.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    nlags: int
+        max number of lags computed.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Covariance of samples as a function of lag.
+    """
+
     n = len(x)
     μ = x.mean()
     x_shifted = x - μ
     energy = numpy.sum(x_shifted**2)
     x_padded = numpy.concatenate((x_shifted, numpy.zeros(n-1)))
+    
     x_fft = numpy.fft.fft(x_padded)
-    power = numpy.conj(x_fft)*x_fft
+    power = numpy.conj(x_fft) * x_fft
+
     return power[1:n].real/(n*energy)
 
-###############################################################################################
-# PDF and CDF histograms
-def pdf_hist(samples, range, nbins=50):
+def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float], nbins: int=50) -> numpy.ndarray[float]:
+    """
+    Compute PDF histogram of provided samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    range: Tuple[float, float]
+        Value range
+    nbins: int
+        Number of bind used in calculation.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        PDF histogram.
+    """
+    
     return numpy.histogram(samples, bins=nbins, range=range, density=True)
 
-def cdf_hist(x, pdf):
+def cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Compute CDF histogram from x values and PDF histogram using integration
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        CDF x values.
+    pdf: numpy.ndarray[float]
+        Value range
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        CDF histogram.
+    """
+
     npoints = len(x)
     cdf = numpy.zeros(npoints)
     dx = x[1] - x[0]
     for i in range(npoints):
-        cdf[i] = numpy.sum(pdf[:i])*dx
+        cdf[i] = numpy.sum(pdf[:i]) * dx
     return cdf
 
-###############################################################################################
-## Aggregation
-def agg(samples, m):
+def agg(samples: numpy.ndarray[float], m: int) -> numpy.ndarray[float]:
+    """
+    Aggregate sample averages of m elements into bins. 
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        CDF x values.
+    pdf: numpy.ndarray[float]
+        Value range
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Aggreated sample average.
+    """
+
     n = len(samples)
     d = int(n/m)
     agg = numpy.zeros(d)
+
     for k in range(d):
         for i in range(m):
             j = k*m+i
             agg[k] += samples[j]
-        agg[k] = agg[k]/m
+        agg[k] = agg[k] / m
+
     return agg
 
-def agg_var(samples, m_vals):
+def agg_var(samples: numpy.ndarray[float], m_vals: list[int]) -> numpy.ndarray[float]:
+    """
+    Compute the aggregated variance using the specified bin sizes.. 
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples used in calculation.
+    m_vals: list[int]
+        Desired bun sizes.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Array of length m containing results.
+    """
+
     npts = len(m_vals)
     var = numpy.zeros(npts)
+
     for i in range(npts):
         m = int(m_vals[i])
         vals = agg(samples, m)
         mean = numpy.mean(vals)
         d = len(vals)
         for k in range(d):
-            var[i] += (vals[k] - mean)**2/(d - 1)
+            var[i] += (vals[k] - mean)**2 / (d - 1)
+
     return var
 
-def agg_time(x, m):
+def agg_time(x: numpy.ndarray[float], m: int):
+    """
+    Compute aggregated time values 
+
+    Parameters
+    ----------
+    x: numpy.ndarray[float]
+        Unaggregated time values.
+    m: int
+        Number of points to aggregate.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Aggregated time values.
+    """
+
     n = len(x)
     d = int(n/m)
     return numpy.linspace(x[0], x[n-1], d)
 
-###############################################################################################
-## Lag variance
-def lag_var(samples, s):
+def lag_var(samples: numpy.ndarray[float], s: int) -> float:
+    """
+    Compute lagged variance with specified lag from provided samples using method
+    from Lo and Mackinlay, 1988, "Stock market Prices do not Follow Random Walks".
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples
+    s: int
+       Lag value.
+
+    Returns
+    -------
+    float
+        Lagged variance.
+    """
+
     t = len(samples) - 1
     μ = (samples[t] - samples[0]) / t
     m = (t - s + 1.0)*(1.0 - s/t)
     σ = 0.0
+
     for i in range(int(s), t+1):
         σ += (samples[i] - samples[i-s] - μ*s)**2
+
     return σ/m
 
-def lag_var_scan(samples, s_vals):
+def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]):
+    """
+    Compute lagged variance for a specified range of values.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Unaggregated time values.
+    m: int
+        Number of points to aggregate.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        lagged variance for specified lag values.
+    """
+
     return [lag_var(samples, s) for s in s_vals]
 
-###############################################################################################
-## OLS
-def OLS(y, x, type=RegType.LINEAR):
+def OLS(y: numpy.ndarray[float], x: numpy.ndarray[float], type=RegType.LINEAR) -> sm.OLS:
+    """
+    Create statsmodels OLS object using specified samples.
+
+    Parameters
+    ----------
+    y: numpy.ndarray[float]
+        Dependent variable
+    x: numpy.ndarray[float]
+        Variable
+    type=RegType
+        Model type (default RegType.LINEAR)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float]]
+        Tuple om m arrays of generated samples.
+    """
+
     if type == RegType.LOG:
         x = numpy.log10(x)
         y = numpy.log10(y)
+
     x = sm.add_constant(x)
     return sm.OLS(y, x, missing='drop')
 
-def OLS_fit(y, x, type=RegType.LINEAR):
+def OLS_fit(y: numpy.ndarray[float], x: numpy.ndarray[float], type=RegType.LINEAR) -> sm.regression.linear_model.RegressionResults:
+    """
+    Perform Ordinary Least Squares regression using the specified sample data.
+
+    Parameters
+    ----------
+    y: numpy.ndarray[float]
+        Dependent variable
+    x: numpy.ndarray[float]
+        Variable
+    type=RegType
+        Model type (default RegType.LINEAR)
+
+    Returns
+    -------
+    sm.regression.linear_model.RegressionResults
+        Regression results.
+    """
+
     model = OLS(y, x, type=type)
     results = model.fit()
     return results
 
 
-###############################################################################################
-## Multivariate normal random variable
-def multivariate_normal(μ, Ω, n):
+def multivariate_normal(μ: numpy.ndarray[float], Ω: numpy.ndarray[float], n: int):
+    """
+    Return multivariate normal samples with the specified parameters.
+
+    Parameters
+    ----------
+    μ: numpy.ndarray[float]
+        Distribution mean values contains m elements
+    Ω: numpy.ndarray[float]
+        Distribution correlation matrix contains mxm elements.
+    n: int
+        Number of samples.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float]]
+        Tuple om m arrays of generated samples.
+    """
+
     return numpy.random.multivariate_normal(μ, Ω, n)
