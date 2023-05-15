@@ -7,10 +7,9 @@ from lib.models import arima
 from lib import stats
 
 from lib.data.schema import (DataType)
-from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.data.meta_data import (MetaData)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ##################################################################################################################
 ## Function compare plot config

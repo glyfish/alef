@@ -3,10 +3,9 @@ from enum import Enum
 from matplotlib import pyplot
 from lib import config
 
-from lib.plots.axis import (PlotType, logStyle, logXStyle, logYStyle)
+from lib.plots.comp.axis import (PlotType)
 from lib.data.meta_data import (MetaData)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ###############################################################################################
 ## Specify Config for histogram plot
