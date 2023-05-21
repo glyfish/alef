@@ -1,5 +1,5 @@
 """
-arima.py
+models.arima.py
 
 Simulations and analysis of ARIMA(p,d,q) random process.
 """
@@ -8,6 +8,7 @@ import numpy
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
 from lib.models.reports import ADFTestReport
+from lib.utils import get_param_default_if_missing, get_param_throw_if_missing, verify_type
 
 def maq_sigma(θ: list[float], σ: float=1) -> float:
     """
@@ -25,6 +26,7 @@ def maq_sigma(θ: list[float], σ: float=1) -> float:
     float
         Standard deviation.
     """
+
     v = 0
     for u in θ:
         v += u**2
@@ -46,6 +48,7 @@ def maq_cov(θ: list[float], σ: float=1) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Autocovariance.
     """
+
     q = len(θ)
     c = numpy.zeros(q)
     s = numpy.zeros(q)
@@ -74,6 +77,7 @@ def maq_acf(θ: list[float], σ: float=1, max_lag: float=15) -> numpy.ndarray[fl
     numpy.ndarray[float]
         Autocorrelation function.
     """
+
     ac = maq_cov(θ, σ) / maq_sigma(θ, σ)**2
     ac_eq = numpy.zeros(max_lag)
     ac_eq[0] = 1
@@ -97,6 +101,7 @@ def ar1_sigma(φ: float, σ: float=1) -> float:
     float
         Standard deviation.
     """
+
     return numpy.sqrt(σ**2/(1.0-φ**2))
 
 def ar1_acf(φ: float, nvals: int) -> list[float]:
@@ -115,6 +120,7 @@ def ar1_acf(φ: float, nvals: int) -> list[float]:
     list[float]
         Autocorrelation function.
     """
+
     return [φ**n for n in range(nvals)]
 
 def ar1_offset_mean(φ: float, μ: float) -> float:
@@ -133,6 +139,7 @@ def ar1_offset_mean(φ: float, μ: float) -> float:
     float
         Mean value.
     """
+
     return μ / (1.0 - φ)
 
 def ar1_offset_sigma(φ: float, σ: float) -> float:
@@ -151,6 +158,7 @@ def ar1_offset_sigma(φ: float, σ: float) -> float:
     float
         Standard deviation.
     """
+
     return σ / numpy.sqrt(1.0 - φ**2)
 
 def noise(n: int) -> numpy.ndarray[float]:
@@ -167,6 +175,7 @@ def noise(n: int) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Simulation results.
     """
+
     return numpy.random.normal(0.0, 1.0, n)
 
 def ar(φ: list[float], x0: list[float], n: int, σ: float) -> numpy.ndarray[float]:
@@ -180,7 +189,7 @@ def ar(φ: list[float], x0: list[float], n: int, σ: float) -> numpy.ndarray[flo
     x0: list[float]
         List of initial values.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -189,6 +198,7 @@ def ar(φ: list[float], x0: list[float], n: int, σ: float) -> numpy.ndarray[flo
     numpy.ndarray[float]
         Simulation results.
    """
+    
     p = len(φ)
     samples = numpy.zeros(n)
     for i in range(0, p):
@@ -217,6 +227,7 @@ def ou(λ: float, μ: float, n: int, σ: int=1.0) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Simulation results.
     """
+
     φ = 1.0 - λ
     m = μ*λ
     return arp_offset([φ], m, n, σ)
@@ -232,7 +243,7 @@ def arp_offset(φ: list[float], μ: float, n: int, σ: float) -> numpy.ndarray[f
     u: float
         Offset.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -241,6 +252,7 @@ def arp_offset(φ: list[float], μ: float, n: int, σ: float) -> numpy.ndarray[f
     numpy.ndarray[float]
         Simulation results.
     """
+
     return arp_drift(φ, μ, 0.0, n, σ)
 
 def arp_drift(φ: list[float], μ: float, γ: float, n: int, σ: float) -> numpy.ndarray[float]:
@@ -256,7 +268,7 @@ def arp_drift(φ: list[float], μ: float, γ: float, n: int, σ: float) -> numpy
     γ: float
         Drift parameter.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -265,6 +277,7 @@ def arp_drift(φ: list[float], μ: float, γ: float, n: int, σ: float) -> numpy
     numpy.ndarray[float]
         Simulation results.
     """
+
     p = len(φ)
     samples = numpy.zeros(n)
     ε = σ*noise(n)
@@ -283,7 +296,7 @@ def ar1(φ: float, n: int, σ: float=1.0) -> numpy.ndarray[float]:
     φ: float
         AR(2) parameter.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -292,6 +305,7 @@ def ar1(φ: float, n: int, σ: float=1.0) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Simulation results.
     """
+
     return arp(numpy.array([φ]), n, σ)
 
 def arp(φ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]:
@@ -303,7 +317,7 @@ def arp(φ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]
     φ: numpy.ndarray[float]
         AR(p) parameters.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -312,20 +326,21 @@ def arp(φ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]
     numpy.ndarray[float]
         Simulation results.
     """
+
     φ_sim = numpy.r_[1, -φ]
     δ_sim = numpy.array([1.0])
     return sm.tsa.arma_generate_sample(φ_sim, δ_sim, n, σ)
 
 def maq(θ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]:
     """
-    Generate AR(p) using specified parameters and the statsmodels.tas simulator.
+    Generate MA(q) using specified parameters and the statsmodels.tas simulator.
 
     Parameters
     ----------
     θ: numpy.ndarray[float]
         MA(q) parameters.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -334,6 +349,7 @@ def maq(θ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]
     numpy.ndarray[float]
         Simulation results.
     """
+
     φ_sim = numpy.array([1.0])
     θ_sim = numpy.r_[1, θ]
     return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
@@ -349,7 +365,7 @@ def arma(φ: numpy.ndarray[float], θ: numpy.ndarray[float], n: int, σ: float=1
     θ: numpy.ndarray[float]
         MA(q) parameters.
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -358,6 +374,7 @@ def arma(φ: numpy.ndarray[float], θ: numpy.ndarray[float], n: int, σ: float=1
     numpy.ndarray[float]
         Simulation results.
     """
+
     φ_sim = numpy.r_[1, -φ]
     θ_sim = numpy.r_[1, θ]
     return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
@@ -376,7 +393,7 @@ def arima(φ: numpy.ndarray[float], δ: numpy.ndarray[float], d: int, n: int, σ
     d: int
         Number of integrations to perform (d = 1 or 2).
     n: int
-        number of steps in simulation.
+        Number of steps in simulation.
     σ: float
         Standard deviation of noise term.
 
@@ -390,6 +407,7 @@ def arima(φ: numpy.ndarray[float], δ: numpy.ndarray[float], d: int, n: int, σ
     Exception
         d < 1 or d > 2
     """
+
     assert d <= 2, "d must equal 1 or 2"
     assert d >= 1, "d must equal 1 or 2"
     samples = arma(φ, δ, n, σ)
@@ -422,6 +440,7 @@ def arima_from_arma(samples: numpy.ndarray[float], d: int) -> numpy.ndarray[floa
     Exception
         d < 1 or d > 2
     """
+
     assert d <= 2, "d must equal 1 or 2"
     assert d >= 1, "d must equal 1 or 2"
     n = len(samples)
@@ -451,6 +470,7 @@ def yw(samples: numpy.ndarray[float], order: int) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Estimate of AR(p) coefficients.
     """
+
     pacf, _ = sm.regression.yule_walker(samples, order=order, method='mle')
     return pacf
 
@@ -470,6 +490,7 @@ def pacf(samples: numpy.ndarray[float], nlags: int) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         The of AR(p) partial autocorrelation function.
     """
+
     return sm.tsa.stattools.pacf(samples, nlags=nlags)
 
 def ___ar_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
@@ -488,6 +509,7 @@ def ___ar_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.AR
     tsa.arima.model.ARIMA
         The of AR(p) model.
     """
+
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0))
 
 def ar_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
@@ -507,6 +529,7 @@ def ar_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMARe
     tsa.arima.model.ARIMAResults
         Contains the AR(p) estimation results.
     """
+
     return ___ar_model(samples, order).fit()
 
 def __ar_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
@@ -525,6 +548,7 @@ def __ar_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.mo
     tsa.arima.model.ARIMA
         The of AR(p) with offset model.
     """
+
     return tsa.arima.model.ARIMA(samples, order=(order, 0, 0), trend='c')
 
 def ar_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
@@ -544,6 +568,7 @@ def ar_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.
     tsa.arima.model.ARIMAResults
         Contains the AR(p) estimation results.
     """
+
     return __ar_offset_model(samples, order).fit()
 
 def __ma_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
@@ -562,6 +587,7 @@ def __ma_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARI
     tsa.arima.model.ARIMA
         The of MA(p) model.
     """
+
     return tsa.arima.model.ARIMA(samples, order=(0, 0, order))
 
 def ma_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
@@ -581,6 +607,7 @@ def ma_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMARe
     tsa.arima.model.ARIMAResults
         Contains the AR(p) estimation results.
     """
+
     return __ma_model(samples, order).fit()
 
 def __ma_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMA:
@@ -599,6 +626,7 @@ def __ma_offset_model(samples: numpy.ndarray[float], order: int) -> tsa.arima.mo
     tsa.arima.model.ARIMA
         The of MA(q) with offset model.
     """
+
     return tsa.arima.model.ARIMA(samples, order=(0, 0, order), trend='c')
 
 def ma_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.ARIMAResults:
@@ -618,10 +646,9 @@ def ma_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.
     tsa.arima.model.ARIMAResults
         Contains the AR(p) estimation results.
     """
+
     return __ma_offset_model(samples, order).fit()
 
-###############################################################################################
-## ADF Test
 def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
     """
     Perform the ADF test assuming no trend on the specified samples. If the ADF
@@ -637,7 +664,8 @@ def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
     ADFTestReport
         Result of the performed ADF test.
     """
-    return _adfuller_test(samples, 'n')
+
+    return __adfuller_test(samples, 'n')
 
 def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
     """
@@ -654,7 +682,8 @@ def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
     ADFTestReport
         Result of the performed ADF test.
     """
-    return _adfuller_test(samples, 'c')
+
+    return __adfuller_test(samples, 'c')
 
 def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
     """
@@ -671,9 +700,10 @@ def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
     ADFTestReport
         Result of the performed ADF test.
     """
-    return _adfuller_test(samples, 'ct')
 
-def _adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestReport:
+    return __adfuller_test(samples, 'ct')
+
+def __adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestReport:
     """
     Perform the ADF test assuming no trend on the specified samples. If the ADF
     test passes the samples are brownian motion.
@@ -688,5 +718,6 @@ def _adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestRepo
     ADFTestReport
         Result of the performed ADF test.
     """
+
     result = sm.tsa.stattools.adfuller(samples, regression=test_type)
     return ADFTestReport(result)
