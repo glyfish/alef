@@ -1,6 +1,7 @@
-from lib.plots.comp.data import (curve, comparison, stack, twinx)
-from lib.plots.comp.func import (fpoints, fcurve)
-from lib.plots.comp.axis import (PlotType)
-from lib.plots.comp.reg import (single_var)
-from lib.plots.comp.hist import (bar, fbar, hist)
-from lib.plots.comp.hyp_test import (HypTestPlotType, hyp_test)
+from lib.plots.dash import  (curve, comparison, stack, twinx, twinx_comparison, bar, 
+                             twinx_bar_line, twinx_bar, hist)
+# from lib.plots.comp.func import (fpoints, fcurve)
+# from lib.plots.comp.axis import (PlotType)
+# from lib.plots.comp.reg import (single_var)
+# from lib.plots.comp.hist import (bar, fbar, hist)
+# from lib.plots.comp.hyp_test import (HypTestPlotType, hyp_test)
