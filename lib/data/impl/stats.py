@@ -1,80 +1,19 @@
-from enum import (Enum, EnumMeta)
-import numpy
+"""
+stats.py
 
+Apply generic statistics functions.
+
+"""
 from lib import stats
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.schema import (DataType)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space, create_logspace)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, verify_type, create_space, create_logspace)
 
-###################################################################################################
-# Define Stats
-class Stats:
-    class Func(FuncBase):
-        PSPEC = "PSPEC"                        # Power Spectrum
-        ACF = "ACF"                            # Auto Correlation Function  (has ensemble and time series implementations)
-        LAG_VAR = "LAG_VAR"                    # Lagged varinace
-        DIFF = "DIFF"                          # Time series difference
-        CUMU_MEAN = "CUMU_MEAN"                # Cumulative mean
-        CUMU_SD = "CUMU_SD"                    # Cumulative standard deviation
-        CUMU_VAR = "CUMU_VAR"                  # Cumulative standard variance
-        AGG_VAR = "AGG_VAR"                    # Aggregated time series variance
-        AGG = "AGG"                            # Aggregated time series
-        PDF_HIST = "PDF_HIST"                  # Compute PDF histogram from simulation
-        CDF_HIST = "CDF_HIST"                  # Compute CDF histogram from simulation
-        MEAN = "MEAN"                          # Mean as a function of time (Ensemble Func)
-        SD = "SD"                              # Standard deviation as a function of time (Ensemble Func)
-        VAR = "VAR"                            # Variance as a function of time (Ensemble Func)
-
-        def _create_func(self, **kwargs):
-            return _create_func(self, **kwargs)
-
-        def _create_ensemble_data_func(self, **kwargs):
-            return _create_ensemble_data_func(self, **kwargs)
-
-###################################################################################################
-## create function definition for data type
-def _create_func(func_type, **kwargs):
-    if func_type.value == Stats.Func.PSPEC.value:
-        return _create_pspec(func_type, **kwargs)
-    elif func_type.value == Stats.Func.ACF.value:
-        return _create_acf(func_type, **kwargs)
-    elif func_type.value == Stats.Func.LAG_VAR.value:
-        return _create_lag_var(func_type, **kwargs)
-    elif func_type.value == Stats.Func.DIFF.value:
-        return _create_diff(func_type, **kwargs)
-    elif func_type.value == Stats.Func.CUMU_MEAN.value:
-        return _create_cumu_mean(func_type, **kwargs)
-    elif func_type.value == Stats.Func.CUMU_SD.value:
-        return  _create_cumu_sd(func_type, **kwargs)
-    elif func_type.value == Stats.Func.CUMU_VAR.value:
-        return  _create_cumu_var(func_type, **kwargs)
-    elif func_type.value == Stats.Func.AGG_VAR.value:
-        return _create_agg_var(func_type, **kwargs)
-    elif func_type.value == Stats.Func.AGG.value:
-        return _create_agg(func_type, **kwargs)
-    elif func_type.value == Stats.Func.PDF_HIST.value:
-        return _create_pdf_hist(func_type, **kwargs)
-    elif func_type.value == Stats.Func.CDF_HIST.value:
-        return _create_cdf_hist(func_type, **kwargs)
-    else:
-        raise Exception(f"Func is invalid: {func_type}")
-
-###################################################################################################
-# Create DataFunc objects for specified Func
-# Func.PSPEC
-def _create_pspec(func_type, **kwargs):
+def apply_pspec(data, **kwargs):
+    """
+    """
     fx = lambda x : x[1:]
-    fy = lambda x, y : stats.pspec(y)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.FOURIER_TRANS,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$\rho_\omega$",
-                    xlabel=r"$\omega$",
-                    desc="Power Spectrum",
-                    fy=fy,
-                    fx=fx)
+    return stats.pspec(data)
 
 # Func.ACF
 def _create_acf(func_type, **kwargs):

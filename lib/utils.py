@@ -141,7 +141,55 @@ def create_logspace(**kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
     xmax = get_param_throw_if_missing("xmax", **kwargs)
     xmin = get_param_default_if_missing("xmin", 1.0, **kwargs)
-    kwargs["npts"] = npts
-    kwargs["xmax"] = xmax
-    kwargs["xmin"] = xmin
     return numpy.logspace(numpy.log10(xmin), numpy.log10(xmax/xmin), npts)
+
+def create_parameter_scan(source, *args):
+    """
+    Generate a parameter scan for the specified data source using the 
+    specified parameters
+
+    Parameters
+    ----------
+    source: lambda(**kwargs) -> (numpy.ndarray, numpy.ndarray)
+        lambda calling source create.
+    args : *args
+        Array of parameter scan kwargs
+
+    Returns
+    -------
+    (numpy.ndarray[float], list[numpy.ndarray[float]])
+        time and ensemble simulation results.
+    """
+
+    scan = []
+    for kwargs in args:
+        _, samples = source(**kwargs)
+        scan.append(samples)
+    return create_space(npts=len(scan[0])), scan
+
+def create_ensemble(source, nsim: int, **kwargs):
+    """
+    Generate a parameter scan for the specified data source using the 
+    specified parameters
+
+    Parameters
+    ----------
+    source: lambda(**kwargs) -> (numpy.ndarray, numpy.ndarray)
+        lambda calling source create.
+    nsim : int
+        Number of simulations in ensemble
+    kwargs : **kwargs
+        Simulation parameters.
+
+    Returns
+    -------
+    (numpy.ndarray[float], list[numpy.ndarray[float]])
+        time and ensemble simulation results.
+    """
+
+    ensemble = []
+    for _ in range(nsim):
+        _, samples = source(**kwargs)
+        ensemble.append(samples)
+    return create_space(npts=len(ensemble[0])), ensemble
+

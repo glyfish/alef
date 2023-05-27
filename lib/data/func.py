@@ -12,7 +12,7 @@ from lib.models import arima
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space, create_logspace)
+                       verify_type, create_space, create_logspace)
 
 ###################################################################################################
 # DataFunc consist of the input schema and function used to compute resulting data columns

@@ -9,7 +9,7 @@ from lib.models import arima
 from lib.models import (TestHypothesis, Dist)
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+                       verify_type)
 from lib.data.schema import (DataType, DataSchema)
 
 ##################################################################################################################

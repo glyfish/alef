@@ -9,7 +9,7 @@ from lib.data.meta_data import (Est)
 from lib.data.schema import (DataType, DataSchema)
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types)
+                       verify_type, verify_type)
 
 ###############################################################################################
 # Create single variable regression PlotConfig
@@ -54,11 +54,11 @@ class SingleVarPlotConfig:
         const = self.est.trans_const()
         r2 = self.est.r2
         param_est = f"{param.est_label}={format(param.est, '2.2f')}"
-        paream_err = f"{param.err_label}={format(param.err, '2.2f')}"
+        param_err = f"{param.err_label}={format(param.err, '2.2f')}"
         const_est = f"{const.est_label}={format(const.est, '2.2f')}"
         const_err = f"{const.err_label}={format(const.err, '2.2f')}"
         r2_row = f"$R^2$ = {format(r2, '2.2f')}"
-        return f"{param_est}\n{paream_err}\n{const_est}\n{const_err}\n{r2_row}"
+        return f"{param_est}\n{param_err}\n{const_est}\n{const_err}\n{r2_row}"
 
     def plot_type(self):
         if self.est.reg_type.value == stats.RegType.LOG.value:

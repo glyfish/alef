@@ -11,7 +11,7 @@ from lib.data.meta_data import (TestParam, TestData, TestReport,
                                 ParamEst, ARMAEst)
 from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space, create_logspace)
+                       verify_type, create_space, create_logspace)
 
 def _create_pacf(**kwargs):
     nlags = get_param_throw_if_missing("nlags", **kwargs)
@@ -61,56 +61,6 @@ def _create_ar1_offset_sd(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, σ))
-
-def create_parameter_scan(source, *args):
-    """
-    Generate a parameter scan for the specified data source using the 
-    specified parameters
-
-    Parameters
-    ----------
-    source: lambda(**kwargs) -> (numpy.ndarray, numpy.ndarray)
-        lambda calling source create.
-    args : *args
-        Array of parameter scan kwargs
-
-    Returns
-    -------
-    (numpy.ndarray[float], list[numpy.ndarray[float]])
-        time and ensemble simulation results.
-    """
-
-    scan = []
-    for kwargs in args:
-        _, samples = source(**kwargs)
-        scan.append(samples)
-    return create_space(npts=len(scan[0])), scan
-
-def create_ensemble(source, nsim: int, **kwargs):
-    """
-    Generate a parameter scan for the specified data source using the 
-    specified parameters
-
-    Parameters
-    ----------
-    source: lambda(**kwargs) -> (numpy.ndarray, numpy.ndarray)
-        lambda calling source create.
-    nsim : int
-        Number of simulations in ensemble
-    kwargs : **kwargs
-        Simulation parameters.
-
-    Returns
-    -------
-    (numpy.ndarray[float], list[numpy.ndarray[float]])
-        time and ensemble simulation results.
-    """
-
-    ensemble = []
-    for _ in range(nsim):
-        _, samples = source(**kwargs)
-        ensemble.append(samples)
-    return create_space(npts=len(ensemble[0])), ensemble
 
 def create_ar_source(**kwargs):
     """

@@ -8,7 +8,7 @@ from lib.data.func import (DataFunc, FuncBase)
 from lib.data.schema import (DataType)
 from lib.data.source import (DataSource, SourceBase)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space, create_logspace)
+                       verify_type, create_space, create_logspace)
 from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
                                 TestParam, TestData, TestReport,
                                 ParamEst, ARMAEst)

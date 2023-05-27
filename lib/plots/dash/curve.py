@@ -36,7 +36,7 @@ def curve(y, x=None, **kwargs):
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.curve(axis, y, x, **kwargs)
@@ -78,7 +78,7 @@ def comparison(y, x=None, **kwargs):
         Specify legend location. (default best)
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.comparison(axis, y, x=x, **kwargs)
@@ -113,7 +113,7 @@ def stack(y: list[numpy.ndarray], x=None, **kwargs):
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     nplot = len(y)
     _, axis = pyplot.subplots(nplot, sharex=True, figsize=figsize)
@@ -158,7 +158,7 @@ def twinx(left, right, x=None, **kwargs):
         Precision shown for y axis ticks.
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx(axis, left, right, x, **kwargs)
@@ -207,7 +207,7 @@ def twinx_comparison(left: list[numpy.ndarray], right: list[numpy.ndarray], x: n
         Specify legend location. (default best)
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx_comparison(axis, left=left, right=right, x=x, **kwargs)
@@ -242,7 +242,7 @@ def bar(y, x=None, **kwargs):
         Specify the width and height of plot (default is (8,6))
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.bar(axis, y, x, **kwargs)
@@ -301,7 +301,7 @@ def twinx_bar_line(y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.nda
         Specify the width and height of plot (default is (8,6))
    """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx_bar_line(axis, y_bar, y_line, x_bar, x_line, **kwargs)
@@ -360,7 +360,7 @@ def twinx_bar(left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=N
         Bar width ras faction of x delta.
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx_bar(axis, left, right, x_left, x_right, **kwargs)
@@ -404,7 +404,7 @@ def hist(samples: numpy.ndarray, fx=None, **kwargs):
         Specify the width and height of plot (default is (8,6))
     """
 
-    figsize = get_param_default_if_missing("figsize", (8,6), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.hist(axis, samples, fx, **kwargs)

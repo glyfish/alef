@@ -13,7 +13,7 @@ from lib.models import ou
 from lib.data.meta_data import (MetaData)
 from lib.data.schema import (DataType, DataSchema)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_types, create_space)
+                       verify_type, create_space)
 
 ##################################################################################################################
 # Specify Data Source Types used in analysis

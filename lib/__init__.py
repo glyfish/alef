@@ -14,4 +14,4 @@ from lib.models import ou
 from lib.models import var
 from lib.models.dist import (Dist, TestHypothesis)
 
-from lib.utils import (create_logspace, create_space)
+from lib.utils import (create_logspace, create_space, create_parameter_scan, create_ensemble)

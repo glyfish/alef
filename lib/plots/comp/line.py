@@ -291,16 +291,18 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
 
     plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
     title          = get_param_default_if_missing("title", None, **kwargs)
-    title_offset   = get_param_default_if_missing("title_offset", 1.0, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
-    ylabels        = get_param_default_if_missing("ylabel",None, **kwargs)
+    ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
     ylim           = get_param_default_if_missing("ylim", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     lw             = get_param_default_if_missing("lw", 1, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
     nplot = len(y)
-    axis[nplot-1].set_xlabel(xlabel)
+
+    if xlabel is not None:
+        axis[nplot-1].set_xlabel(xlabel)
 
     if title is not None:
         axis[0].set_title(title, y=1.0 + title_offset)
@@ -310,15 +312,8 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         for i in range(nplot):
             ypts = len(y[i])
             x.append(numpy.linspace(0.0, float(ypts-1), ypts))
-    elif not isinstance(x, list):
-        x_val = x
-        x = []
-        for i in range(nplot):
-            x.append(x_val)
-    elif isinstance(x, list) and len(x) != len(y):
-        for i in range(len(x), nplot):
-            ypts = len(y[i])
-            x.append(numpy.linspace(0.0, float(ypts-1), ypts))
+    elif isinstance(x, numpy.ndarray):
+        x = numpy.tile(x, (nplot, 1))
 
     if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
         converter = mdates.ConciseDateConverter()
@@ -328,22 +323,16 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
 
     for i in range(nplot):
         y_plot = y[i]
+        x_plot = x[i]
+
         if npts is None or npts > len(y_plot):
             npts = len(y_plot)
-
-        if x is None:
-            x_plot = numpy.linspace(0, npts - 1, npts)
-
-        if isinstance(x, list):
-            x_plot = x[i]
-
-        if not isinstance(x_plot, numpy.ndarray):
-            raise Exception(f"x must be type numpy.ndarray")
 
         x_plot = x_plot[:npts]
         y_plot = y_plot[:npts]
 
-        axis[i].set_ylabel(ylabels[i])
+        if ylabels is not None:
+            axis[i].set_ylabel(ylabels[i])
 
         if ylim is None:
             ylim_plot = [1.1*numpy.amin(y), 1.1*numpy.amax(y)]
@@ -351,12 +340,12 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
             ylim_plot = ylim
 
         axis[i].set_ylim(ylim_plot)
-        axis[i].set_xlim([x[0], x[npts-1]])
+        axis[i].set_xlim([x_plot[0], x_plot[-1]])
 
         if labels is not None:
             ypos = 0.8*(ylim_plot[1] - ylim_plot[0]) + ylim_plot[0]
             xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
-            text = axis[i].text(xpos, ypos, labels[i], fontsize=18)
+            text = axis[i].text(xpos, ypos, labels[i])
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
         if plot_type.value == PlotType.LOG.value:
