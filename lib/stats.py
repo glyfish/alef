@@ -119,7 +119,9 @@ def ndiff(samples: numpy.ndarray[float], ndiff: int) -> numpy.ndarray[float]:
     ----------
     samples: numpy.ndarray[float]
         Sampled data.
-
+    ndiff : int
+        Number of differences taken.
+        
     Returns
     -------
     numpy.ndarray[float]
@@ -154,14 +156,14 @@ def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
         d[i] = samples[i+1] - samples[i]
     return d
 
-def ensemble_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
+def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
     """
     Compute the time varying mean of the sampled ensemble.
 
     Parameters
     ----------
-    samples: numpy.ndarray[float]
-        Sampled data.
+    samples: list[numpy.ndarray[float]]
+        Ensemble of sampled data.
 
     Returns
     -------
@@ -187,14 +189,14 @@ def ensemble_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
             mean[i] += samples[j][i] / float(nsim)
     return mean
 
-def ensemble_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Compute the time varying variance of the sampled ensemble.
 
     Parameters
     ----------
-    samples: numpy.ndarray[float]
-        Sampled data.
+    samples: list[numpy.ndarray[float]]
+        Ensemble of sampled data.
     Δt: float
         Time delta (default 1.0)
 
@@ -223,14 +225,14 @@ def ensemble_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray
             var[i] += (samples[j][i] - mean[i])**2 / float(nsim)
     return var/Δt
 
-def ensemble_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
+def ensemble_sd(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
     Parameters
     ----------
-    samples: numpy.ndarray[float]
-        Sampled data.
+    samples: list[numpy.ndarray[float]]
+        Ensemble of sampled data.
     Δt: float
         Time delta (default 1.0)
 
@@ -247,13 +249,13 @@ def ensemble_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[
 
     return numpy.sqrt(ensemble_var(samples, Δt))
 
-def ensemble_acf(samples: numpy.ndarray[float], nlags: int=None) -> numpy.ndarray[float]:
+def ensemble_acf(samples: list[numpy.ndarray[float]], nlags: int=None) -> numpy.ndarray[float]:
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
     Parameters
     ----------
-    samples: numpy.ndarray[float]
+    samples: list[numpy.ndarray[float]]
         Sampled data.
     nlags: int
         Number of lags (default len(sample))
@@ -452,6 +454,7 @@ def acf(samples: numpy.ndarray[float], nlags: int) -> numpy.ndarray[float]:
     numpy.ndarray[float]
         Covariance of samples as a function of lag.
     """
+
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True, missing="drop")
 
 def pspec(x: numpy.ndarray[float]) -> numpy.ndarray[float]:
@@ -529,14 +532,14 @@ def cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> numpy.ndarra
 
 def agg(samples: numpy.ndarray[float], m: int) -> numpy.ndarray[float]:
     """
-    Aggregate sample averages of m elements into bins. 
+    Aggregate sample averages of m elements into len(samples)/m bins. 
 
     Parameters
     ----------
-    x: numpy.ndarray[float]
-        CDF x values.
-    pdf: numpy.ndarray[float]
-        Value range
+    samples: numpy.ndarray[float]
+        Sampled data.
+    m : int
+        Number of aggregates
 
     Returns
     -------

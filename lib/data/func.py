@@ -199,18 +199,3 @@ class DataFunc:
 
 ###################################################################################################
 ## Helpers
-def _get_s_vals(**kwargs):
-    linear = get_param_default_if_missing("linear", False, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
-    npts = get_param_default_if_missing("npts", None, **kwargs)
-    s_max = get_param_default_if_missing("s_max", None, **kwargs)
-    s_vals = get_param_default_if_missing("s_vals", None, **kwargs)
-    if npts is not None and s_max is not None:
-        if linear:
-            return create_space(npts=npts, xmax=s_max, xmin=s_min)
-        else:
-            return create_logspace(npts=npts, xmax=s_max, xmin=s_min)
-    elif s_vals is not None:
-        return s_vals
-    else:
-        raise Exception(f"s_max and npts or s_vals is required")

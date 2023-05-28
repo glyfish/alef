@@ -4,233 +4,378 @@ stats.py
 Apply generic statistics functions.
 
 """
+
+import numpy
+
 from lib import stats
-from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
+from lib.data.func import (_get_s_vals)
 from lib.data.schema import (DataType)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, verify_type, create_space, create_logspace)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
+                       create_logspace, create_space)
 
-def apply_pspec(data, **kwargs):
+def apply_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
-    """
-    fx = lambda x : x[1:]
-    return stats.pspec(data)
+    Power spectrum computed using FFT methods.
 
-# Func.ACF
-def _create_acf(func_type, **kwargs):
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    nlags: int
+        max number of lags computed.
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Frequency and power spectrum.
+    """
+
+    return time[1:], stats.pspec(data)
+
+def apply_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Autocorrelation function of samples computed using sm.tsa.stattools.acf.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    nlags: int
+        max number of lags computed.
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time lags and autocovariance of samples as a function of lag.
+    """
+
     nlags = get_param_throw_if_missing("nlags", **kwargs)
-    source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    fx = lambda x : x[:nlags+1]
-    fy = lambda x, y : stats.acf(y, nlags)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.ACF,
-                    source_type=source_type,
-                    params={"nlags": nlags},
-                    ylabel=r"$\rho_\tau$",
-                    xlabel=r"$\tau$",
-                    desc="ACF",
-                    fy=fy,
-                    fx=fx)
 
-# Func.DIFF
-def _create_diff(func_type, **kwargs):
+    return time[:nlags + 1], stats.acf(data, nlags)
+
+def apply_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Take the specified number of differences of the samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    ndiff : int
+        Number of differences taken.
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and samples differenced n times.
+    """
+
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
-    fx = lambda x : x[:-ndiff]
-    fy = lambda x, y : stats.ndiff(y, ndiff)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"ndiff": ndiff},
-                    ylabel=f"$\Delta^{{{ndiff}}} S_t$",
-                    xlabel=r"$t$",
-                    desc="Difference",
-                    fy=fy,
-                    fx=fx)
+    return time[:-ndiff], stats.ndiff(data, ndiff)
 
-# Func.CUMU_MEAN
-def _create_cumu_mean(func_type, **kwargs):
-    fy = lambda x, y : stats.cumu_mean(y)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$\mu_t$",
-                    xlabel=r"$t$",
-                    desc="Cumulative Mean",
-                    fy=fy)
+def apply_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Cumulative mean of samples.
 
-# Func.CUMU_SD
-def _create_cumu_sd(func_type, **kwargs):
-        Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-        fy = lambda x, y : stats.cumu_sd(y, Δt)
-        return DataFunc(func_type=func_type,
-                        data_type=DataType.TIME_SERIES,
-                        source_type=DataType.TIME_SERIES,
-                        params={},
-                        ylabel=r"$\sigma_t$",
-                        xlabel=r"$t$",
-                        desc="Cumulative SD",
-                        fy=fy)
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
 
-# Func.CUMU_VAR
-def _create_cumu_var(func_type, **kwargs):
-        Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-        fy = lambda x, y : stats.cumu_var(y, Δt)
-        return DataFunc(func_type=func_type,
-                        data_type=DataType.TIME_SERIES,
-                        source_type=DataType.TIME_SERIES,
-                        params={},
-                        ylabel=r"$\sigma_t^2$",
-                        xlabel=r"$t$",
-                        desc="Cumulative VAR",
-                        fy=fy)
-# Func.AGG_VAR
-def _create_agg_var(func_type, **kwargs):
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and cumulative mean of samples as a function of time.
+    """
+
+    return time, stats.cumu_mean(data)
+
+def apply_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Cumulative standard deviation of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and cumulative standard deviation of samples as a function of time.
+    """
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return time, stats.cumu_sd(data, Δt)
+
+def apply_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Cumulative variance of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and cumulative variance of samples as a function of time.
+    """
+
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return time, stats.cumu_var(data, Δt)
+
+def apply_agg_var(data: numpy.ndarray, **kwargs):
+    """
+    Compute the aggregated variance using the specified bin sizes.. 
+
+    Parameters
+    ----------
+    data: numpy.ndarray[float]
+        Sampled data.
+    npts : int
+        Number of aggregation steps
+    m_max: int
+        Maximum lags.
+    m_min: int
+        Minimum lag. (default 1)
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Lags and lagged variance for each value.
+    """
+
     npts = get_param_throw_if_missing("npts", **kwargs)
     m_max = get_param_throw_if_missing("m_max", **kwargs)
     m_min = get_param_default_if_missing("m_min", 1.0, **kwargs)
-    source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    fx = lambda x : create_logspace(npts=npts, xmax=m_max, xmin=m_min)
-    fy = lambda x, y : stats.agg_var(y, x)
-    return DataFunc(func_type=func_type,
-                    data_type=source_type,
-                    source_type=source_type,
-                    params={"npts": npts, "m_max": m_max, "m_min": m_min},
-                    ylabel=r"$Var(X^m)$",
-                    xlabel=r"$m$",
-                    desc="Aggregated Variance",
-                    fy=fy,
-                    fx=fx)
-# Func.AGG
-def _create_agg(func_type, **kwargs):
-    m = get_param_throw_if_missing("m", **kwargs)
-    source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    fx = lambda x : stats.agg_time(x, m)
-    fy = lambda x, y : stats.agg(y, m)
-    return DataFunc(func_type=func_type,
-                    data_type=source_type,
-                    source_type=source_type,
-                    params={"m": m},
-                    ylabel=f"$X^{{{m}}}$",
-                    xlabel=r"$t$",
-                    desc=f"Aggregation",
-                    fy=fy,
-                    fx=fx)
 
-# Func.PDF_HIST
-def _create_pdf_hist(func_type, **kwargs):
+    m_vals = create_logspace(npts=npts, xmax=m_max, xmin=m_min)
+    return m_vals, stats.agg_var(data, m_vals)
+
+def apply_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Aggregate sample averages of m elements into len(samples)/m bins. 
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    m : int
+        Number of aggregates
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Aggreated sample average.
+    """
+
+    m = get_param_throw_if_missing("m", **kwargs)
+
+    return stats.agg_time(time, m), stats.agg(data, m)
+
+def apply_lag_var(data: numpy.ndarray[float], **kwargs):
+    """
+    Compute lagged variance for a specified range of values.
+
+    Parameters
+    ----------
+    data: numpy.ndarray[float]
+        Unaggregated time values.
+    s_max : int
+        Maximum s-value.
+    s_min : int
+        Minimum s value.
+    npts : int
+        Number of s-values to create
+    s_vals : list[int]
+        List if s-values to use
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        lagged variance for specified lag values.
+    """
+
+    s_vals =  [int(s) for s in get_s_vals(**kwargs)]
+    return s_vals, stats.lag_var_scan(data, s_vals)
+
+def apply_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Compute the time varying mean of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: list[numpy.ndarray[float]]
+        Sampled data.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble average mean as a function of time.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    return time, stats.ensemble_mean(data)
+
+def apply_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Compute the time varying standard deviation of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: list[numpy.ndarray[float]]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble average mean as a function of time.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return time, stats.ensemble_sd(data, Δt)
+
+def apply_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs):
+    """
+    Compute the time varying variance of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: list[numpy.ndarray[float]]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble average mean as a function of time.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return time, stats.ensemble_var(data, Δt)
+
+def apply_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Compute the ensemble averaged autocorrelation function of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: list[numpy.ndarray[float]]
+        Sampled data.
+    nlags: int
+        Number of lags (default len(sample))
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble averaged auto correlation function.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    nlags = get_param_default_if_missing("nlags", None, **kwargs)
+
+    return time[:nlags], stats.ensemble_acf(data, nlags)
+
+def apply_pdf_hist(data: numpy.ndarray[float], **kwargs):
+    """
+    Create a PDF histogram for the provided data.
+
+    Parameters
+    ----------
+    data : numpy.ndarray[float]
+        Sampled data.
+    xmin : float
+        Minimum x value (required).
+    xmax : float
+        maximum x value (required).
+    nbins : int
+        Number of bins. (default 50)
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        PDF histogram.
+
+    Raises
+    ------
+    Exception
+        xmin and xmax are missing.
+
+    """
+
     xmin = get_param_throw_if_missing("xmin", **kwargs)
     xmax = get_param_throw_if_missing("xmax", **kwargs)
     nbins = get_param_default_if_missing("nbins", 50, **kwargs)
-    fx = lambda x : x[:-1]
-    fyx = lambda x, y : stats.pdf_hist(y, [xmin, xmax], nbins)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$p(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$x \sim \frac{\frac{1}{2}[B^2(1) - 1]}{\sqrt{\int_{0}^{1}B^2(s)ds}}$",
-                    desc="PDF",
-                    fx=fx,
-                    fyx=fyx)
 
-# Func.CDF_HIST
-def _create_cdf_hist(func_type, **kwargs):
-    fx = lambda x : x[:-1]
-    fy = lambda x, y : stats.cdf_hist(x, y)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=DataType.DIST,
-                    params={},
-                    ylabel=r"$P(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$x \sim \frac{\frac{1}{2}[B^2(1) - 1]}{\sqrt{\int_{0}^{1}B^2(s)ds}}$",
-                    desc="CDF",
-                    fx=fx,
-                    fy=fy)
+    x = create_space(xmax=xmax, xmin=xmin, npts=nbins)
+    return x[:-1], stats.pdf_hist(data, [xmin, xmax], nbins)
 
-# Func.LAG_VAR
-def _create_lag_var(func_type, **kwargs):
-    source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    s_vals = _get_s_vals(**kwargs)
-    fx = lambda x : [int(s) for s in s_vals]
-    fy = lambda x, y : stats.lag_var_scan(y, x)
-    return DataFunc(func_type=func_type,
-                    data_type=source_type,
-                    source_type=source_type,
-                    params={},
-                    ylabel=r"$\sigma^2(s)$",
-                    xlabel=r"$s$",
-                    desc="Lagged Variance",
-                    formula=r"$\frac{1}{m} \sum_{i=s}^t \left( X_t - X_{t-s} - s\mu \right)^2$",
-                    fy=fy,
-                    fx=fx)
+def apply_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs):
+    """
+    Create a CDF histogram from the given PDF histogram.
 
-###################################################################################################
-## create function definition applied to lists of data frames for data type
-def _create_ensemble_data_func(func_type, **kwargs):
-    if func_type.value == Stats.Func.MEAN.value:
-        return _create_ensemble_mean(func_type, **kwargs)
-    elif func_type.value == Stats.Func.SD.value:
-        return _create_ensemble_sd(func_type, **kwargs)
-    elif func_type.value == Stats.Func.VAR.value:
-        return _create_ensemble_var(func_type, **kwargs)
-    elif func_type.value == Stats.Func.ACF.value:
-        return _create_ensemble_acf(func_type, **kwargs)
-    else:
-        raise Exception(f"Func is invalid: {func_type}")
+    x : numpy.ndarray[float]
+        Random variable values.
+    pdf : numpy.ndarray[float]
+        PDF.
 
-###################################################################################################
-## Create dataFunc objects for specified data type
-# Func.MEAN
-def _create_ensemble_mean(func_type, **kwargs):
-    fy = lambda x, y : stats.ensemble_mean(y)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$\mu_t$",
-                    xlabel=r"$t$",
-                    desc="Ensemble Mean",
-                    fy=fy)
+    Returns
+    -------
+    numpy.ndarray[float]
+        CDF histogram.
+    """
 
-# Func.SD
-def _create_ensemble_sd(func_type, **kwargs):
-    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-    fy = lambda x, y : stats.ensemble_sd(y, Δt)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"Δx": Δx},
-                    ylabel=r"$\sigma_t$",
-                    xlabel=r"$t$",
-                    desc="Ensemble SD",
-                    fy=fy)
+    return x[:-1], stats.cdf_hist(x, pdf)
 
-# Func.VAR
-def _create_ensemble_var(func_type, **kwargs):
-    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-    fy = lambda x, y : stats.ensemble_var(y, Δt)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$\sigma_t^2$",
-                    xlabel=r"$t$",
-                    desc="Ensemble VAR",
-                    fy=fy)
-# Func.ACF
-def _create_ensemble_acf(func_type, **kwargs):
-    source_type = get_param_default_if_missing("source_type", DataType.TIME_SERIES, **kwargs)
-    nlags = get_param_default_if_missing("nlags", None, **kwargs)
-    fy = lambda x, y : stats.ensemble_acf(y, nlags)
-    fx = lambda x : x[:nlags]
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.ACF,
-                    source_type=source_type,
-                    params={"nlags": nlags},
-                    ylabel=r"$\rho_\tau$",
-                    xlabel=r"$\tau$",
-                    desc="Ensemble ACF",
-                    fy=fy,
-                    fx=fx)

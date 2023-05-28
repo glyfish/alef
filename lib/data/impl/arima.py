@@ -11,22 +11,56 @@ from lib.data.meta_data import (TestParam, TestData, TestReport,
                                 ParamEst, ARMAEst)
 from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, create_space, create_logspace)
+                       verify_type, create_space, get_s_vals)
 
-def _create_pacf(**kwargs):
+def apply_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+    """
+    Compute the partial autocorrelation function bu solving the Yule-Walker equations.
+
+    Parameters
+    ----------
+    time: numpy.ndarray[float]
+        Time
+    data: numpy.ndarray[float]
+        AR(p) processes samples
+    nlags: int
+        The assumed order of the AR(p) process.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Estimate of AR(p) coefficients.
+
+    """
+
     nlags = get_param_throw_if_missing("nlags", **kwargs)
-    fx = lambda x : x[1:nlags+1]
-    fy = lambda x, y : arima.yw(y, nlags)
 
-# Func.AR1_ACF
-def _create_ar1_acf(**kwargs):
+    return time[1:nlags+1], arima.yw(data, nlags)
+
+def apply_ar1_acf(time: numpy.ndarray, **kwargs):
+    """
+    Compute the AR(1) Autocorrelation function.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    nlags: int
+        number of lags.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        AR(1) autocorrelation function.
+
+    """
+
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
-    fx = lambda x : x[:nlags +1]
-    fy = lambda x, y : φ**x
 
-# Func.MAQ_ACF
-def _create_maq_acf(**kwargs):
+    return time[:nlags +1], lambda x, y : φ**time[:nlags +1]
+
+def apply_maq_acf(**kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -34,30 +68,25 @@ def _create_maq_acf(**kwargs):
     fx = lambda x : x[:nlags]
     fy = lambda x, y : arima.maq_acf(θ, σ, len(x))
 
-# Func.ARMA_MEAN
-def _create_arma_mean(**kwargs):
+def apply_arma_mean(**kwargs):
     fy = lambda x, y : numpy.full(len(x), 0.0)
 
-# Func.AR1_SD
-def _create_ar1_sd(**kwargs):
+def apply_ar1_sd(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
 
-# Func.MAQ_SD
-def _create_maq_sd(**kwargs):
+def apply__maq_sd(**kwargs):
     θ = get_param_throw_if_missing("θ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
 
-# Func.AR1_OFFSET_MEAN
-def _create_ar1_offset_mean(**kwargs):
+def apply_ar1_offset_mean(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
 
-# Func.AR1_OFFSET_SD
-def _create_ar1_offset_sd(**kwargs):
+def apply_ar1_offset_sd(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, σ))
@@ -85,6 +114,7 @@ def create_ar_source(**kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
+
     return create_space(npts=npts), arima.arp(numpy.array(φ), npts, σ)
 
 def create_ar_drift_source(**kwargs):
@@ -117,6 +147,7 @@ def create_ar_drift_source(**kwargs):
     γ = get_param_throw_if_missing("γ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
+
     return create_space(npts=npts), arima.arp_drift(numpy.array(φ), μ, γ, npts, σ)
 
 def create_ar_offset_source(**kwargs):
@@ -145,6 +176,7 @@ def create_ar_offset_source(**kwargs):
     μ = get_param_throw_if_missing("μ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(φ, list)
+
     return create_space(npts=npts), arima.arp_offset(numpy.array(φ), μ, npts, σ)
 
 def create_ma_source(**kwargs):
@@ -170,6 +202,7 @@ def create_ma_source(**kwargs):
     npts = get_param_throw_if_missing("npts", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
+
     return create_space(npts=npts), arima.maq(numpy.array(θ), npts, σ)
 
 def create_arma_source(**kwargs):
@@ -199,6 +232,7 @@ def create_arma_source(**kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
     verify_type(φ, list)
+
     return create_space(npts=npts), arima.arma(numpy.array(φ), numpy.array(θ), npts, σ)
 
 def create_arima_source(**kwargs):
@@ -237,6 +271,7 @@ def create_arima_source(**kwargs):
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
     verify_type(φ, list)
+
     return create_space(npts=npts), arima.arima(numpy.array(φ), numpy.array(θ), d, npts, σ)
 
 def create_arima_from_arma_source(**kwargs):

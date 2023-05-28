@@ -193,3 +193,83 @@ def create_ensemble(source, nsim: int, **kwargs):
         ensemble.append(samples)
     return create_space(npts=len(ensemble[0])), ensemble
 
+def apply_to_list(func, data_list, **kwargs):
+    """
+    Apply specified function to list of data arrays.
+    
+    Parameters
+    ----------
+    func: lambda(**kwargs) -> result
+        lambda calling source create.
+    data : list[numpy.ndarray]
+        list of data arrays.
+    kwargs : **kwargs
+       Functions parameters.
+
+    Returns
+    -------
+    list[results]
+        List of function results.
+    """
+
+    return [func(data, **kwargs) for data in data_list]
+
+def apply_parameter_scan(func, data, *args):
+    """
+    Apply specified list of parameters to data samples.
+    
+    Parameters
+    ----------
+    func: lambda(**kwargs) -> result
+        lambda calling source create.
+    data : numpy.ndarray
+        list of data arrays.
+    args : *args
+        Array of parameter scan kwargs
+
+    Returns
+    -------
+    list[results]
+        List of function results.
+    """
+
+    return [func(data, **kwargs) for kwargs in args]
+
+def get_s_vals(**kwargs):
+    """
+    Create s values used in Lo and Mackinlay lagged variance analysis.
+    
+    Parameters
+    ----------
+    linear: bool
+        If True create s-values using linear spacing. If False use logarithmic spacing.
+        (default is logarithmic)
+    s_max : int
+        Maximum s-value.
+    s_min : int
+        Minimum s value.
+    npts : int
+        Number of s-values to create
+    s_vals : list[int]
+        List if s-values to use
+
+    Returns
+    -------
+    list[results]
+        List of function results.
+    """
+
+    linear = get_param_default_if_missing("linear", False, **kwargs)
+    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+    s_max = get_param_default_if_missing("s_max", None, **kwargs)
+    s_vals = get_param_default_if_missing("s_vals", None, **kwargs)
+    if npts is not None and s_max is not None:
+        if linear:
+            return create_space(npts=npts, xmax=s_max, xmin=s_min)
+        else:
+            return create_logspace(npts=npts, xmax=s_max, xmin=s_min)
+    elif s_vals is not None:
+        return s_vals
+    else:
+        raise Exception(f"s_max and npts or s_vals is required")
