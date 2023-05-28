@@ -1,19 +1,17 @@
 """
 stats.py
 
-Apply generic statistics functions.
+Compute generic statistics functions.
 
 """
 
 import numpy
 
 from lib import stats
-from lib.data.func import (_get_s_vals)
-from lib.data.schema import (DataType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
-def apply_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Power spectrum computed using FFT methods.
 
@@ -34,7 +32,7 @@ def apply_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time[1:], stats.pspec(data)
 
-def apply_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Autocorrelation function of samples computed using sm.tsa.stattools.acf.
 
@@ -57,7 +55,7 @@ def apply_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time[:nlags + 1], stats.acf(data, nlags)
 
-def apply_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Take the specified number of differences of the samples.
 
@@ -79,7 +77,7 @@ def apply_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
     return time[:-ndiff], stats.ndiff(data, ndiff)
 
-def apply_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Cumulative mean of samples.
 
@@ -98,7 +96,7 @@ def apply_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time, stats.cumu_mean(data)
 
-def apply_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Cumulative standard deviation of samples.
 
@@ -120,7 +118,7 @@ def apply_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time, stats.cumu_sd(data, Δt)
 
-def apply_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Cumulative variance of samples.
 
@@ -143,7 +141,7 @@ def apply_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time, stats.cumu_var(data, Δt)
 
-def apply_agg_var(data: numpy.ndarray, **kwargs):
+def compute_agg_var(data: numpy.ndarray, **kwargs):
     """
     Compute the aggregated variance using the specified bin sizes.. 
 
@@ -171,7 +169,7 @@ def apply_agg_var(data: numpy.ndarray, **kwargs):
     m_vals = create_logspace(npts=npts, xmax=m_max, xmin=m_min)
     return m_vals, stats.agg_var(data, m_vals)
 
-def apply_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Aggregate sample averages of m elements into len(samples)/m bins. 
 
@@ -194,7 +192,7 @@ def apply_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return stats.agg_time(time, m), stats.agg(data, m)
 
-def apply_lag_var(data: numpy.ndarray[float], **kwargs):
+def compute_lag_var(data: numpy.ndarray[float], **kwargs):
     """
     Compute lagged variance for a specified range of values.
 
@@ -220,7 +218,7 @@ def apply_lag_var(data: numpy.ndarray[float], **kwargs):
     s_vals =  [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, stats.lag_var_scan(data, s_vals)
 
-def apply_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Compute the time varying mean of the sampled ensemble.
 
@@ -244,7 +242,7 @@ def apply_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwarg
 
     return time, stats.ensemble_mean(data)
 
-def apply_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
@@ -272,7 +270,7 @@ def apply_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs)
 
     return time, stats.ensemble_sd(data, Δt)
 
-def apply_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs):
     """
     Compute the time varying variance of the sampled ensemble.
 
@@ -300,7 +298,7 @@ def apply_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], *
 
     return time, stats.ensemble_var(data, Δt)
 
-def apply_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
@@ -328,7 +326,7 @@ def apply_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs
 
     return time[:nlags], stats.ensemble_acf(data, nlags)
 
-def apply_pdf_hist(data: numpy.ndarray[float], **kwargs):
+def compute_pdf_hist(data: numpy.ndarray[float], **kwargs):
     """
     Create a PDF histogram for the provided data.
 
@@ -362,7 +360,7 @@ def apply_pdf_hist(data: numpy.ndarray[float], **kwargs):
     x = create_space(xmax=xmax, xmin=xmin, npts=nbins)
     return x[:-1], stats.pdf_hist(data, [xmin, xmax], nbins)
 
-def apply_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs):
+def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs):
     """
     Create a CDF histogram from the given PDF histogram.
 

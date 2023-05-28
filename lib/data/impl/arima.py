@@ -11,9 +11,9 @@ from lib.data.meta_data import (TestParam, TestData, TestReport,
                                 ParamEst, ARMAEst)
 from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, create_space, get_s_vals)
+                       verify_type, create_space)
 
-def apply_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
     """
     Compute the partial autocorrelation function bu solving the Yule-Walker equations.
 
@@ -37,7 +37,7 @@ def apply_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time[1:nlags+1], arima.yw(data, nlags)
 
-def apply_ar1_acf(time: numpy.ndarray, **kwargs):
+def compute_ar1_acf(**kwargs):
     """
     Compute the AR(1) Autocorrelation function.
 
@@ -50,46 +50,162 @@ def apply_ar1_acf(time: numpy.ndarray, **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        AR(1) autocorrelation function.
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time lag and AR(1) autocorrelation function.
 
     """
 
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
+    
+    lags = create_space(xmax=nlags, npts=nlags + 1)
+    return lags, φ**lags
 
-    return time[:nlags +1], lambda x, y : φ**time[:nlags +1]
+def compute_maq_acf(**kwargs):
+    """
+    Compute the AR(1) Autocorrelation function.
 
-def apply_maq_acf(**kwargs):
+    Parameters
+    ----------
+    θ: list[float]
+        MA(q) coefficients.
+    nlags: int
+        number of lags.
+    σ : float
+        Noise standard deviation.
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time lag and AR(1) autocorrelation function.
+    """
+
     θ = get_param_throw_if_missing("θ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     verify_type(θ, list)
-    fx = lambda x : x[:nlags]
-    fy = lambda x, y : arima.maq_acf(θ, σ, len(x))
 
-def apply_arma_mean(**kwargs):
-    fy = lambda x, y : numpy.full(len(x), 0.0)
+    return create_space(xmax=nlags, npts=nlags + 1), arima.maq_acf(θ, σ, nlags)
 
-def apply_ar1_sd(**kwargs):
+def compute_arma_mean(**kwargs):
+    """
+    Compute the ARMA process mean value.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points evaluate
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and mean value.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
+
+    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, 0.0)
+
+def compute_ar1_sd(**kwargs):
+    """
+    Compute the AR(1) process standard deviation.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    σ : float
+        Noise standard deviation.
+    npts: int
+        Number of points evaluate
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and standard deviation value.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fy = lambda x, y : numpy.full(len(x), arima.ar1_sigma(φ, σ))
+    
+    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.ar1_sigma(φ, σ))
 
-def apply__maq_sd(**kwargs):
+def compute_maq_sd(**kwargs):
+    """
+    Compute the MA(q) process standard deviation.
+
+    Parameters
+    ----------
+    θ: list[float]
+        MA(q) coefficients.
+    σ : float
+        Noise standard deviation.
+    npts: int
+        Number of points evaluate
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and standard deviation value.
+    """
+
     θ = get_param_throw_if_missing("θ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fy = lambda x, y : numpy.full(len(x), arima.maq_sigma(θ, σ))
+    npts = get_param_throw_if_missing("npts", **kwargs)
+    verify_type(θ, list)
 
-def apply_ar1_offset_mean(**kwargs):
+    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.maq_sigma(θ, σ))
+
+def compute_ar1_offset_mean(**kwargs):
+    """
+    Compute the AR(1) process with offset mean.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    μ : float
+        Offset.
+    npts: int
+        Number of points evaluate
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and mean value.
+    """
+
     φ = get_param_throw_if_missing("φ", **kwargs)
     μ = get_param_throw_if_missing("μ", **kwargs)
-    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_mean(φ, μ))
+    npts = get_param_throw_if_missing("npts", **kwargs)
 
-def apply_ar1_offset_sd(**kwargs):
+    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.ar1_offset_mean(φ, μ))
+
+def compute_ar1_offset_sd(**kwargs):
+    """
+    Compute the AR(1) process with offset standard deviation.
+
+    Parameters
+    ----------
+    φ: float
+        AR(1) coefficient.
+    μ : float
+        Offset.
+    npts: int
+        Number of points evaluate
+
+    Returns
+    -------
+    numpy.ndarray[float], numpy.ndarray[float]
+        Time and mean value.
+    """
+
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    fy = lambda x, y : numpy.full(len(x), arima.ar1_offset_sigma(φ, σ))
+    npts = get_param_throw_if_missing("npts", **kwargs)
+
+    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.ar1_offset_sigma(φ, σ))
 
 def create_ar_source(**kwargs):
     """

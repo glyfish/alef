@@ -1,1 +1,1 @@
-from lib.data.impl import (arima)
+from lib.data.impl import (arima, stats)

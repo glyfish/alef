@@ -89,7 +89,7 @@ def create_space(**kwargs):
     ----------
     npts: float
         number of steps in simulation.
-    xmax: int
+    xmax: float
         Space maximum value.
     xmin: float
         Space minimum value (default 0.0).

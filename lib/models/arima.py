@@ -79,10 +79,10 @@ def maq_acf(θ: list[float], σ: float=1, max_lag: float=15) -> numpy.ndarray[fl
     """
 
     ac = maq_cov(θ, σ) / maq_sigma(θ, σ)**2
-    ac_eq = numpy.zeros(max_lag)
+    ac_eq = numpy.zeros(max_lag + 1)
     ac_eq[0] = 1
     for i in range(len(ac)):
-        ac_eq[i+1] = ac[i]
+        ac_eq[i + 1] = ac[i]
     return ac_eq
 
 def ar1_sigma(φ: float, σ: float=1) -> float:
