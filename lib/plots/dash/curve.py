@@ -408,3 +408,94 @@ def hist(samples: numpy.ndarray, fx=None, **kwargs):
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.hist(axis, samples, fx, **kwargs)
+
+def fpoints(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
+    """"
+    Compare data to a function by plotting the data as a curve
+    and the function as points.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : numpy.ndarray
+        Function data plotted as points
+    x : numpy.ndarray, optional
+        Value plotted on x-axis (default is index values of data)
+    fx : numpy.ndarray, optional
+        Value plotted on x-axis for function (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (10,8))
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.fpoints(axis, data, func, x, **kwargs)
+
+def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
+    """"
+    Compare data to a function by plotting the data and functions as curves.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : numpy.ndarray
+        Function data plotted as points
+    x : numpy.ndarray, optional
+        Value plotted on x-axis (default is index values of data)
+    fx : numpy.ndarray, optional
+        Value plotted on x-axis for function (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (10,8))
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.fcurve(axis, data, func, x, **kwargs)

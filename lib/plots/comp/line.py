@@ -12,11 +12,14 @@ stack
 twinx
     Plot two curves with different y scales and the same x scale in the same plot with the scale
     of one curve on the left axis and the other on the right.
+twinx_comparisons
+    Compare multiple curves with the same x scale and different y scales where the
+    different y scales are on the left and right axis.
 """
+
 import numpy
 import pandas
 from datetime import datetime, date
-from matplotlib import pyplot
 import matplotlib.ticker
 import matplotlib.dates as mdates
 import matplotlib.units as munits
@@ -97,11 +100,8 @@ def curve(axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
         offset = 1.0 + title_offset
         axis.set_title(title, y=offset)
 
-    if xlabel is not None:
-        axis.set_xlabel(xlabel)
-
-    if ylabel is not None:
-        axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+    axis.set_ylabel(ylabel)
 
     if xlim is not None:
         axis.set_xlim(xlim)
