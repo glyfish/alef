@@ -191,7 +191,7 @@ def create_ensemble(source, nsim: int, **kwargs):
     for _ in range(nsim):
         _, samples = source(**kwargs)
         ensemble.append(samples)
-    return create_space(npts=len(ensemble[0])), ensemble
+    return create_space(npts=len(ensemble[0])), numpy.array(ensemble)
 
 def apply_to_list(func, data_list, **kwargs):
     """

@@ -113,7 +113,7 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
             func = func[1:]
         logStyle(axis, x, data)
         axis.loglog(x, data, label=data_label, lw=lw)
-        axis.loglog(fx, func, label=func_label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=15.0)
+        axis.loglog(fx, func, label=func_label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=10.0)
     elif plot_axis_type.value == PlotType.XLOG.value:
         if x[0] == 0.0:
             x = x[1:]

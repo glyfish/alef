@@ -453,7 +453,7 @@ def fpoints(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.nda
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
-    comp.fpoints(axis, data, func, x, **kwargs)
+    comp.fpoints(axis, data, func, x, fx, **kwargs)
 
 def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
@@ -498,4 +498,4 @@ def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndar
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
-    comp.fcurve(axis, data, func, x, **kwargs)
+    comp.fcurve(axis, data, func, x, fx, **kwargs)

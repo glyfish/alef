@@ -58,7 +58,7 @@ def compute_ar1_acf(**kwargs):
     φ = get_param_throw_if_missing("φ", **kwargs)
     nlags = get_param_throw_if_missing("nlags", **kwargs)
     
-    lags = create_space(xmax=nlags, npts=nlags + 1)
+    lags = create_space(xmax=nlags - 1, npts=nlags)
     return lags, φ**lags
 
 def compute_maq_acf(**kwargs):
