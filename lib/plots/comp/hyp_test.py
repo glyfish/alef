@@ -5,7 +5,7 @@ from matplotlib import pyplot
 from lib import stats
 
 from lib.models import (TestHypothesis, Dist)
-from lib.data.meta_data import (MetaData)
+from lib.data.param_est import (MetaData)
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 
 ###############################################################################################

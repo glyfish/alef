@@ -9,7 +9,7 @@ from lib.data.schema import (DataType)
 from lib.data.source import (DataSource, SourceBase)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space, create_logspace)
-from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
+from lib.data.param_est import (EstBase, TestBase, TestImplBase,
                                 TestParam, TestData, TestReport,
                                 ParamEst, ARMAEst)
 
@@ -52,27 +52,27 @@ class OU:
             if self.value == OU.Est.AR.value:
                 return _ar_estimate(y, **kwargs)
             else:
-                raise Exception(f"Esitmate type is invalid: {self}")
+                raise Exception(f"Estimate type is invalid: {self}")
 
         def _formula(self):
             if self.value == OU.Est.AR.value:
                 return r"$X_{t+\Delta t}=X_t e^{-\lambda \Delta t}+\mu \left( 1 - e^{-\lambda \Delta t} \right)+\sqrt{ \frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda \Delta t} \right)} \hspace{5pt} \varepsilon_t$"
             else:
-                raise Exception(f"Esitmate type is invalid: {self}")
+                raise Exception(f"Estimate type is invalid: {self}")
 
         def _set_const_labels(self):
             if self.value == OU.Est.AR.value:
                 self.const.set_labels(est_label=r"$\mu$",
                                       err_label=r"$\sigma_{\mu}$")
             else:
-                raise Exception(f"Esitmate type is invalid: {self}")
+                raise Exception(f"Estimate type is invalid: {self}")
 
         def _set_param_labels(self, param, i):
             if self.value == OU.Est.AR.value:
                 param.set_labels(est_label=r"$\lambda$",
                                  err_label=r"$\sigma_{\lambda}$")
             else:
-                raise Exception(f"Esitmate type is invalid: {self}")
+                raise Exception(f"Estimate type is invalid: {self}")
 
 ###################################################################################################
 ## create DataFunc for func_type

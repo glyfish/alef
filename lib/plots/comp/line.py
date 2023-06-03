@@ -331,8 +331,10 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         x_plot = x_plot[:npts]
         y_plot = y_plot[:npts]
 
-        if ylabels is not None:
+        if isinstance(ylabels, list):
             axis[i].set_ylabel(ylabels[i])
+        elif isinstance(ylabels, str):
+            axis[i].set_ylabel(ylabels)
 
         if ylim is None:
             ylim_plot = [1.1*numpy.amin(y), 1.1*numpy.amax(y)]

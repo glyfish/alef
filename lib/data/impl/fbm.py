@@ -8,7 +8,7 @@ from lib import stats
 from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
 from lib.data.source import (DataSource, SourceBase)
 from lib.data.schema import (DataType, DataSchema)
-from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
+from lib.data.param_est import (EstBase, TestBase, TestImplBase,
                                 TestParam, TestData, TestReport,
                                 OLSSinlgeVarTrans, ParamEst)
 from lib.models import (TestHypothesis, Dist)

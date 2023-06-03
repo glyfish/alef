@@ -6,7 +6,7 @@ import numpy
 from lib.models import bm
 from lib import stats
 from lib.models.dist import (TestHypothesis, Dist)
-from lib.models.reports import VarianceRatioTestReport
+from lib.data.reports import VarianceRatioTestReport
 
 ###############################################################################################
 ## Variance, Covariance and Autocorrleation

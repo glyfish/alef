@@ -7,7 +7,7 @@ Simulations and analysis of ARIMA(p,d,q) random process.
 import numpy
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
-from lib.models.reports import ADFTestReport
+from lib.data.reports import ADFTestReport
 from lib.utils import get_param_default_if_missing, get_param_throw_if_missing, verify_type
 
 def maq_sigma(θ: list[float], σ: float=1) -> float:

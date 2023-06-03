@@ -12,12 +12,6 @@ class Dist(Enum):
     def create(self, **kwargs):
         return _create_distribution(self, **kwargs)
 
-# Specify hypothesis test type
-class TestHypothesis(Enum):
-    TWO_TAIL = "TWO_TAIL"
-    LOWER_TAIL = "LOWER_TAIL"
-    UPPER_TAIL = "UPPER_TAIL"
-
 # Create specified distribution function with specified parameters
 def _create_distribution(dist_type, **kwargs):
     loc = get_param_default_if_missing("loc", 0.0, **kwargs)

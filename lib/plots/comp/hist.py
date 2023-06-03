@@ -4,7 +4,7 @@ from matplotlib import pyplot
 from lib import config
 
 from lib.plots.comp.axis import (PlotType)
-from lib.data.meta_data import (MetaData)
+from lib.data.param_est import (MetaData)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
 ###############################################################################################

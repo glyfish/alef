@@ -8,7 +8,7 @@ import statsmodels.tsa as tsa
 
 from lib.models.dist import Dist
 
-from lib.models.reports import OUEstReport
+from lib.data.reports import OUEstReport
 
 ###############################################################################################
 ## Ornstein-Uhlenbeck mean, variance, covariance, PDF, halflife

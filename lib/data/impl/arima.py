@@ -7,20 +7,17 @@ import numpy
 
 from lib.models import arima
 
-from lib.data.meta_data import (TestParam, TestData, TestReport,
-                                ParamEst, ARMAEst)
+from lib.data.param_est import (TestParam, TestData, TestReport, ParamEst, ARMAEst)
 from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
-def compute_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_pacf(data: numpy.ndarray[float], **kwargs):
     """
     Compute the partial autocorrelation function bu solving the Yule-Walker equations.
 
     Parameters
     ----------
-    time: numpy.ndarray[float]
-        Time
     data: numpy.ndarray[float]
         AR(p) processes samples
     nlags: int
@@ -28,14 +25,14 @@ def compute_pacf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Estimate of AR(p) coefficients.
+    numpy.ndarray[float], numpy.ndarray[float]
+        Lag and estimate of AR(p) coefficients.
 
     """
 
     nlags = get_param_throw_if_missing("nlags", **kwargs)
 
-    return time[1:nlags+1], arima.yw(data, nlags)
+    return create_space(xmin=1.0, xmax=nlags, npts=nlags), arima.yw(data, nlags)
 
 def compute_ar1_acf(**kwargs):
     """
@@ -454,11 +451,12 @@ def __adf_report_from_result(result, test_type):
                       test_data=test_data,
                       dist=None)
 
-# Est.AR
 def __ar_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ar_fit(samples, order)
     return result, __arma_estimate_from_result(result)
+
+
 
 # Est.AR_OFFSET
 def __ar_offset_estimate(samples, **kwargs):

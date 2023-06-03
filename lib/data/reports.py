@@ -1,10 +1,9 @@
 from tabulate import tabulate
 import numpy
 
-##################################################################################################################
-# Variance ratio test report
-##################################################################################################################
 class VarianceRatioTestReport:
+    """
+    """
     def __init__(self, sig_level, hyp_type, s_vals, stats, p_vals, critical_values):
         self.sig_level = sig_level
         self.hyp_type = hyp_type
@@ -63,10 +62,9 @@ class VarianceRatioTestReport:
         print(table[0])
         print(table[1])
 
-##################################################################################################################
-# ADF test report
-##################################################################################################################
 class ADFTestReport:
+    """
+    """
     def __init__(self, result):
         self.stat = result[0]
         self.pval = result[1]
@@ -88,10 +86,9 @@ class ADFTestReport:
         print(tabulate(header, tablefmt=tablefmt))
         print(tabulate(results, tablefmt=tablefmt, headers=headers))
 
-##################################################################################################################
-# Ornstein-Uhulenbeck processs parameter estimate report
-##################################################################################################################
 class OUEstReport:
+    """
+    """
     def __init__(self, result, Δt, x0):
         self.ar_result = result
         self.delta_t = Δt

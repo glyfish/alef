@@ -4,47 +4,8 @@ import numpy
 
 from lib.models import var
 
-from lib.data.func import (DataFunc, FuncBase, _get_s_vals)
-from lib.data.source import (DataSource, SourceBase)
-from lib.data.schema import (DataType)
-from lib.data.meta_data import (EstBase, TestBase, TestImplBase,
-                                TestParam, TestData, TestReport,
-                                ParamEst)
-from lib.models import (TestHypothesis)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_type, verify_condition, create_space, create_logspace)
-
-###################################################################################################
-# Define VAR
-class VAR:
-    # Func
-    class Func(FuncBase):
-        MEAN = "MEAN"                     # Stationary Mean vector
-        COV = "COV"                       # Stationary covariance matrix
-        ACF = "ACF"                       # Stationary Autocovarinace matrix
-
-        def _create_func(self, **kwargs):
-            return _create_func(self, **kwargs)
-
-    # Sources
-    class Source(SourceBase):
-        VAR = "VAR"                      # Create VAR simulation with specified parameters
-
-        def _create_data_source(self, x, **kwargs):
-            return _create_data_source(self, x, **kwargs)
-
-###################################################################################################
-## Create function definition for data type
-###################################################################################################
-def _create_func(func_type, **kwargs):
-    if func_type.value == VAR.Func.MEAN.value:
-        return _create_mean(func_type, **kwargs)
-    elif func_type.value == VAR.Func.VAR.value:
-        return _create_var_func(func_type, **kwargs)
-    elif func_type.value == VAR.Func.ACF.value:
-        return _create_acf(func_type, **kwargs)
-    else:
-        raise Exception(f"func_type is invalid: {func_type}")
 
 ###################################################################################################
 # Func.MEAN
