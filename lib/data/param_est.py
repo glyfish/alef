@@ -39,26 +39,26 @@ class ParamEst:
             self.err = err
             self.est_label = est_label
             self.err_label = err_label
-            self._set_dict()
+            self.__set_dict()
 
     def set_labels(self, est_label, err_label):
         self.est_label = est_label
         self.err_label = err_label
-        self._set_dict()
+        self.__set_dict()
 
     def __repr__(self):
-        return f"ParamEst({self._props()})"
+        return f"ParamEst({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
-    def _props(self):
+    def __props(self):
         return f"est=({self.est}), " \
                f"err=({self.err}, " \
                f"est_label=({self.est_label}), "\
                f"err_label=({self.err_label})"
 
-    def _set_dict(self):
+    def __set_dict(self):
         self.dict = {"Estimate": self.est,
                      "Error": self.err,
                      "Estimate Label": self.est_label,
@@ -181,7 +181,7 @@ class OLSSingleVarResult:
 
     def __log_fit(self):
         return lambda x :self.const.est + self.param.est * numpy.log10(x)
-
+    
 
 class ARMAEstType(str, Enum):
     """
@@ -259,20 +259,21 @@ class ARMAEst:
         return self._props()
 
     def _props(self):
-        return f"est_type=({self.est_type}), " \
-               f"model_type=({self.model_type}), " \
-               f"const=({self.const}), " \
-               f"params=({self.params}), " \
-               f"sigma2=({self.sigma2})"
+        return f"est_model=({self.__est_model}), " \
+               f"arma_est_type=({self.__arma_est_type}), " \
+               f"const=({self.__const}), " \
+               f"order=({self.__order}), " \
+               f"params=({self.__params}), " \
+               f"sigma2=({self.__sigma2})"
 
     def __set_const_labels(self):
-        self.const.set_labels(est_label=r"$\hat{\mu^*}$",
-                              err_label=r"$\sigma_{\hat{\mu^*}}$")
+        self.__const.set_labels(est_label=r"$\hat{\mu^*}$",
+                                err_label=r"$\sigma_{\hat{\mu^*}}$")
 
     def __set_params_labels(self):
-        for i in range(len(self.params)):
-            self.__arma_est_type.set_param_labels(self.params[i], i)
+        for i in range(len(self.__params)):
+            self.__arma_est_type.set_param_labels(self.__params[i], i)
 
     def __set_sigma2_labels(self):
-        self.sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
-                               err_label=r"$\sigma_{\hat{\sigma^2}}$")
+        self.__sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
+                                 err_label=r"$\sigma_{\hat{\sigma^2}}$")

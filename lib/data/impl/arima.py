@@ -6,9 +6,9 @@ Interface to models.arima.py
 import numpy
 
 from lib.models import arima
+import statsmodels.tsa as tsa
 
-from lib.data.param_est import (TestParam, TestData, TestReport, ParamEst, ARMAEst)
-from lib.models import (TestHypothesis)
+from lib.data.param_est import (ParamEst, ARMAEst, ARMAEstType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
@@ -414,76 +414,130 @@ def create_arima_from_arma_source(**kwargs):
     d = get_param_throw_if_missing("d", **kwargs)
     return create_space(npts=len(samples)), arima.arima_from_arma(samples, d)
 
-# _TestImpl.ADF
-def _adf_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test(y)
-    return result, __adf_report_from_result(result, test_type, impl_type)
+# # _TestImpl.ADF
+# def _adf_test(y, test_type, impl_type, **kwargs):
+#     result = arima.adf_test(y)
+#     return result, __adf_report_from_result(result, test_type, impl_type)
 
-# _TestImpl.ADF_OFFSET
-def _adf_offset_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test_offset(y)
-    return result, __adf_report_from_result(result, test_type, impl_type)
+# # _TestImpl.ADF_OFFSET
+# def _adf_offset_test(y, test_type, impl_type, **kwargs):
+#     result = arima.adf_test_offset(y)
+#     return result, __adf_report_from_result(result, test_type, impl_type)
 
-# _TestImpl.ADF_DRIFT
-def _adf_drift_test(y, test_type, impl_type, **kwargs):
-    result = arima.adf_test_drift(y)
-    return result, __adf_report_from_result(result, test_type, impl_type)
+# # _TestImpl.ADF_DRIFT
+# def _adf_drift_test(y, test_type, impl_type, **kwargs):
+#     result = arima.adf_test_drift(y)
+#     return result, __adf_report_from_result(result, test_type, impl_type)
 
-def __adf_report_from_result(result, test_type):
-    sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
-    stat = TestParam(label=r"$t$", value=result.stat)
-    pval = TestParam(label=r"$p-value$", value = result.pval)
-    lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
-    test_data = []
-    for i in range(3):
-        data = TestData(status=result.status_vals[i],
-                        stat=stat,
-                        pval=pval,
-                        params=[],
-                        sig=sigs[i],
-                        lower=lower_vals[i],
-                        upper=None)
-        test_data.append(data)
-    return TestReport(status=test_type.status(result.status_vals),
-                      hyp_type=TestHypothesis.LOWER_TAIL,
-                      test_type=test_type,
-                      impl_type=impl_type,
-                      test_data=test_data,
-                      dist=None)
+# def __adf_report_from_result(result, test_type):
+#     sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
+#     stat = TestParam(label=r"$t$", value=result.stat)
+#     pval = TestParam(label=r"$p-value$", value = result.pval)
+#     lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
+#     test_data = []
+#     for i in range(3):
+#         data = TestData(status=result.status_vals[i],
+#                         stat=stat,
+#                         pval=pval,
+#                         params=[],
+#                         sig=sigs[i],
+#                         lower=lower_vals[i],
+#                         upper=None)
+#         test_data.append(data)
+#     return TestReport(status=test_type.status(result.status_vals),
+#                       hyp_type=TestHypothesis.LOWER_TAIL,
+#                       test_type=test_type,
+#                       impl_type=impl_type,
+#                       test_data=test_data,
+#                       dist=None)
 
-def __ar_estimate(samples, **kwargs):
+def compute_ar_estimate(samples: numpy.ndarray[float], **kwargs):
+    """
+    Compute estimates of the AR(p) coefficients assuming the specified order
+    for the given samples.
+
+    Parameters
+    ----------
+    samples : numpy.ndarray[float]
+        Samples used for analysis.
+    order : int
+        Assumed order of sequence used in analysis.
+    """
+
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ar_fit(samples, order)
-    return result, __arma_estimate_from_result(result)
+    return result, __arma_estimate_from_result(result, ARMAEstType.AR)
 
+def compute_ar_offset_estimate(samples, **kwargs):
+    """
+    Compute estimates of the AR(p) with offset coefficients assuming the specified order
+    for the given samples.
 
+    Parameters
+    ----------
+    samples : numpy.ndarray[float]
+        Samples used for analysis.
+    order : int
+        Assumed order of sequence used in analysis.
+    """
 
-# Est.AR_OFFSET
-def __ar_offset_estimate(samples, **kwargs):
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ar_offset_fit(samples, order)
-    return result, __arma_estimate_from_result(result)
+    return result, __arma_estimate_from_result(result, ARMAEstType.AR_OFFSET)
 
-# Est.MA
-def __ma_estimate(samples, **kwargs):
+def compute_ma_estimate(samples, **kwargs):
+    """
+    Compute estimates of the MA(q) coefficients assuming the specified order
+    for the given samples.
+
+    Parameters
+    ----------
+    samples : numpy.ndarray[float]
+        Samples used for analysis.
+    order : int
+        Assumed order of sequence used in analysis.
+    """
+
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ma_fit(samples, order)
-    return result, __arma_estimate_from_result(result)
+    return result, __arma_estimate_from_result(result, ARMAEstType.MA)
 
-# Est.MA_OFFSET
-def __ma_offset_estimate(samples, **kwargs):
+def compute_ma_offset_estimate(samples, **kwargs):
+    """
+    Compute estimates of the MA(q) with offset coefficients assuming the specified order
+    for the given samples.
+
+    Parameters
+    ----------
+    samples : numpy.ndarray[float]
+        Samples used for analysis.
+    order : int
+        Assumed order of sequence used in analysis.
+    """
+
     order = get_param_throw_if_missing("order", **kwargs)
     result = arima.ma_offset_fit(samples, order)
-    return result, __arma_estimate_from_result(result)
+    return result, __arma_estimate_from_result(result, ARMAEstType.MA_OFFSET)
 
-def __arma_estimate_from_result(result, est_type):
+def __arma_estimate_from_result(result: tsa.arima.model.ARIMAResults, arma_est_type):
+    """
+    Create ARMA(p,q) result object for given result.
+
+    Parameters
+    ----------
+    result : tsa.arima.model.ARIMAResult
+        Samples used for analysis.
+    arma_est_type : ARMAEstType
+        ARMA estimate type.
+    """
+
     nparams = len(result.params)
     params = []
     for i in range(1, nparams-1):
-        params.append(ParamEst.from_dict({"Estimate": result.params.iloc[i],
-                                          "Error": result.bse.iloc[i]}))
-    const = ParamEst.from_dict({"Estimate": result.params.iloc[0],
-                                "Error": result.bse.iloc[0]})
-    sigma2 = ParamEst.from_dict({"Estimate": result.params.iloc[nparams-1],
-                                 "Error": result.bse.iloc[nparams-1]})
-    return ARMAEst(est_type, const, sigma2, params)
+        params.append(ParamEst.from_dict({"Estimate": result.params[i],
+                                          "Error": result.bse[i]}))
+    const = ParamEst.from_dict({"Estimate": result.params[0],
+                                "Error": result.bse[0]})
+    sigma2 = ParamEst.from_dict({"Estimate": result.params[nparams-1],
+                                 "Error": result.bse[nparams-1]})
+    return ARMAEst(const, params, sigma2, arma_est_type)
