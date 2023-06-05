@@ -421,7 +421,14 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None
     if npts is not None and (npts > len(left) or npts > len(right)):
         npts = min(len(left), len(right))
 
-    if x is not None and (isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime)):
+    if x is None:
+        ny = min(len(left), len(right))
+        x = numpy.linspace(0.0, float(ny-1), ny)
+
+    if not isinstance(x, list):
+        x = numpy.tile(x, (2, 1))
+
+    if x is not None and (isinstance(x[0][0], pandas.Timestamp) or isinstance(x[0][0], datetime)):
         converter = mdates.ConciseDateConverter()
         munits.registry[numpy.datetime64] = converter
         munits.registry[date] = converter
@@ -433,14 +440,14 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None
         axis.set_ylabel(left_ylabel)
     if xlabel is not None:        
         axis.set_xlabel(xlabel)        
-    list1 = plot_curve(axis, x, left, npts, 0, **kwargs)
+    list1 = plot_curve(axis, x[0], left, npts, 0, **kwargs)
 
     axis2 = axis.twinx()
     axis2.grid(False)
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
-    list2 = plot_curve(axis2, x, right, npts, 1, **kwargs)
+    list2 = plot_curve(axis2, x[1], right, npts, 1, **kwargs)
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -457,9 +464,9 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None
     twinx_ticks(axis, axis2)
 
     if labels is not None:
-        list = list1 + list2
-        labs = [l.get_label() for l in list]
-        axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
+        labels_list = list1 + list2
+        labs = [l.get_label() for l in labels_list]
+        axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
 def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x=None, **kwargs):
     """
@@ -568,9 +575,9 @@ def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray]
     twinx_ticks(axis, axis2)
 
     if labels is not None:
-        list = [item for sublist in list1 + list2 for item in sublist]
-        labs = [l.get_label() for l in list]
-        axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
+        labels_list = [item for sublist in list1 + list2 for item in sublist]
+        labs = [l.get_label() for l in labels_list]
+        axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
 
 # Compute twinx ticks
 def twinx_ticks(axis1, axis2):
@@ -590,11 +597,7 @@ def plot_curve(axis, x, y, npts, n, **kwargs):
     cycler = axis._get_lines.prop_cycler
     color = colors[n] if colors is not None else next(cycler)['color']
 
-    if x is None:
-        ny = len(y)
-        x = numpy.linspace(0.0, float(ny-1), ny)
-    else:
-        npts = min(len(y), len(x))    
+    npts = min(len(y), len(x))    
 
     if npts is not None:
         x = x[:npts]
