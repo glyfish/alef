@@ -251,6 +251,7 @@ class ARMAEst:
         self.__set_const_labels()
         self.__set_params_labels()
         self.__set_sigma2_labels()
+        self.__set_dict()
 
     def __repr__(self):
         return f"ARMAEst({self._props()})"
@@ -277,3 +278,11 @@ class ARMAEst:
     def __set_sigma2_labels(self):
         self.__sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
                                  err_label=r"$\sigma_{\hat{\sigma^2}}$")
+
+    def __set_dict(self):
+        self.dict = {"est_model": self.__est_model.value,
+                     "arma_est_type": self.__arma_est_type.value,
+                     "order": self.__order,
+                     "const": self.__const.dict,
+                     "sigma2": self.__sigma2.dict,
+                     "params": [param.dict for param in self.__params]}

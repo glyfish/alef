@@ -403,7 +403,7 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None
         Specify legend location. (default best)
     plot_axis_type : PlotAxisType
         Axis type. (default PlotAxisType.LINEAR)
- """
+    """
 
     title           = get_param_default_if_missing("title", None, **kwargs)
     title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
