@@ -6,12 +6,13 @@ Compute generic statistics functions.
 """
 
 import numpy
+from typing import Tuple
 
 from lib import stats
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
-def compute_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Power spectrum computed using FFT methods.
 
@@ -26,13 +27,13 @@ def compute_pspec(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Frequency and power spectrum.
     """
 
     return time[1:], stats.pspec(data)
 
-def compute_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Autocorrelation function of samples computed using sm.tsa.stattools.acf.
 
@@ -47,7 +48,7 @@ def compute_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time lags and autocovariance of samples as a function of lag.
     """
 
@@ -55,7 +56,7 @@ def compute_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time[:nlags + 1], stats.acf(data, nlags)
 
-def compute_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Take the specified number of differences of the samples.
 
@@ -70,14 +71,14 @@ def compute_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and samples differenced n times.
     """
 
     ndiff = get_param_default_if_missing("ndiff", 1, **kwargs)
     return time[:-ndiff], stats.ndiff(data, ndiff)
 
-def compute_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Cumulative mean of samples.
 
@@ -90,13 +91,13 @@ def compute_cumu_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs)
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and cumulative mean of samples as a function of time.
     """
 
     return time, stats.cumu_mean(data)
 
-def compute_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Cumulative standard deviation of samples.
 
@@ -111,14 +112,14 @@ def compute_cumu_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and cumulative standard deviation of samples as a function of time.
     """
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
     return time, stats.cumu_sd(data, Δt)
 
-def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Cumulative variance of samples.
 
@@ -133,7 +134,7 @@ def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and cumulative variance of samples as a function of time.
     """
 
@@ -141,7 +142,7 @@ def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return time, stats.cumu_var(data, Δt)
 
-def compute_agg_var(data: numpy.ndarray, **kwargs):
+def compute_agg_var(data: numpy.ndarray, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the aggregated variance using the specified bin sizes.. 
 
@@ -158,7 +159,7 @@ def compute_agg_var(data: numpy.ndarray, **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Lags and lagged variance for each value.
     """
 
@@ -169,7 +170,7 @@ def compute_agg_var(data: numpy.ndarray, **kwargs):
     m_vals = create_logspace(npts=npts, xmax=m_max, xmin=m_min)
     return m_vals, stats.agg_var(data, m_vals)
 
-def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Aggregate sample averages of m elements into len(samples)/m bins. 
 
@@ -184,7 +185,7 @@ def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Aggreated sample average.
     """
 
@@ -192,7 +193,7 @@ def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
 
     return stats.agg_time(time, m), stats.agg(data, m)
 
-def compute_lag_var(data: numpy.ndarray[float], **kwargs):
+def compute_lag_var(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute lagged variance for a specified range of values.
 
@@ -211,14 +212,14 @@ def compute_lag_var(data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         lagged variance for specified lag values.
     """
 
     s_vals =  [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, stats.lag_var_scan(data, s_vals)
 
-def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying mean of the sampled ensemble.
 
@@ -231,7 +232,7 @@ def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwa
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Ensemble average mean as a function of time.
 
     Raises
@@ -242,7 +243,7 @@ def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwa
 
     return time, stats.ensemble_mean(data)
 
-def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
@@ -257,7 +258,7 @@ def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwarg
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Ensemble average mean as a function of time.
 
     Raises
@@ -270,7 +271,7 @@ def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwarg
 
     return time, stats.ensemble_sd(data, Δt)
 
-def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying variance of the sampled ensemble.
 
@@ -285,7 +286,7 @@ def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float],
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Ensemble average mean as a function of time.
 
     Raises
@@ -298,7 +299,7 @@ def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float],
 
     return time, stats.ensemble_var(data, Δt)
 
-def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs):
+def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
@@ -313,7 +314,7 @@ def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwar
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Ensemble averaged auto correlation function.
 
     Raises
@@ -326,7 +327,7 @@ def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwar
 
     return time[:nlags], stats.ensemble_acf(data, nlags)
 
-def compute_pdf_hist(data: numpy.ndarray[float], **kwargs):
+def compute_pdf_hist(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Create a PDF histogram for the provided data.
 
@@ -343,7 +344,7 @@ def compute_pdf_hist(data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         PDF histogram.
 
     Raises
@@ -360,7 +361,7 @@ def compute_pdf_hist(data: numpy.ndarray[float], **kwargs):
     x = create_space(xmax=xmax, xmin=xmin, npts=nbins)
     return x[:-1], stats.pdf_hist(data, [xmin, xmax], nbins)
 
-def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs):
+def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Create a CDF histogram from the given PDF histogram.
 
@@ -371,7 +372,7 @@ def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwarg
 
     Returns
     -------
-    numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         CDF histogram.
     """
 

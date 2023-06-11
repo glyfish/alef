@@ -7,12 +7,13 @@ import numpy
 
 from lib.models import arima
 import statsmodels.tsa as tsa
+from typing import Tuple
 
 from lib.data.param_est import (ParamEst, ARMAEst, ARMAEstType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
-def compute_pacf(data: numpy.ndarray[float], **kwargs):
+def compute_pacf(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the partial autocorrelation function bu solving the Yule-Walker equations.
 
@@ -25,7 +26,7 @@ def compute_pacf(data: numpy.ndarray[float], **kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Lag and estimate of AR(p) coefficients.
 
     """
@@ -34,7 +35,7 @@ def compute_pacf(data: numpy.ndarray[float], **kwargs):
 
     return create_space(xmin=1.0, xmax=nlags, npts=nlags), arima.yw(data, nlags)
 
-def compute_ar1_acf(**kwargs):
+def compute_ar1_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the AR(1) Autocorrelation function.
 
@@ -47,7 +48,7 @@ def compute_ar1_acf(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time lag and AR(1) autocorrelation function.
 
     """
@@ -58,7 +59,7 @@ def compute_ar1_acf(**kwargs):
     lags = create_space(xmax=nlags - 1, npts=nlags)
     return lags, φ**lags
 
-def compute_maq_acf(**kwargs):
+def compute_maq_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the AR(1) Autocorrelation function.
 
@@ -67,13 +68,13 @@ def compute_maq_acf(**kwargs):
     θ: list[float]
         MA(q) coefficients.
     nlags: int
-        number of lags.
+        Number of lags.
     σ : float
         Noise standard deviation.
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time lag and AR(1) autocorrelation function.
     """
 
@@ -84,18 +85,18 @@ def compute_maq_acf(**kwargs):
 
     return create_space(xmax=nlags, npts=nlags + 1), arima.maq_acf(θ, σ, nlags)
 
-def compute_arma_mean(**kwargs):
+def compute_arma_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ARMA process mean value.
 
     Parameters
     ----------
     npts: int
-        Number of points evaluate
+        Number of points to evaluate
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and mean value.
     """
 
@@ -103,7 +104,7 @@ def compute_arma_mean(**kwargs):
 
     return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, 0.0)
 
-def compute_ar1_sd(**kwargs):
+def compute_ar1_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the AR(1) process standard deviation.
 
@@ -118,7 +119,7 @@ def compute_ar1_sd(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and standard deviation value.
     """
 
@@ -128,7 +129,7 @@ def compute_ar1_sd(**kwargs):
     
     return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.ar1_sigma(φ, σ))
 
-def compute_maq_sd(**kwargs):
+def compute_maq_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the MA(q) process standard deviation.
 
@@ -139,11 +140,11 @@ def compute_maq_sd(**kwargs):
     σ : float
         Noise standard deviation.
     npts: int
-        Number of points evaluate
+        Number of points to evaluate
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and standard deviation value.
     """
 
@@ -154,7 +155,7 @@ def compute_maq_sd(**kwargs):
 
     return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.maq_sigma(θ, σ))
 
-def compute_ar1_offset_mean(**kwargs):
+def compute_ar1_offset_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the AR(1) process with offset mean.
 
@@ -169,7 +170,7 @@ def compute_ar1_offset_mean(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and mean value.
     """
 
@@ -179,7 +180,7 @@ def compute_ar1_offset_mean(**kwargs):
 
     return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, arima.ar1_offset_mean(φ, μ))
 
-def compute_ar1_offset_sd(**kwargs):
+def compute_ar1_offset_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the AR(1) process with offset standard deviation.
 
@@ -194,7 +195,7 @@ def compute_ar1_offset_sd(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float], numpy.ndarray[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
         Time and mean value.
     """
 
@@ -219,8 +220,8 @@ def create_ar_source(**kwargs):
 
     Returns
     -------
-    (numpy.ndarray[float], numpy.ndarray[float])
-        time and Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and Simulation results.
     """
 
     φ = get_param_throw_if_missing("φ", **kwargs)
@@ -230,7 +231,7 @@ def create_ar_source(**kwargs):
 
     return create_space(npts=npts), arima.arp(numpy.array(φ), npts, σ)
 
-def create_ar_drift_source(**kwargs):
+def create_ar_drift_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate AR(p) with drift source using specified parameters and the 
     statsmodels.tas simulator.
@@ -250,8 +251,8 @@ def create_ar_drift_source(**kwargs):
 
     Returns
     -------
-    (numpy.ndarray[float], numpy.ndarray[float])
-        time and Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and Simulation results.
     """
 
     φ = get_param_throw_if_missing("φ", **kwargs)
@@ -263,7 +264,7 @@ def create_ar_drift_source(**kwargs):
 
     return create_space(npts=npts), arima.arp_drift(numpy.array(φ), μ, γ, npts, σ)
 
-def create_ar_offset_source(**kwargs):
+def create_ar_offset_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate AR(p) with a constant offset using the specified parameters.
 
@@ -280,8 +281,8 @@ def create_ar_offset_source(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        (Time steps, Simulation results.)
     """
 
     φ = get_param_throw_if_missing("φ", **kwargs)
@@ -292,7 +293,7 @@ def create_ar_offset_source(**kwargs):
 
     return create_space(npts=npts), arima.arp_offset(numpy.array(φ), μ, npts, σ)
 
-def create_ma_source(**kwargs):
+def create_ma_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate MA(q) using specified parameters and the statsmodels.tas simulator.
 
@@ -307,8 +308,8 @@ def create_ma_source(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        (Time steps, Simulation results.)
     """
 
     θ = get_param_throw_if_missing("θ", **kwargs)
@@ -318,7 +319,7 @@ def create_ma_source(**kwargs):
 
     return create_space(npts=npts), arima.maq(numpy.array(θ), npts, σ)
 
-def create_arma_source(**kwargs):
+def create_arma_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate ARMA(p, q) using specified parameters and the statsmodels.tas simulator.
 
@@ -335,8 +336,8 @@ def create_arma_source(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        (Time steps, Simulation results.)
     """
 
     θ = get_param_throw_if_missing("θ", **kwargs)
@@ -348,7 +349,7 @@ def create_arma_source(**kwargs):
 
     return create_space(npts=npts), arima.arma(numpy.array(φ), numpy.array(θ), npts, σ)
 
-def create_arima_source(**kwargs):
+def create_arima_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate ARIMA(p,d,q) using specified parameters and the statsmodels.tas simulator arma
     and integrate the result d times to obtain the ARIMA process.
@@ -368,8 +369,8 @@ def create_arima_source(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        (Time steps, Simulation results.)
 
     Raises
     ______
@@ -387,7 +388,7 @@ def create_arima_source(**kwargs):
 
     return create_space(npts=npts), arima.arima(numpy.array(φ), numpy.array(θ), d, npts, σ)
 
-def create_arima_from_arma_source(**kwargs):
+def create_arima_from_arma_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate ARIMA(p,d,q) using the samples from a ARMA(p,q) process
     by integrating d times,.
@@ -401,8 +402,8 @@ def create_arima_from_arma_source(**kwargs):
 
     Returns
     -------
-    numpy.ndarray[float]
-        Simulation results.
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        (Time steps, Simulation results.)
 
     Raises
     ______
@@ -414,44 +415,7 @@ def create_arima_from_arma_source(**kwargs):
     d = get_param_throw_if_missing("d", **kwargs)
     return create_space(npts=len(samples)), arima.arima_from_arma(samples, d)
 
-# # _TestImpl.ADF
-# def _adf_test(y, test_type, impl_type, **kwargs):
-#     result = arima.adf_test(y)
-#     return result, __adf_report_from_result(result, test_type, impl_type)
-
-# # _TestImpl.ADF_OFFSET
-# def _adf_offset_test(y, test_type, impl_type, **kwargs):
-#     result = arima.adf_test_offset(y)
-#     return result, __adf_report_from_result(result, test_type, impl_type)
-
-# # _TestImpl.ADF_DRIFT
-# def _adf_drift_test(y, test_type, impl_type, **kwargs):
-#     result = arima.adf_test_drift(y)
-#     return result, __adf_report_from_result(result, test_type, impl_type)
-
-# def __adf_report_from_result(result, test_type):
-#     sigs = [TestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
-#     stat = TestParam(label=r"$t$", value=result.stat)
-#     pval = TestParam(label=r"$p-value$", value = result.pval)
-#     lower_vals = [TestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
-#     test_data = []
-#     for i in range(3):
-#         data = TestData(status=result.status_vals[i],
-#                         stat=stat,
-#                         pval=pval,
-#                         params=[],
-#                         sig=sigs[i],
-#                         lower=lower_vals[i],
-#                         upper=None)
-#         test_data.append(data)
-#     return TestReport(status=test_type.status(result.status_vals),
-#                       hyp_type=TestHypothesis.LOWER_TAIL,
-#                       test_type=test_type,
-#                       impl_type=impl_type,
-#                       test_data=test_data,
-#                       dist=None)
-
-def compute_ar_estimate(samples: numpy.ndarray[float], **kwargs):
+def compute_ar_estimate(samples: numpy.ndarray[float], **kwargs) -> Tuple[tsa.arima.model.ARIMAResults, ARMAEst]:
     """
     Compute estimates of the AR(p) coefficients assuming the specified order
     for the given samples.
@@ -468,7 +432,7 @@ def compute_ar_estimate(samples: numpy.ndarray[float], **kwargs):
     result = arima.ar_fit(samples, order)
     return result, __arma_estimate_from_result(result, ARMAEstType.AR)
 
-def compute_ar_offset_estimate(samples, **kwargs):
+def compute_ar_offset_estimate(samples: numpy.ndarray[float], **kwargs) -> Tuple[tsa.arima.model.ARIMAResults, ARMAEst]:
     """
     Compute estimates of the AR(p) with offset coefficients assuming the specified order
     for the given samples.
@@ -485,7 +449,7 @@ def compute_ar_offset_estimate(samples, **kwargs):
     result = arima.ar_offset_fit(samples, order)
     return result, __arma_estimate_from_result(result, ARMAEstType.AR_OFFSET)
 
-def compute_ma_estimate(samples, **kwargs):
+def compute_ma_estimate(samples: numpy.ndarray[float], **kwargs) -> Tuple[tsa.arima.model.ARIMAResults, ARMAEst]:
     """
     Compute estimates of the MA(q) coefficients assuming the specified order
     for the given samples.
@@ -502,7 +466,7 @@ def compute_ma_estimate(samples, **kwargs):
     result = arima.ma_fit(samples, order)
     return result, __arma_estimate_from_result(result, ARMAEstType.MA)
 
-def compute_ma_offset_estimate(samples, **kwargs):
+def compute_ma_offset_estimate(samples: numpy.ndarray[float], **kwargs) -> Tuple[tsa.arima.model.ARIMAResults, ARMAEst]:
     """
     Compute estimates of the MA(q) with offset coefficients assuming the specified order
     for the given samples.
@@ -519,7 +483,7 @@ def compute_ma_offset_estimate(samples, **kwargs):
     result = arima.ma_offset_fit(samples, order)
     return result, __arma_estimate_from_result(result, ARMAEstType.MA_OFFSET)
 
-def __arma_estimate_from_result(result: tsa.arima.model.ARIMAResults, arma_est_type):
+def __arma_estimate_from_result(result: tsa.arima.model.ARIMAResults, arma_est_type) -> ARMAEst:
     """
     Create ARMA(p,q) result object for given result.
 

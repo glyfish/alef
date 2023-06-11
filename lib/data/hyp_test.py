@@ -1,10 +1,36 @@
+from enum import Enum
 
+class TestHypothesis(Enum):
+    """
+    Hypotheses test type.
+
+    Values
+    ------
+    TWO_TAIL
+        Two tail test type.
+    LOWER_TAIL
+        Lower tail test type.
+    UPPER_TAIL
+        Upper tail test type.
+    """
+
+    TWO_TAIL = "TWO_TAIL"
+    LOWER_TAIL = "LOWER_TAIL"
+    UPPER_TAIL = "UPPER_TAIL"
 
 class StatisticalTestParam:
     """
-    Statistical test value.   
+    Statistical test parameter value.
+
+    Properties
+    ----------
+    label: str
+        Test parameter label.
+    value: float
+        Test parameter value.    
     """
-    def __init__(self, label, value):
+
+    def __init__(self, label: str, value: float):
         self.label = label
         self.value = value
         self.dict = {"Value": value,
@@ -27,9 +53,21 @@ class StatisticalTestParam:
 
 class StatisticalTestData:
     """
-    Statistical test result.
+    Statistical test data.
+
+    Properties
+    ----------
+
     """
-    def __init__(self, status, stat, pval, params, sig, lower, upper):
+
+    def __init__(self, 
+                 status: bool, 
+                 stat: StatisticalTestParam, 
+                 pval: StatisticalTestParam, 
+                 params: list[StatisticalTestParam], 
+                 sig: StatisticalTestParam, 
+                 lower: StatisticalTestParam, 
+                 upper: StatisticalTestParam):
         self.status = status
         self.stat = stat
         self.pval = pval

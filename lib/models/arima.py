@@ -7,8 +7,6 @@ Simulations and analysis of ARIMA(p,d,q) random process.
 import numpy
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
-from lib.data.reports import ADFTestReport
-from lib.utils import get_param_default_if_missing, get_param_throw_if_missing, verify_type
 
 def maq_sigma(θ: list[float], σ: float=1) -> float:
     """
@@ -649,75 +647,3 @@ def ma_offset_fit(samples: numpy.ndarray[float], order: int) -> tsa.arima.model.
 
     return __ma_offset_model(samples, order).fit()
 
-def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
-    """
-    Perform the ADF test assuming no trend on the specified samples. If the ADF
-    test passes the samples are brownian motion.
-
-    Parameters
-    ----------
-    samples: numpy.ndarray[float]
-        AR(p) processes samples
-
-    Returns
-    -------
-    ADFTestReport
-        Result of the performed ADF test.
-    """
-
-    return __adfuller_test(samples, 'n')
-
-def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
-    """
-    Perform the ADF test assuming a constant offset in the samples. If the ADF
-    test passes the samples are brownian motion.
-    
-    Parameters
-    ----------
-    samples: numpy.ndarray[float]
-        AR(p) processes samples
-
-    Returns
-    -------
-    ADFTestReport
-        Result of the performed ADF test.
-    """
-
-    return __adfuller_test(samples, 'c')
-
-def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
-    """
-    Perform the ADF test assuming a linear drift terms. If the ADF
-    test passes the samples are brownian motion.
-    
-    Parameters
-    ----------
-    samples: numpy.ndarray[float]
-        AR(p) processes samples
-
-    Returns
-    -------
-    ADFTestReport
-        Result of the performed ADF test.
-    """
-
-    return __adfuller_test(samples, 'ct')
-
-def __adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestReport:
-    """
-    Perform the ADF test assuming no trend on the specified samples. If the ADF
-    test passes the samples are brownian motion.
-    
-    Parameters
-    ----------
-    samples: numpy.ndarray[float]
-        AR(p) processes samples
-
-    Returns
-    -------
-    ADFTestReport
-        Result of the performed ADF test.
-    """
-
-    result = sm.tsa.stattools.adfuller(samples, regression=test_type)
-    return ADFTestReport(result)

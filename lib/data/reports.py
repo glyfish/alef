@@ -65,6 +65,7 @@ class VarianceRatioTestReport:
 class ADFTestReport:
     """
     """
+
     def __init__(self, result):
         self.stat = result[0]
         self.pval = result[1]
@@ -89,6 +90,7 @@ class ADFTestReport:
 class OUEstReport:
     """
     """
+    
     def __init__(self, result, Δt, x0):
         self.ar_result = result
         self.delta_t = Δt
