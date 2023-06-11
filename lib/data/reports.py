@@ -3,7 +3,9 @@ import numpy
 
 class VarianceRatioTestReport:
     """
+    Formatted text report of Lo and Mackinlay variance ratio test results.
     """
+
     def __init__(self, sig_level, hyp_type, s_vals, stats, p_vals, critical_values):
         self.sig_level = sig_level
         self.hyp_type = hyp_type
@@ -64,6 +66,28 @@ class VarianceRatioTestReport:
 
 class ADFTestReport:
     """
+    Formatted text report of ADF test results.
+
+    Properties
+    ----------
+    stat: float
+        ADF test statistic value.
+    pval: float
+        Test statistic p-value.
+    lags: int
+        Number of AR(p) lags assumed in solution.
+    nobs: int
+        Number analyzed data points in performance of test.
+    sig_str: list[str]
+        Significance level strings ["1%", "5%", "10%"].
+    sig: list[float]
+        Significance level values [0.01, 0.05, 0.1].
+    critical_vals: list[float]
+        Value of lower tail critical value used in test for each significance level.
+    status_vals: list[bool]
+        Test result status values.
+    status_str: list[str]
+        Test result status as strings.
     """
 
     def __init__(self, result):
@@ -89,8 +113,9 @@ class ADFTestReport:
 
 class OUEstReport:
     """
+    Formatted text report of Ornstein-Uhlenbeck process parameter estimation.
     """
-    
+
     def __init__(self, result, Δt, x0):
         self.ar_result = result
         self.delta_t = Δt
