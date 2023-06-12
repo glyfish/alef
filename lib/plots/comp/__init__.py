@@ -1,4 +1,5 @@
 from lib.plots.comp.line import (curve, comparison, stack, twinx, twinx_comparison)
+from lib.plots.comp.bar import (bar)
 from lib.plots.comp.func import (fpoints, fcurve)
 from lib.plots.comp.axis import (PlotType)
 # from lib.plots.comp.reg import (single_var)

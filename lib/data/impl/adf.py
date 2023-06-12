@@ -113,5 +113,4 @@ def __adf_report_from_result(result: ADFTestReport, test_type: HypothesisTestTyp
     return StatisticalTestReport(status=test_type.status(result.status_vals),
                       hyp_type=HypothesisType.LOWER_TAIL,
                       test_type=test_type,
-                      test_data=test_data,
-                      dist=None)
+                      test_data=test_data)

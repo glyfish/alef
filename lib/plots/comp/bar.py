@@ -6,7 +6,7 @@ from datetime import datetime, date
 
 from lib.plots.comp.line import (plot_curve, twinx_ticks)
 
-from lib.utils import get_default_if_missing
+from lib.utils import get_param_default_if_missing
 from lib import config
 
 def bar(axis, y, x=None, **kwargs):
@@ -41,16 +41,12 @@ def bar(axis, y, x=None, **kwargs):
         Specify the limits for the y axis. (default None)
     """
 
-    title          = get_default_if_missing("title", None, **kwargs)
-    title_offset   = get_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel         = get_default_if_missing("xlabel", "x", **kwargs)
-    ylabel         = get_default_if_missing("ylabel", "y", **kwargs)
-    alpha          = get_default_if_missing("alpha", 0.5, **kwargs)
-    border_width   = get_default_if_missing("border_width", 1, **kwargs)
-    bar_width      = get_default_if_missing("border_width", 1.0, **kwargs)
-    xlim           = get_default_if_missing("xlim", None, **kwargs)
-    ylim           = get_default_if_missing("ylim", None, **kwargs)
-    zorder         = get_default_if_missing("zorder", 10, **kwargs)
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", "x", **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", "y", **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
 
     if x is None:
         x = numpy.linspace(0, len(y) - 1, len(y))
@@ -61,8 +57,6 @@ def bar(axis, y, x=None, **kwargs):
         munits.registry[date] = converter
         munits.registry[datetime] = converter    
     
-    width = bar_width*(x[1]-x[0])
-
     if title is not None:
         axis.set_title(title, y=title_offset + 1.0)
 
@@ -130,17 +124,17 @@ def twinx_bar(axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.nda
         Colors. Default uses color cycler
     """
 
-    title           = get_default_if_missing("title", None, **kwargs)
-    title_offset    = get_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel          = get_default_if_missing("xlabel", None, **kwargs)
-    left_ylabel     = get_default_if_missing("left_ylabel", None, **kwargs)
-    right_ylabel    = get_default_if_missing("right_ylabel", None, **kwargs)
-    labels          = get_default_if_missing("labels", None, **kwargs)
-    left_ylim       = get_default_if_missing("left_ylim", None, **kwargs)
-    right_ylim      = get_default_if_missing("right_ylim", None, **kwargs)
-    xlim            = get_default_if_missing("xlim", None, **kwargs)
-    legend_loc      = get_default_if_missing("legend_loc", "best", **kwargs)
-    scilimits       = get_default_if_missing("scilimits", (-3, 3), **kwargs)
+    title           = get_param_default_if_missing("title", None, **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
+    left_ylabel     = get_param_default_if_missing("left_ylabel", None, **kwargs)
+    right_ylabel    = get_param_default_if_missing("right_ylabel", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    left_ylim       = get_param_default_if_missing("left_ylim", None, **kwargs)
+    right_ylim      = get_param_default_if_missing("right_ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
 
     if title is not None:
         axis.set_title(title, y=title_offset + 1.0)
@@ -248,17 +242,17 @@ def twinx_bar_line(axis, y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: num
         Colors. Default uses color cycler
     """
 
-    title           = get_default_if_missing("title", None, **kwargs)
-    title_offset    = get_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel          = get_default_if_missing("xlabel", None, **kwargs)
-    bar_ylabel      = get_default_if_missing("bar_ylabel", None, **kwargs)
-    line_ylabel     = get_default_if_missing("line_ylabel", None, **kwargs)
-    labels          = get_default_if_missing("labels", None, **kwargs)
-    bar_ylim       = get_default_if_missing("bar_ylim", None, **kwargs)
-    line_ylim      = get_default_if_missing("line_ylim", None, **kwargs)
-    xlim            = get_default_if_missing("xlim", None, **kwargs)
-    legend_loc      = get_default_if_missing("legend_loc", "best", **kwargs)
-    scilimits       = get_default_if_missing("scilimits", (-3, 3), **kwargs)
+    title           = get_param_default_if_missing("title", None, **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
+    bar_ylabel      = get_param_default_if_missing("bar_ylabel", None, **kwargs)
+    line_ylabel     = get_param_default_if_missing("line_ylabel", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    bar_ylim       = get_param_default_if_missing("bar_ylim", None, **kwargs)
+    line_ylim      = get_param_default_if_missing("line_ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
 
     if x_bar is None:
         x_bar = numpy.linspace(0, len(y_bar) - 1, len(y_bar))
@@ -359,17 +353,17 @@ def twinx_bar_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndar
         Colors. Default uses color cycler
     """
 
-    title           = get_default_if_missing("title", None, **kwargs)
-    title_offset    = get_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel          = get_default_if_missing("xlabel", None, **kwargs)
-    left_ylabel     = get_default_if_missing("left_ylabel", None, **kwargs)
-    right_ylabel    = get_default_if_missing("right_ylabel", None, **kwargs)
-    labels          = get_default_if_missing("labels", None, **kwargs)
-    left_ylim       = get_default_if_missing("left_ylim", None, **kwargs)
-    right_ylim      = get_default_if_missing("right_ylim", None, **kwargs)
-    xlim            = get_default_if_missing("xlim", None, **kwargs)
-    legend_loc      = get_default_if_missing("legend_loc", "best", **kwargs)
-    scilimits       = get_default_if_missing("scilimits", (-3, 3), **kwargs)
+    title           = get_param_default_if_missing("title", None, **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
+    left_ylabel     = get_param_default_if_missing("left_ylabel", None, **kwargs)
+    right_ylabel    = get_param_default_if_missing("right_ylabel", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    left_ylim       = get_param_default_if_missing("left_ylim", None, **kwargs)
+    right_ylim      = get_param_default_if_missing("right_ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
 
     if title is not None:
         axis.set_title(title, y=title_offset + 1.0)
@@ -420,11 +414,11 @@ def twinx_bar_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndar
         axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
 
 def _plot_bar(axis, x, y, n, zorder=10, **kwargs):
-    alpha        = get_default_if_missing("alpha", 0.5, **kwargs)
-    border_width = get_default_if_missing("border_width", 1, **kwargs)
-    bar_width    = get_default_if_missing("bar_width", 1.0, **kwargs)
-    labels       = get_default_if_missing("labels", None, **kwargs)
-    colors       = get_default_if_missing("colors", None, **kwargs)
+    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
+    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
+    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    colors       = get_param_default_if_missing("colors", None, **kwargs)
 
     alpha_value = alpha[n] if isinstance(alpha, list) else alpha
         
@@ -475,17 +469,17 @@ def hist(axis, samples: numpy.ndarray, fx=None, **kwargs):
         Specify legend location. (default best)
     """
 
-    title           = get_default_if_missing("title", None, **kwargs)
-    title_offset    = get_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel          = get_default_if_missing("xlabel", None, **kwargs)
-    ylabel          = get_default_if_missing("ylabel", None, **kwargs)
-    lw              = get_default_if_missing("lw", 2, **kwargs)
-    nbins           = get_default_if_missing("nbins", None, **kwargs)
-    density         = get_default_if_missing("density", True, **kwargs)
-    ylim            = get_default_if_missing("ylim", None, **kwargs)
-    xlim            = get_default_if_missing("xlim", None, **kwargs)
-    labels          = get_default_if_missing("labels", None, **kwargs)
-    legend_loc      = get_default_if_missing("legend_loc", "best", **kwargs)
+    title           = get_param_default_if_missing("title", None, **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
+    lw              = get_param_default_if_missing("lw", 2, **kwargs)
+    nbins           = get_param_default_if_missing("nbins", None, **kwargs)
+    density         = get_param_default_if_missing("density", True, **kwargs)
+    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
 
     if title is not None:
         axis.set_title(title, y=title_offset)

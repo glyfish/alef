@@ -61,7 +61,7 @@ class HypothesisTestType(Enum):
         else:
             raise Exception(f"Test type is invalid: {self}")
 
-    def __desc(self):
+    def desc(self):
         if self.value == HypothesisTestType.STATIONARITY.value:
             return "Stationarity Test"
         elif self.value == HypothesisTestType.STATIONARITY_OFFSET.value:
@@ -227,7 +227,7 @@ class StatisticalTestReport:
         self.hyp_type = hyp_type
         self.test_type = test_type
         self.test_data = test_data
-        self.desc = test_type._desc()
+        self.desc = test_type.desc()
         self.dict = {"Status": status,
                      "HypothesisType": hyp_type,
                      "TestType": test_type,

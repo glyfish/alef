@@ -357,11 +357,11 @@ def compute_pdf_hist(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarra
     xmin = get_param_throw_if_missing("xmin", **kwargs)
     xmax = get_param_throw_if_missing("xmax", **kwargs)
     nbins = get_param_default_if_missing("nbins", 50, **kwargs)
+    pdf = stats.pdf_hist(data, [xmin, xmax], nbins)
 
-    x = create_space(xmax=xmax, xmin=xmin, npts=nbins)
-    return x[:-1], stats.pdf_hist(data, [xmin, xmax], nbins)
+    return pdf[1][:-1], pdf[0]
 
-def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Create a CDF histogram from the given PDF histogram.
 
@@ -376,5 +376,5 @@ def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float], **kwarg
         CDF histogram.
     """
 
-    return x[:-1], stats.cdf_hist(x, pdf)
+    return x, stats.cdf_hist(x, pdf)
 
