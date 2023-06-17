@@ -175,7 +175,7 @@ class StatisticalTestData:
                      "Upper Critical Value": upper.dict if upper is not None else None}
 
     def __repr__(self):
-        return f"StatisticalTestData({self._props()})"
+        return f"StatisticalTestData({self.__props()})"
 
     def __str__(self):
         return self.__props()
