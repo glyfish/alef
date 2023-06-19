@@ -4,7 +4,7 @@ import numpy
 from lib.utils import get_param_default_if_missing
 from lib.plots import comp
 
-def curve(y, x=None, **kwargs):
+def curve(y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
     Plot a curve.
 
@@ -41,7 +41,7 @@ def curve(y, x=None, **kwargs):
     _, axis = pyplot.subplots(figsize=figsize)
     comp.curve(axis, y, x, **kwargs)
 
-def comparison(y, x=None, **kwargs):
+def comparison(y: list[numpy.ndarray], x=None, **kwargs):
     """
     Plot multiple curves on same scale.
 
