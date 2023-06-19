@@ -281,7 +281,7 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         Title offset. (default 0)
     xlabel : str
         X-axis label. (default None)
-    ylabel : str
+    ylabels : str or list[str]
         Y-axis label. (default None)
     lw : int
         Line width. (default 1)
@@ -337,7 +337,7 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
             axis[i].set_ylabel(ylabels)
 
         if ylim is None:
-            ylim_plot = [1.1*numpy.amin(y), 1.1*numpy.amax(y)]
+            ylim_plot = [1.1*numpy.amin(y_plot), 1.1*numpy.amax(y_plot)]
         else:
             ylim_plot = ylim
 
