@@ -124,7 +124,7 @@ def compute_gbm_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[floa
     return t, S0*numpy.exp(μ*t)
 
 
-def compute_gbm_sd(func_type, **kwargs):
+def compute_gbm_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical geometrical brownian motion standard deviation.
 
@@ -159,7 +159,7 @@ def compute_gbm_sd(func_type, **kwargs):
     return t, numpy.sqrt(S0**2*numpy.exp(2*μ*t)*(numpy.exp(t*σ**2)-1))
 
 
-def compute_bm_from_noise(**kwargs):
+def compute_bm_from_noise(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute brownian motion from brownian noise. 
 
@@ -181,61 +181,107 @@ def compute_bm_from_noise(**kwargs):
 
     return create_space(xmax=npts - 1, npts=npts), stats.from_noise(dB)
 
-def _create_bm_noise_source(source_type, x, **kwargs):
-    f = lambda x : bm.noise(len(x))
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      name=f"BM-Noise-Simulation-{str(uuid.uuid4())}",
-                      params={},
-                      ylabel=r"$\Delta S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Brownian Noise",
-                      f=f,
-                      x=x)
+def create_bm_noise_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Generate brownian motion noise with zero mean and unit variance
+    and the specified number of points.
 
-# Source.MOTION
-def _create_bm_source(source_type, x, **kwargs):
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    f = lambda x : bm.bm(len(x), Δx)
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      params={"Δx": Δx},
-                      name=f"BM-Simulation-{str(uuid.uuid4())}",
-                      ylabel=r"$S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Brownian Motion",
-                      f=f,
-                      x=x)
+    Parameters
+    ----------
+    npts: int
+        Number of points.
 
-# Source.DRIFT_MOTION
-def _create_bm_drift_source(source_type, x, **kwargs):
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and brownian noise time series.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
+
+    return create_space(xmax=npts - 1, npts=npts), bm.noise(npts)
+
+def create_bm_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Generate brownian motion with zero mean and unit variance
+    and the specified number of points.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and brownian noise time series.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return create_space(xmax=npts - 1, npts=npts), bm.bm(npts, Δt)
+
+def create_bm_drift_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Generate brownian motion with drift with the specified parameters
+    and the specified number of points.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points.
+    μ: float
+        Drift coefficient. (default 0.0)
+    σ: float
+        Standard deviation factor of brownian motion term. The actual standard 
+        deviation is given by σ * sqrt(Δt).  (default 1.0)
+    Δt: float
+        Width of time step. (default 1.0)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and brownian noise time series.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    f = lambda x : bm.bm_with_drift(μ, σ, len(x), Δx)
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      name=f"BM-Simulation-{str(uuid.uuid4())}",
-                      params={"σ": σ, "μ": μ, "Δt": Δx},
-                      ylabel=r"$S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Brownian Motion With Drift",
-                      f=f,
-                      x=x)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-# Source.GEO_MOTION
-def _create_bm_geo_source(source_type, x, **kwargs):
+    return create_space(xmax=npts - 1, npts=npts), bm.bm_with_drift(μ, σ, npts, Δt)
+
+def create_bm_geometric_source(source_type, x, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Generate brownian motion with drift with the specified parameters
+    and the specified number of points.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points.
+    μ: float
+        Drift coefficient. (default 0.0)
+    σ: float
+        Standard deviation factor of brownian motion term. The actual standard 
+        deviation is given by σ * sqrt(Δt). (default 1.0)
+    S0: float
+        Initial value. (default 1.0)
+    Δt: float
+        Width of time step. (default 1.0)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and brownian noise time series.
+    """
+
+    npts = get_param_throw_if_missing("npts", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     S0 = get_param_default_if_missing("S0", 1.0, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    f = lambda x : bm.bm_geometric(μ, σ, S0, len(x), Δx)
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      name=f"Geometric-BM-Simulation-{str(uuid.uuid4())}",
-                      params={"σ": σ, "μ": μ, "Δt": Δx, "S0": S0},
-                      ylabel=r"$S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Geometric Brownian Motion",
-                      f=f,
-                      x=x)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return create_space(xmax=npts - 1, npts=npts), bm.bm_geometric(μ, σ, S0, npts, Δt)
+

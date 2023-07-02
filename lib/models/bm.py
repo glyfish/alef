@@ -8,7 +8,7 @@ import numpy
 
 def noise(n: int) -> numpy.ndarray[float]:
     """
-    Simulate brownian noise.
+    Generate brownian noise with zero mean and unit variance.
 
     Parameters
     ----------
@@ -24,7 +24,7 @@ def noise(n: int) -> numpy.ndarray[float]:
 
 def bm(n: int, Δt: float=1.0) -> numpy.ndarray[float]:
     """
-    Simulate brownian motion.
+    Generate brownian motion with zero mean and unit variance.
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def bm(n: int, Δt: float=1.0) -> numpy.ndarray[float]:
 
 def bm_with_drift(μ: float, σ: float, n: int, Δt: float=1) -> numpy.ndarray[float]:
     """
-    Simulate brownian motion with drift.
+    Generate brownian motion with drift.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def bm_with_drift(μ: float, σ: float, n: int, Δt: float=1) -> numpy.ndarray[f
 
 def bm_geometric(μ: float, σ: float, S0: float, n: int, Δt: float=1) -> numpy.ndarray[float]:
     """
-    Simulate geometric brownian motion.
+    Generate geometric brownian motion.
 
     Parameters
     ----------
