@@ -1,4 +1,6 @@
 """
+data.models.adf.py
+
 Simulation of Dickey-Fuller distribution
 """
 

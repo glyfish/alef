@@ -1,5 +1,5 @@
 """
-models.arima.py
+data.models.arima.py
 
 Simulations and analysis of ARIMA(p,d,q) random process.
 """
