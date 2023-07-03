@@ -6,8 +6,6 @@ from tabulate import tabulate
 import statsmodels.api as sm
 import statsmodels.tsa as tsa
 
-from lib.models.dist import Dist
-
 from lib.data.reports import OUEstReport
 
 ###############################################################################################

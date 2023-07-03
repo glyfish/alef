@@ -178,7 +178,7 @@ def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
 
     if len(samples) == 0:
         raise Exception(f"no data")
-    if len(samples.shape) == 2:
+    if len(samples.shape) != 2:
         raise Exception(f"Input must be a two dimensional array.")
 
     nsim = len(samples)
@@ -213,7 +213,7 @@ def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.n
 
     if len(samples) == 0:
         raise Exception(f"no data")
-    if len(samples.shape) == 2:
+    if len(samples.shape) != 2:
         raise Exception(f"Input must be a two dimensional array.")
 
     nsim = len(samples)

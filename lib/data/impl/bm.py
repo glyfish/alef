@@ -5,10 +5,10 @@ Interface to data.models.bm.py
 """
 
 from enum import Enum
-import uuid
 import numpy
 
-from lib.models import bm, stats
+from lib.models import bm
+from lib import stats
 from typing import Tuple
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
@@ -39,6 +39,33 @@ def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return Δt * create_space(xmin=1, npts=npts), numpy.full(npts, μ)
 
+def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute theoretical brownian motion with drift standard deviation.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points.  (default 10)
+    μ: float
+        Mean value. (default 0.0)
+    Δt: float
+        Width of time step. (default 1.0)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and standard deviation.
+    """
+
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    t = Δt * create_space(xmin=1, npts=npts)
+
+    return t, σ*numpy.sqrt(t)
+
 def compute_bm_drift_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical brownian motion with drift mean.
@@ -65,33 +92,6 @@ def compute_bm_drift_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray
     t = Δt * create_space(xmin=1, npts=npts)
 
     return t, μ*t
-
-def compute_bm_drift_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
-    """
-    Compute theoretical brownian motion with drift standard deviation.
-
-    Parameters
-    ----------
-    npts: int
-        Number of points.  (default 10)
-    μ: float
-        Mean value. (default 0.0)
-    Δt: float
-        Width of time step. (default 1.0)
-
-    Returns
-    -------
-    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
-        Time and standard deviation.
-    """
-
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
-    σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-
-    t = Δt * create_space(xmin=1, npts=npts)
-
-    return t, σ*numpy.sqrt(t)
 
 def compute_gbm_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -203,13 +203,15 @@ def create_bm_noise_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
 
 def create_bm_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
-    Generate brownian motion with zero mean and unit variance
+    Generate brownian motion with zero mean and variance specified by Δt
     and the specified number of points.
 
     Parameters
     ----------
     npts: int
         Number of points.
+    Δt: float
+        Width of time step. (default 1.0)
 
     Returns
     -------
