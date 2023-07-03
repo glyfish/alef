@@ -51,6 +51,9 @@ def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
         Mean value. (default 0.0)
     Δt: float
         Width of time step. (default 1.0)
+    σ: float
+        Standard deviation factor of brownian motion term. The actual standard 
+        deviation is given by σ * sqrt(Δt). (default 1)
 
     Returns
     -------
@@ -93,7 +96,7 @@ def compute_bm_drift_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray
 
     return t, μ*t
 
-def compute_gbm_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_bm_geometric_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical geometrical brownian motion mean.
 
@@ -124,7 +127,7 @@ def compute_gbm_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[floa
     return t, S0*numpy.exp(μ*t)
 
 
-def compute_gbm_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_bm_geometric_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical geometrical brownian motion standard deviation.
 
@@ -134,8 +137,8 @@ def compute_gbm_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
         Number of points.  (default 10)
     μ: float
         Mean value. (default 0.0)
-        σ: float
-    Standard deviation factor of brownian motion term. The actual standard 
+     σ: float
+        Standard deviation factor of brownian motion term. The actual standard 
         deviation is given by σ * sqrt(Δt). (default 1)
     S0: float
         Initial value (default 1.0).
@@ -254,7 +257,7 @@ def create_bm_drift_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
 
     return create_space(xmax=npts - 1, npts=npts), bm.bm_with_drift(μ, σ, npts, Δt)
 
-def create_bm_geometric_source(source_type, x, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def create_bm_geometric_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate brownian motion with drift with the specified parameters
     and the specified number of points.
