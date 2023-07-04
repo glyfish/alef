@@ -1,7 +1,7 @@
 """
 data.models.bm.oy
 
-Simulation of Brownian motion.
+Simulation and analysis of Brownian motion.
 """
 
 import numpy

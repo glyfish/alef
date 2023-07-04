@@ -1,36 +1,93 @@
-###############################################################################################
-## Fractional Brownian Motion variance, covariance, simulators paramemeter esimation
-## and statistical significance tests
+"""
+data.models.fbm.py
+
+Simulation and analysis of Fractional brownian motion.
+"""
+
 import numpy
 
 from lib.models import bm
 from lib import stats
 from lib.data.reports import VarianceRatioTestReport
 
-###############################################################################################
-## Variance, Covariance and Autocorrleation
-def var(H, n):
-    return n**(2.0*H)
 
-def cov(H, s, n):
-    return 0.5*(n**(2.0*H) + s**(2.0*H) - numpy.abs(n-s)**(2.0*H))
+def var(H: float, t: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Fractional brownian motion variance.
 
-def acf(H, n):
-    return 0.5*(abs(n-1.0)**(2.0*H) + (n+1.0)**(2.0*H) - 2.0*n**(2.0*H))
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    t: numpy.ndarray[float]
+        Time
 
-def acf_matrix(H, n):
-    γ = numpy.matrix(numpy.zeros([n+1, n+1]))
-    for i in range(n+1):
-        for j in range(n+1):
-            if i != j :
-                γ[i,j] = acf(H, numpy.abs(i-j))
-            else:
-                γ[i,j] = 1.0
-    return γ
+    Returns
+    -------
+    numpy.ndarray[float]
+        Variance as a function of time.
+    """
+    
+    return t**(2.0*H)
 
-###############################################################################################
-# Cholesky Method for FBM generation
-def cholesky_decompose(H, n):
+def cov(H: float, s: float, t: numpy.ndarray[float]) -> numpy.ndarray[float]:
+    """
+    Fractional brownian motion covariance.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    s: float
+        Time offset
+    t: numpy.ndarray[float]
+        Time
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Variance as a function of time.
+    """
+
+    return 0.5*(t**(2.0*H) + s**(2.0*H) - numpy.abs(t - s)**(2.0*H))
+
+def acf(H: float, t: int) -> float:
+    """
+    Fractional brownian motion autocorrelation function.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    t: int
+        Time step.
+
+    Returns
+    -------
+    float
+        Autocorrelation value at time step t.
+    """
+
+    return 0.5*(abs(t - 1.0)**(2.0*H) + (t + 1.0)**(2.0*H) - 2.0*t**(2.0*H))
+
+def cholesky_decompose(H: float, n: int):
+    """
+    Compute Cholesky decomposition of the fractional brownian motion
+    autocorrelation matrix
+
+        Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    t: int
+        Time step.
+
+    Returns
+    -------
+    float
+        Lower diagonal Cholesky decomposition of autocorrelation matrix.
+    """
+    
     l = numpy.matrix(numpy.zeros([n+1, n+1]))
     for i in range(n+1):
         for j in range(i+1):
@@ -44,36 +101,96 @@ def cholesky_decompose(H, n):
                 l[i,j] = (acf(H, i - j) - numpy.sum(l[i,0:j]*l[j,0:j].T)) / l[j,j]
     return l
 
-def cholesky_noise(H, n, Δt=1, dB=None, L=None):
+def cholesky_noise(H: float, n: int, dB: numpy.ndarray[float]=None, L=None) ->  numpy.ndarray[float]:
+    """
+    Generate fractional brownian noise using the Cholesky method and the provided 
+    parameters.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    n: int
+        Number of time steps.
+    dB: numpy.ndarray[float]
+        Column vector of brownian noise.
+    L: numpy.matrix[float]
+        Lower diagonal Cholesky decomposition of FBM covariance matrix.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Fractional brownian noise as a function of time.
+    """
+
     if dB is None:
         dB = bm.noise(n+1)
     if len(dB) != n + 1:
         raise Exception(f"dB should have length {n+1}")
     dB = numpy.matrix(dB)
     if L is None:
-        R = acf_matrix(H, n)
+        R = __acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(L) != n + 1:
         raise Exception(f"L should have length {n+1}")
     return numpy.squeeze(numpy.asarray(L*dB.T))
 
-def generate_cholesky(H, n, Δt=1, dB=None, L=None):
+def generate_cholesky(H: float, n: int, dB: numpy.ndarray[float]=None, L=None) ->  numpy.ndarray[float]:
+    """
+    Generate fractional brownian motion using the Cholesky method and the provided 
+    parameters.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    n: int
+        Number of time steps.
+    dB: numpy.ndarray[float]
+        Column vector of brownian noise. If value is none the brownian noise is generated.
+    L: numpy.matrix[float]
+        Lower diagonal Cholesky decomposition of FBM covariance matrix. If value is None
+        The Cholesky method is used to compute L from the ACF matrix.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Fractional brownian motion as a function of time..
+    """
+
     if dB is None:
         dB = bm.noise(n+1)
     if L is None:
-        R = acf_matrix(H, n)
+        R = __acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(dB) != n + 1:
         raise Exception(f"dB should have length {n+1}")
-    dZ = cholesky_noise(H, n, Δt, dB, L)
+    dZ = cholesky_noise(H, n, dB, L)
     Z = numpy.zeros(len(dB))
     for i in range(1, len(dB)):
         Z[i] = Z[i - 1] + dZ[i]
     return Z
 
-###############################################################################################
-# FFT Method for FBM generation
-def fft_noise(H, n, Δt=1, dB=None):
+def fft_noise(H: float, n: int, dB: numpy.ndarray[float]=None) ->  numpy.ndarray[float]:
+    """
+    Generate fractional brownian noise using the FFT method and the provided 
+    parameters.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    n: int
+        Number of time steps.
+    dB: numpy.ndarray[float]
+        Column vector of brownian noise. If value is none the brownian noise is generated.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Fractional brownian noise as a function of time.
+    """
+
     if dB is None:
         dB = bm.noise(2*n)
     if len(dB) != 2*n:
@@ -109,21 +226,37 @@ def fft_noise(H, n, Δt=1, dB=None):
 
     return Z[:n].real
 
-# generate fractional brownian motion using the FFT method
-def generate_fft(H, n, Δt=1, dB=None):
+def generate_fft(H: float, n:int, dB: numpy.ndarray[float]=None) ->  numpy.ndarray[float]:
+    """
+    Generate fractional brownian motion using the FFT method and the provided 
+    parameters.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    n: int
+        Number of time steps.
+    dB: numpy.ndarray[float]
+        Column vector of brownian noise. If value is none the brownian noise is generated.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Fractional brownian motion as a function of time.
+    """
+
     if dB is None:
         dB = bm.noise(2*n)
     if len(dB) != 2*n:
         raise Exception(f"dB should have length {2*n}")
-    dZ = fft_noise(H, n, Δt, dB=dB)
+    dZ = fft_noise(H, n, dB=dB)
     Z = numpy.zeros(n)
     for i in range(1, n):
         Z[i] = Z[i - 1] + dZ[i]
     return Z
 
-# ###############################################################################################
-# ## Variance Ratio Test
-# # The homoscedastic test statistic is used n the analysis.
+# The homoscedastic test statistic is used n the analysis.
 # def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.1, hyp_type=TestHypothesis.TWO_TAIL):
 #     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
 #     if hyp_type.value == TestHypothesis.TWO_TAIL.value:
@@ -159,35 +292,126 @@ def generate_fft(H, n, Δt=1, dB=None):
 #     p_values = [dist.cdf(stat) for stat in test_stats]
 #     return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [lower_critical_value, None])
 
-# variance ratio
-def vr(samples, s):
-    vars = stats.lag_var(samples, s)
-    var1 = stats.lag_var(samples, 1)
-    return vars/(s*var1)
+def vr_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> numpy.ndarray[float]:
+    """
+    Compute the variance ratio using the provided samples and the lags.
 
-def vr_scan(samples, s_vals):
-    return [vr(samples, s) for s in s_vals]
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s_vals: list[int]
+        Lags
 
-# Homoscedastic variance Ratio
-def vr_stat_homo(samples, s):
+    Returns
+    -------
+    numpy.ndarray[float]
+        Variance ratios as a function of lag.
+    """
+
+    return numpy.array([__vr(samples, s) for s in s_vals])
+
+def vr_stat_homo_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> numpy.ndarray[float]:
+    """
+    Compute the variance ratio homoscedastic test statistics using the provided samples and lags.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s_vals: list[int]
+        Lags.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+         Homoscedastic variance ratio test statistics as a function of lag.
+    """
+
+    return numpy.array([__vr_stat_homo(samples, s) for s in s_vals])
+
+def vr_stat_hetero_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> numpy.ndarray[float]:
+    """
+    Compute the variance ratio heteroscedastic test statistics using the provided samples and lags.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s_vals: list[int]
+        Lags.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Heteroscedastic variance ratio test statistics as a function of lag.
+    """
+
+    return numpy.array([__vr_stat_hetero(samples, s) for s in s_vals])
+
+def __vr_stat_homo(samples: numpy.ndarray[float], s: int) -> float:
+    """
+    Compute the variance ratio homoscedastic test statistic using the provided samples and lag.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s: int
+        Lag.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Homoscedastic variance ratio test statistic.
+    """
+
     if s == 1:
         return 0
     t = len(samples) - 1
-    r = vr(samples, s)
+    r = __vr(samples, s)
     θ = 2.0*(2.0*s - 1.0)*(s - 1.0)/(3.0*s*t)
     return (r - 1.0)/numpy.sqrt(θ)
 
-def vr_stat_homo_scan(samples, s_vals):
-    return [vr_stat_homo(samples, s) for s in s_vals]
 
-# Heteroscedastic variance Ratio
-def vr_stat_hetero(samples, s):
-    t = len(samples) - 1
-    r = vr(samples, s)
-    θ = theta_factor(samples, s)
+def __vr_stat_hetero(samples: numpy.ndarray[float], s: int) -> float:
+    """
+    Compute the variance ratio heteroscedastic test statistic using the provided samples and lag.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s: int
+        Lag.
+
+    Returns
+    -------
+    float
+        Heteroscedastic variance ratio test statistic.
+    """
+
+    r = __vr(samples, s)
+    θ = __theta_factor(samples, s)
     return (r - 1.0)/numpy.sqrt(θ)
 
-def delta_factor(samples, j):
+def __delta_factor(samples: numpy.ndarray[float], j: int) -> float:
+    """
+    Compute the delta factor used in calculation of the variance ratio heteroscedastic test statistic.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    j: int
+        Iteration index.
+
+    Returns
+    -------
+    float
+        Heteroscedastic variance ratio test delta factor.
+    """
+
     t = len(samples) - 1
     μ = (samples[t] - samples[0]) / t
     factor = 0.0
@@ -197,14 +421,76 @@ def delta_factor(samples, j):
         factor += f1*f2
     return factor / stats.lag_var(samples, 1)**2
 
-def theta_factor(samples, s):
+def __theta_factor(samples: numpy.ndarray[float], s: int) -> float:
+    """
+    Compute the delta factor used in calculation of the variance ratio heteroscedastic test statistic.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s: int
+        Lag.
+
+    Returns
+    -------
+    float
+        Heteroscedastic variance ratio test theta factor.
+    """
+
     t = len(samples) - 1
-    μ = (samples[t] - samples[0]) / t
     factor = 0.0
     for j in range(1, s):
-        delta = delta_factor(samples, j)
+        delta = __delta_factor(samples, j)
         factor += delta*(2.0*(s-j)/s)**2
     return factor/t**2
 
-def vr_stat_hetero_scan(samples, s_vals):
-    return [vr_stat_hetero(samples, s) for s in s_vals]
+def __vr(samples: numpy.ndarray[float], s: int) -> float:
+    """
+    Compute the variance ratio using the specified samples and lag.
+
+    
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    s: int
+        Lag.
+
+    Returns
+    -------
+    float
+        Variance ratio.
+
+    """
+
+    vars = stats.lag_var(samples, s)
+    var1 = stats.lag_var(samples, 1)
+    return vars/(s*var1)
+
+def __acf_matrix(H: float, n: int):
+    """
+    Fractional brownian motion autocorrelation function matrix.
+
+    Parameters
+    ----------
+    H: float
+        Hurst parameter.
+    n: int
+        maximum number of time steps
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Autocorrelation as a function matrix..
+    """
+
+    γ = numpy.matrix(numpy.zeros([n+1, n+1]))
+    for i in range(n+1):
+        for j in range(n+1):
+            if i != j :
+                γ[i,j] = acf(H, numpy.abs(i-j))
+            else:
+                γ[i,j] = 1.0
+    return γ
+
