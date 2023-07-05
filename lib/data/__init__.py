@@ -1,1 +1,1 @@
-from lib.data.impl import (adf, arima, stats, bm)
+from lib.data.impl import (adf, arima, stats, bm, fbm)

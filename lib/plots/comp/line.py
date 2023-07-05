@@ -19,6 +19,7 @@ twinx_comparisons
 
 import numpy
 import pandas
+import math
 from datetime import datetime, date
 import matplotlib.ticker
 import matplotlib.dates as mdates
@@ -71,8 +72,8 @@ def curve(axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     npts            = get_param_default_if_missing("npts", None, **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    yscilimits      = get_param_default_if_missing("yscilimits", (-3, 3), **kwargs)
-    xscilimits      = get_param_default_if_missing("xscilimits", (-3, 3), **kwargs)
+    yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
+    xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
 
     if npts is None or npts > len(y):
@@ -179,7 +180,7 @@ def comparison(axis, y, x=None, **kwargs):
     npts            = get_param_default_if_missing("npts", None, **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
+    scilimits       = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
     legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
     legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
@@ -259,7 +260,8 @@ def comparison(axis, y, x=None, **kwargs):
             raise Exception("Invalid PlotAxisType")
 
     if labels is not None:
-        axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)
+        ncol = math.ceil(ncurve / 6 )
+        axis.legend(loc=legend_loc, ncol=ncol, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)
 
 def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
     """

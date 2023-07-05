@@ -4,12 +4,11 @@ data.impl.bm.oy
 Interface to data.models.bm.py
 """
 
-from enum import Enum
 import numpy
+from typing import Tuple
 
 from lib.models import bm
 from lib import stats
-from typing import Tuple
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)

@@ -15,6 +15,7 @@
         "ncol",
         "nlags",
         "nonposy",
+        "smax",
         "statsmodels",
         "ylimit",
         "yscale",

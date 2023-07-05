@@ -67,8 +67,8 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
     labels          = get_param_default_if_missing("labels", None, **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    yscilimits      = get_param_default_if_missing("yscilimits", (-3, 3), **kwargs)
-    xscilimits      = get_param_default_if_missing("xscilimits", (-3, 3), **kwargs)
+    yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
+    xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
 
     if x is None:
@@ -183,8 +183,8 @@ def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: nump
     labels          = get_param_default_if_missing("labels", None, **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    yscilimits      = get_param_default_if_missing("yscilimits", (-3, 3), **kwargs)
-    xscilimits      = get_param_default_if_missing("xscilimits", (-3, 3), **kwargs)
+    yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
+    xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
 
     if x is None:

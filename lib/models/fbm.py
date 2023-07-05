@@ -51,7 +51,7 @@ def cov(H: float, s: float, t: numpy.ndarray[float]) -> numpy.ndarray[float]:
 
     return 0.5*(t**(2.0*H) + s**(2.0*H) - numpy.abs(t - s)**(2.0*H))
 
-def acf(H: float, t: int) -> float:
+def acf(H: float, t: numpy.ndarray[float]) ->  numpy.ndarray[float]:
     """
     Fractional brownian motion autocorrelation function.
 
@@ -64,7 +64,7 @@ def acf(H: float, t: int) -> float:
 
     Returns
     -------
-    float
+    numpy.ndarray[float]
         Autocorrelation value at time step t.
     """
 
@@ -126,13 +126,13 @@ def cholesky_noise(H: float, n: int, dB: numpy.ndarray[float]=None, L=None) ->  
     if dB is None:
         dB = bm.noise(n+1)
     if len(dB) != n + 1:
-        raise Exception(f"dB should have length {n+1}")
+        raise Exception(f"dB should have length {n + 1}")
     dB = numpy.matrix(dB)
     if L is None:
         R = __acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(L) != n + 1:
-        raise Exception(f"L should have length {n+1}")
+        raise Exception(f"L should have length {n + 1}")
     return numpy.squeeze(numpy.asarray(L*dB.T))
 
 def generate_cholesky(H: float, n: int, dB: numpy.ndarray[float]=None, L=None) ->  numpy.ndarray[float]:
@@ -164,7 +164,7 @@ def generate_cholesky(H: float, n: int, dB: numpy.ndarray[float]=None, L=None) -
         R = __acf_matrix(H, n)
         L = numpy.linalg.cholesky(R)
     if len(dB) != n + 1:
-        raise Exception(f"dB should have length {n+1}")
+        raise Exception(f"dB should have length {n + 1}")
     dZ = cholesky_noise(H, n, dB, L)
     Z = numpy.zeros(len(dB))
     for i in range(1, len(dB)):
@@ -215,12 +215,12 @@ def fft_noise(H: float, n: int, dB: numpy.ndarray[float]=None) ->  numpy.ndarray
 
     # Compute product of Fourier Matrix and Brownian noise
     J = numpy.zeros(2*n, dtype=numpy.cdouble)
-    J[0] = numpy.sqrt(Λ[0])*numpy.complex(dB[0], 0.0) / numpy.sqrt(2.0 * n)
-    J[n] = numpy.sqrt(Λ[n])*numpy.complex(dB[n], 0.0) / numpy.sqrt(2.0 * n)
+    J[0] = numpy.sqrt(Λ[0])*complex(dB[0], 0.0) / numpy.sqrt(2.0 * n)
+    J[n] = numpy.sqrt(Λ[n])*complex(dB[n], 0.0) / numpy.sqrt(2.0 * n)
 
     for i in range(1, n):
-        J[i] = numpy.sqrt(Λ[i])*numpy.complex(dB[i], dB[n+i]) / numpy.sqrt(4.0 * n)
-        J[2*n-i] = numpy.sqrt(Λ[2*n-i])*numpy.complex(dB[i], -dB[n+i]) / numpy.sqrt(4.0 * n)
+        J[i] = numpy.sqrt(Λ[i])*complex(dB[i], dB[n+i]) / numpy.sqrt(4.0 * n)
+        J[2*n-i] = numpy.sqrt(Λ[2*n-i])*complex(dB[i], -dB[n+i]) / numpy.sqrt(4.0 * n)
 
     Z = numpy.fft.fft(J)
 
@@ -228,7 +228,7 @@ def fft_noise(H: float, n: int, dB: numpy.ndarray[float]=None) ->  numpy.ndarray
 
 def generate_fft(H: float, n:int, dB: numpy.ndarray[float]=None) ->  numpy.ndarray[float]:
     """
-    Generate fractional brownian motion using the FFT method and the provided 
+    Generate fractional brownian motion using the FFT method with the provided 
     parameters.
 
     Parameters
@@ -238,7 +238,7 @@ def generate_fft(H: float, n:int, dB: numpy.ndarray[float]=None) ->  numpy.ndarr
     n: int
         Number of time steps.
     dB: numpy.ndarray[float]
-        Column vector of brownian noise. If value is none the brownian noise is generated.
+        Column vector of brownian noise. If value is None the brownian noise is generated.
 
     Returns
     -------
@@ -461,7 +461,6 @@ def __vr(samples: numpy.ndarray[float], s: int) -> float:
     -------
     float
         Variance ratio.
-
     """
 
     vars = stats.lag_var(samples, s)
@@ -482,7 +481,7 @@ def __acf_matrix(H: float, n: int):
     Returns
     -------
     numpy.ndarray[float]
-        Autocorrelation as a function matrix..
+        Autocorrelation as a matrix.
     """
 
     γ = numpy.matrix(numpy.zeros([n+1, n+1]))
