@@ -116,10 +116,6 @@ def create_space(**kwargs) -> numpy.ndarray[float]:
         xmax = (npts - 1)*Δx + xmin
     elif npts is None:
         npts = int((xmax-xmin)/Δx) + 1
-    kwargs["npts"] = npts
-    kwargs["xmax"] = xmax
-    kwargs["xmin"] = xmin
-    kwargs["Δx"] = Δx
     return numpy.linspace(xmin, xmax, npts)
 
 def create_logspace(**kwargs) -> numpy.ndarray[float]:
@@ -164,9 +160,9 @@ def create_parameter_scan(source, *args) -> Tuple[numpy.ndarray[float], list[num
 
     scan = []
     for kwargs in args:
-        _, samples = source(**kwargs)
+        t, samples = source(**kwargs)
         scan.append(samples)
-    return create_space(npts=len(scan[0])), scan
+    return t, scan
 
 def create_ensemble(source, nsim: int, **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
@@ -190,9 +186,9 @@ def create_ensemble(source, nsim: int, **kwargs) -> Tuple[numpy.ndarray[float], 
 
     ensemble = []
     for _ in range(nsim):
-        _, samples = source(**kwargs)
+        t, samples = source(**kwargs)
         ensemble.append(samples)
-    return create_space(npts=len(ensemble[0])), numpy.array(ensemble)
+    return t, numpy.array(ensemble)
 
 def apply_to_ensemble(func, t: numpy.ndarray[float], ensemble: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """

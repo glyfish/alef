@@ -30,7 +30,7 @@ def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
 
-    return Δt * create_space(xmin=0, npts=npts), numpy.full(npts, μ)
+    return create_space(xmin=0, npts=npts, Δx=Δt), numpy.full(npts, μ)
 
 def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -64,7 +64,9 @@ def compute_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     H: float
         Hurst parameter.
     npts: int
-        Number of points. (default 11)
+        Number of points. (default None)
+    tmax: int
+        Maximum time. (default None)
     Δt: float
         Width of time step. (default 1.0)
 
@@ -76,9 +78,10 @@ def compute_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
 
-    t = Δt * create_space(xmin=0, npts=npts)
+    t = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
 
     return t, fbm.var(H, t)
 
@@ -105,7 +108,7 @@ def compute_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     nlags = get_param_default_if_missing("nlags", 11, **kwargs)
 
-    t = Δt * create_space(xmin=0, npts=nlags)
+    t = create_space(xmin=0, npts=nlags, Δx=Δt)
 
     return t, fbm.acf(H, t)
 
@@ -132,11 +135,12 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     H = get_param_throw_if_missing("H", **kwargs)
     s = get_param_throw_if_missing("s", **kwargs)
-    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
+    tmin = get_param_default_if_missing("tmin", 0.0, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    t = Δt * create_space(xmin=0, npts=npts)
-    s = Δt * s
+    t = create_space(xmin=tmin, xmax=tmax, npts=npts, Δx=Δt)
 
     return t, fbm.cov(H, s, t)
 
@@ -162,10 +166,11 @@ def compute_variance_ratio(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
     """
 
     H = get_param_throw_if_missing("H", **kwargs)
-    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    npts = get_param_default_if_missing("npts", None, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    t = Δt * create_space(xmin=0, npts=npts)
+    t = create_space(xmin=0, xmax=tmax, npts=npts, Δx=Δt)
 
     return t, t**(2*H - 1.0)
 
