@@ -53,7 +53,7 @@ def cov(H: float, s: float, t: numpy.ndarray[float]) -> numpy.ndarray[float]:
 
 def acf(H: float, t: numpy.ndarray[float]) ->  numpy.ndarray[float]:
     """
-    Fractional brownian motion autocorrelation function.
+    Fractional brownian noise autocorrelation function.
 
     Parameters
     ----------

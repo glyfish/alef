@@ -1,4 +1,5 @@
 import numpy
+from typing import Tuple
 
 def get_param_throw_if_missing(param: str, **kwargs):
     """
@@ -81,7 +82,7 @@ def verify_type(param, expected_type):
     if not isinstance(param, expected_type):
         raise Exception(f"{param} is type {type(param)}. Expected {expected_type}")
 
-def create_space(**kwargs):
+def create_space(**kwargs) -> numpy.ndarray[float]:
     """
     Create linear space with specified parameters.
 
@@ -121,7 +122,7 @@ def create_space(**kwargs):
     kwargs["Δx"] = Δx
     return numpy.linspace(xmin, xmax, npts)
 
-def create_logspace(**kwargs):
+def create_logspace(**kwargs) -> numpy.ndarray[float]:
     """
     Create log space with specified parameters.
 
@@ -143,7 +144,7 @@ def create_logspace(**kwargs):
     xmin = get_param_default_if_missing("xmin", 1.0, **kwargs)
     return numpy.logspace(numpy.log10(xmin), numpy.log10(xmax/xmin), npts)
 
-def create_parameter_scan(source, *args):
+def create_parameter_scan(source, *args) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
     Generate a parameter scan for the specified data source using the 
     specified parameters
@@ -167,7 +168,7 @@ def create_parameter_scan(source, *args):
         scan.append(samples)
     return create_space(npts=len(scan[0])), scan
 
-def create_ensemble(source, nsim: int, **kwargs):
+def create_ensemble(source, nsim: int, **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
     Generate a parameter scan for the specified data source using the 
     specified parameters
@@ -193,83 +194,89 @@ def create_ensemble(source, nsim: int, **kwargs):
         ensemble.append(samples)
     return create_space(npts=len(ensemble[0])), numpy.array(ensemble)
 
-def apply_to_list(func, data_list, **kwargs):
+def apply_to_ensemble(func, t: numpy.ndarray[float], ensemble: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
-    Apply specified function to list of data arrays.
+    Apply specified function to an ensemble.
     
     Parameters
     ----------
     func: lambda(**kwargs) -> result
         lambda calling source create.
-    data : list[numpy.ndarray]
-        list of data arrays.
+    t: numpy.ndarray[float]
+        Time
+    ensemble: list[numpy.ndarray[float]]
+        Ensemble data
     kwargs : **kwargs
        Functions parameters.
 
     Returns
     -------
-    list[results]
+    time, list[results]
         List of function results.
     """
 
-    return [func(data, **kwargs) for data in data_list]
+    result = [func(t, data, **kwargs) for data in ensemble]
+    return result[0][0], numpy.array([data[1] for data in result])
 
-def apply_parameter_scan(func, data, *args):
+def apply_to_parameter_scan(func, t: numpy.ndarray[float], scan: list[numpy.ndarray[float]], *args) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
-    Apply specified list of parameters to data samples.
+    Apply specified function to results of a parameter scan..
     
     Parameters
     ----------
     func: lambda(**kwargs) -> result
         lambda calling source create.
-    data : numpy.ndarray
-        list of data arrays.
+    t: numpy.ndarray[float]
+        Time
+    scan : list[numpy.ndarray[float]]
+        Parameter scan data..
     args : *args
         Array of parameter scan kwargs
 
     Returns
     -------
-    list[results]
+    time, list[results]
         List of function results.
     """
 
-    return [func(data, **kwargs) for kwargs in args]
+    result = [func(t, scan, **kwargs) for kwargs in args]
+    return result[0][0], numpy.array([data[1] for data in result])
 
-def get_s_vals(**kwargs):
+def get_s_vals(**kwargs) -> list[int]:
     """
-    Create s values used in Lo and Mackinlay lagged variance analysis.
-    
+    Compute lags for variance ratio test using provided parameters.
+
     Parameters
     ----------
     linear: bool
-        If True create s-values using linear spacing. If False use logarithmic spacing.
-        (default is logarithmic)
-    s_max : int
-        Maximum s-value.
-    s_min : int
-        Minimum s value.
-    npts : int
-        Number of s-values to create
-    s_vals : list[int]
-        List if s-values to use
+        If true s values are generated on a linear scale. If false they are 
+        generated on a logarithmic scale. (default False)
+    smin: int
+        Minimum lag used in scan.
+    smax: int
+        Maximum lag used in scan.
+    npts: int
+        Number of points in scan
+    svals: list[int]
+        Specify lags used in scan.
 
     Returns
     -------
-    list[results]
-        List of function results.
+    list[int]
+        s values used in scan.
     """
 
     linear = get_param_default_if_missing("linear", False, **kwargs)
-    s_min = get_param_default_if_missing("s_min", 1.0, **kwargs)
+    smin = get_param_default_if_missing("smin", 1.0, **kwargs)
+    smax = get_param_default_if_missing("smax", None, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
-    s_max = get_param_default_if_missing("s_max", None, **kwargs)
-    s_vals = get_param_default_if_missing("s_vals", None, **kwargs)
-    if npts is not None and s_max is not None:
+    svals = get_param_default_if_missing("svals", None, **kwargs)
+    if npts is not None and smax is not None:
         if linear:
-            return create_space(npts=npts, xmax=s_max, xmin=s_min)
+            return create_space(npts=npts, xmax=smax, xmin=smin)
         else:
-            return create_logspace(npts=npts, xmax=s_max, xmin=s_min)
-    elif s_vals is not None:
-        return s_vals
+            return create_logspace(npts=npts, xmax=smax, xmin=smin)
+    elif svals is not None:
+        return svals
     else:
-        raise Exception(f"s_max and npts or s_vals is required")
+        raise Exception(f"smax and npts or svals is required")

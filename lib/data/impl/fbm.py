@@ -4,7 +4,7 @@ from typing import Tuple
 from lib.models import fbm
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, create_space, create_logspace)
+                       verify_type, create_space, create_logspace, get_s_vals)
 
 
 def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -90,8 +90,8 @@ def compute_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     ----------
     H: float
         Hurst parameter.
-    npts: int
-        Number of points. (default 11)
+    nlags: int
+        Number of lags. (default 11)
     Δt: float
         Width of time step. (default 1.0)
 
@@ -103,9 +103,9 @@ def compute_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     H = get_param_throw_if_missing("H", **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    nlags = get_param_default_if_missing("nlags", 11, **kwargs)
 
-    t = Δt * create_space(xmin=0, npts=npts)
+    t = Δt * create_space(xmin=0, npts=nlags)
 
     return t, fbm.acf(H, t)
 
@@ -195,7 +195,7 @@ def compute_variance_ratio_scan(samples: numpy.ndarray[float], **kwargs) -> Tupl
         Lags and variance ratio values.
     """
 
-    s_vals = [int(s) for s in __get_s_vals(**kwargs)]
+    s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_scan(samples, s_vals)
 
 def compute_variance_ratio_homo_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -224,7 +224,7 @@ def compute_variance_ratio_homo_stat_scan(samples: numpy.ndarray[float], **kwarg
         Lags and variance ratio values.
     """
 
-    s_vals = [int(s) for s in __get_s_vals(**kwargs)]
+    s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_stat_homo_scan(samples, s_vals)
 
 def compute_variance_ratio_hetero_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -253,7 +253,7 @@ def compute_variance_ratio_hetero_stat_scan(samples: numpy.ndarray[float], **kwa
         Lags and variance ratio values.
     """
 
-    s_vals = [int(s) for s in __get_s_vals(**kwargs)]
+    s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_stat_hetero_scan(samples, s_vals)
 
 def create_noise_cholesky_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -374,45 +374,6 @@ def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
     dB = get_param_default_if_missing("dB", None, **kwargs)
 
     return Δt * create_space(xmin=0, npts=npts), fbm.generate_fft(H, npts, dB)
-
-def __get_s_vals(**kwargs) -> list[int]:
-    """
-    Compute lags for variance ratio test using provided parameters.
-
-    Parameters
-    ----------
-    linear: bool
-        If true s values are generated on a linear scale. If false they are 
-        generated on a logarithmic scale. (default False)
-    smin: int
-        Minimum lag used in scan.
-    smax: int
-        Maximum lag used in scan.
-    npts: int
-        Number of points in scan
-    svals: list[int]
-        Specify lags used in scan.
-
-    Returns
-    -------
-    list[int]
-        s values used in scan.
-    """
-
-    linear = get_param_default_if_missing("linear", False, **kwargs)
-    smin = get_param_default_if_missing("smin", 1.0, **kwargs)
-    smax = get_param_default_if_missing("smax", None, **kwargs)
-    npts = get_param_default_if_missing("npts", None, **kwargs)
-    svals = get_param_default_if_missing("svals", None, **kwargs)
-    if npts is not None and smax is not None:
-        if linear:
-            return create_space(npts=npts, xmax=smax, xmin=smin)
-        else:
-            return create_logspace(npts=npts, xmax=smax, xmin=smin)
-    elif svals is not None:
-        return svals
-    else:
-        raise Exception(f"smax and npts or svals is required")
     
 # ##################################################################################################################
 # # Perform test forspecified implementaion

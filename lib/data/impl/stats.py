@@ -219,7 +219,7 @@ def compute_lag_var(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray
     s_vals =  [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, stats.lag_var_scan(data, s_vals)
 
-def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_mean(time: numpy.ndarray, data: list[numpy.ndarray[float]]) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying mean of the sampled ensemble.
 
@@ -243,7 +243,7 @@ def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[float], **kwa
 
     return time, stats.ensemble_mean(data)
 
-def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_sd(time: numpy.ndarray, data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
@@ -271,7 +271,7 @@ def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[float], **kwarg
 
     return time, stats.ensemble_sd(data, Δt)
 
-def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_var(time: numpy.ndarray[float], data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying variance of the sampled ensemble.
 
@@ -299,7 +299,7 @@ def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[float],
 
     return time, stats.ensemble_var(data, Δt)
 
-def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_acf(time: numpy.ndarray, data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
