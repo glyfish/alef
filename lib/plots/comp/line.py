@@ -164,7 +164,7 @@ def comparison(axis, y, x=None, **kwargs):
     legend_loc : string
         Specify legend location. (default best)
     legend_title : string
-        Specify legend location. (default best)
+        Specify legend title. (default None)
     plot_axis_type : PlotAxisType
         Axis type. (default PlotAxisType.LINEAR)
     colors : list[str]

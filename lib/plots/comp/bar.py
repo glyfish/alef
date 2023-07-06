@@ -2,6 +2,7 @@ import numpy
 import pandas
 import matplotlib.dates as mdates
 import matplotlib.units as munits
+from matplotlib import pyplot
 from datetime import datetime, date
 
 from lib.plots.comp.line import (plot_curve, twinx_ticks)
@@ -9,7 +10,7 @@ from lib.plots.comp.line import (plot_curve, twinx_ticks)
 from lib.utils import get_param_default_if_missing
 from lib import config
 
-def bar(axis, y, x=None, **kwargs):
+def bar(axis: pyplot.axis, y, x=None, **kwargs):
     """
     Plot samples in a bar chart.
 
@@ -71,7 +72,7 @@ def bar(axis, y, x=None, **kwargs):
 
     _plot_bar(axis, x, y, 0, **kwargs)
 
-def twinx_bar(axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
+def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -185,7 +186,7 @@ def twinx_bar(axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.nda
         labs = [l.get_label() for l in list]
         axis2.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
-def twinx_bar_line(axis, y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.ndarray=None, x_line: numpy.ndarray=None, **kwargs):
+def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.ndarray=None, x_line: numpy.ndarray=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -300,7 +301,7 @@ def twinx_bar_line(axis, y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: num
         labs = [l.get_label() for l in list]
         axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
 
-def twinx_bar_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x_left: list[numpy.ndarray]=None, x_right: list[numpy.ndarray]=None, **kwargs):
+def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x_left: list[numpy.ndarray]=None, x_right: list[numpy.ndarray]=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -432,7 +433,7 @@ def _plot_bar(axis, x, y, n, zorder=10, **kwargs):
     else:
         return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=labels[n], color=color)
 
-def hist(axis, samples: numpy.ndarray, fx=None, **kwargs):
+def hist(axis: pyplot.axis, samples: numpy.ndarray, fx=None, **kwargs):
     """
     Plot samples in histogram and compare with given function.
 

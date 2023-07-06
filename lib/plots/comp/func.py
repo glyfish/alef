@@ -12,13 +12,15 @@ fcurve
 import numpy
 import pandas
 from datetime import datetime, date
+from matplotlib import pyplot
 import matplotlib.dates as mdates
 import matplotlib.units as munits
+from typing import Callable
 
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
 
-def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
+def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
     Compare data to a function by plotting the data as a curve
     and the function as points.
@@ -45,8 +47,6 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
         Plot y-axis label (default is 'y')
     lw : int, optional
         Plot line width (default is 2)
-    figsize : (int, int), optional
-        Specify the width and height of plot (default is (10,8))
     labels : [string], optional
         Curve labels shown in legend.
     ylim : (float, float)
@@ -56,7 +56,11 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
     scilimits : (-int, int)
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     plot_axis_type : PlotAxisType
-        The type of axis used in the plot    
+        The type of axis used in the plot
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
     """
 
     title           = get_param_default_if_missing("title", None, **kwargs)
@@ -70,6 +74,8 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
     yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
     xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
 
     if x is None:
         npts = len(data)
@@ -135,9 +141,9 @@ def fpoints(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: num
     if labels is not None:
         axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
-def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
+def fcurve(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
-    Compare data to a function by plotting by plotting both as curves.
+    Compare data to a function by plotting both as curves.
 
     Parameters
     ----------
@@ -161,8 +167,6 @@ def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: nump
         Plot y-axis label (default is 'y')
     lw : int, optional
         Plot line width (default is 2)
-    figsize : (int, int), optional
-        Specify the width and height of plot (default is (10,8))
     labels : [string], optional
         Curve labels shown in legend.
     ylim : (float, float)
@@ -183,8 +187,7 @@ def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: nump
     labels          = get_param_default_if_missing("labels", None, **kwargs)
     ylim            = get_param_default_if_missing("ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
-    xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
+    scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
     plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
 
     if x is None:
@@ -211,8 +214,8 @@ def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: nump
     if ylim is not None:
         axis.set_ylim(ylim)
 
-    axis.ticklabel_format(style='sci', axis='y', scilimits=yscilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=xscilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     data_label = None
     func_label = None
@@ -250,3 +253,106 @@ def fcurve(axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: nump
 
     if labels is not None:
         axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
+
+def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[float], float], x: numpy.ndarray[float]=None, **kwargs):
+    """"
+    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : Callable[[float], float]
+        Function plotted as a function of x.
+    x : numpy.ndarray[float], optional
+        Value plotted on x-axis (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
+   """
+
+    plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
+    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
+
+    if x is None:
+        npts = len(data)
+        x = numpy.linspace(0.0, float(npts - 1), npts)
+
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
+
+    if title is not None:
+        axis.set_title(title, y=title_offset)
+
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+
+    if plot_type.value == PlotType.LOG.value:
+        if x[0] == 0.0:
+            x = x[1:]
+            data = data[1:]
+        if fx[0] == 0.0:
+            fx = fx[1:]
+            func = func[1:]
+        logStyle(axis, x, data)
+        axis.loglog(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.loglog(x, func(x), zorder=10, label=labels[1])
+    elif plot_type.value == PlotType.XLOG.value:
+        if x[0] == 0.0:
+            x = x[1:]
+            data = data[1:]
+        if fx[0] == 0.0:
+            fx = fx[1:]
+            func = func[1:]
+        logXStyle(axis, x, data)
+        axis.semilogx(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.semilogx(x, func(x), zorder=10, label=labels[1])
+    elif plot_type.value == PlotType.YLOG.value:
+        logYStyle(axis, x, data)
+        axis.semilogy(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.plot(x,func(x), zorder=10, label=labels[1])
+    else:
+        axis.plot(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.plot(x, func(x), zorder=10, label=labels[1])
+
+    if labels is not None:
+        axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.85, 0.85), title=legend_title).set_zorder(10)
