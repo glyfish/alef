@@ -141,7 +141,7 @@ def create_logspace(**kwargs) -> numpy.ndarray[float]:
     xmin = get_param_default_if_missing("xmin", 1.0, **kwargs)
     return numpy.logspace(numpy.log10(xmin), numpy.log10(xmax/xmin), npts)
 
-def create_parameter_scan(source, *args) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
+def create_parameter_scan(source, *args) -> Tuple[list[numpy.ndarray[float]], list[numpy.ndarray[float]]]:
     """
     Generate a parameter scan for the specified data source using the 
     specified parameters
@@ -160,10 +160,12 @@ def create_parameter_scan(source, *args) -> Tuple[numpy.ndarray[float], list[num
     """
 
     scan = []
+    t_scan=[]
     for kwargs in args:
         t, samples = source(**kwargs)
         scan.append(samples)
-    return t, scan
+        t_scan.append(t)
+    return t_scan, scan
 
 def create_ensemble(source, nsim: int, **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """

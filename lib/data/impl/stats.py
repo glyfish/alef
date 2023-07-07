@@ -165,7 +165,7 @@ def compute_agg_var(data: numpy.ndarray, **kwargs) -> Tuple[numpy.ndarray[float]
 
     npts = get_param_throw_if_missing("npts", **kwargs)
     m_max = get_param_throw_if_missing("m_max", **kwargs)
-    m_min = get_param_default_if_missing("m_min", 1.0, **kwargs)
+    m_min = get_param_default_if_missing("m_min", 1, **kwargs)
 
     m_vals = create_logspace(npts=npts, xmax=m_max, xmin=m_min)
     return m_vals, stats.agg_var(data, m_vals)
@@ -190,7 +190,6 @@ def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tu
     """
 
     m = get_param_throw_if_missing("m", **kwargs)
-
     return stats.agg_time(time, m), stats.agg(data, m)
 
 def compute_lag_var(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:

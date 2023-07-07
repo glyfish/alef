@@ -393,6 +393,7 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
         Power spectrum.
 
     Returns
+    -------
     Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
         Ols report and result model.
     """
@@ -402,6 +403,15 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
     return report, result
 
 def __add_pergram_transform(result: OLSSingleVarResult):
+    """
+    Add transformation used for periodogram OLS analysis.
+
+    Parameters
+    ----------
+    result: OLSSingleVarResult
+        OLS analysis results.
+    """
+
     model = r"$C\omega^{1 - 2H}$"
     param = ParamEst(est=(1.0 - result.param.est)/2.0,
                      err=result.param.err/2.0,
@@ -414,7 +424,37 @@ def __add_pergram_transform(result: OLSSingleVarResult):
                      err_label=r"$\sigma_{\hat{C}}$")
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
+def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_var: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+    """
+    Estimate Hurst parameter using OLS on the aggregated variance.
+
+    Parameters
+    ----------
+    m_vals: numpy.ndarray[float]
+        Aggregation intervals.
+    agg_var: numpy.ndarray[float]
+        Aggregated variance.
+
+    Returns
+    -------
+    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+        Ols report and result model.
+    """
+
+    report, result = OLSSingleVariable.LOG.estimate(agg_var, m_vals)
+    __add_agg_var_transform(result)
+    return report, result
+
 def __add_agg_var_transform(result: OLSSingleVarResult):
+    """
+    Add transformation used for variance aggregation OLS analysis.
+
+    Parameters
+    ----------
+    result: OLSSingleVarResult
+        OLS analysis results.
+    """
+
     model = r"$\sigma^2 m^{2\left(H-1\right)}$"
     param = ParamEst(est=1.0 + result.param.est/2.0,
                      err=result.param.err/2.0,

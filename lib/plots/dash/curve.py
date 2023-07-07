@@ -104,7 +104,7 @@ def stack(y: list[numpy.ndarray], x=None, **kwargs):
         Title offset. (default 0)
     xlabel : str
         X-axis label. (default None)
-    ylabel : str
+    ylabels : str or list[str]
         Y-axis label. (default None)
     lw : int
         Line width. (default 1)
