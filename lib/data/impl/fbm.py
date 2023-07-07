@@ -1,10 +1,11 @@
 import numpy
 from typing import Tuple
+import statsmodels.api as sm
 
 from lib.models import fbm
 
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, create_space, create_logspace, get_s_vals)
+from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSSingleVariable)
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, create_space, get_s_vals)
 
 
 def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -380,6 +381,52 @@ def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
 
     return Δt * create_space(xmin=0, npts=npts), fbm.generate_fft(H, npts, dB)
     
+def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+    """
+    Estimate Hurst parameter using OLS on the periodogram assuming a power law.
+
+    Parameters
+    ----------
+    freq: numpy.ndarray[float]
+        Frequency.
+    pspec: numpy.ndarray[float]
+        Power spectrum.
+
+    Returns
+    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+        Ols report and result model.
+    """
+
+    report, result = OLSSingleVariable.LOG.estimate(pspec, freq)
+    __add_pergram_transform(result)
+    return report, result
+
+def __add_pergram_transform(result: OLSSingleVarResult):
+    model = r"$C\omega^{1 - 2H}$"
+    param = ParamEst(est=(1.0 - result.param.est)/2.0,
+                     err=result.param.err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**result.const.est
+    const = ParamEst(est=c,
+                     err=c*result.const.err,
+                     est_label=r"$\hat{C}$",
+                     err_label=r"$\sigma_{\hat{C}}$")
+    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+
+def __add_agg_var_transform(result: OLSSingleVarResult):
+    model = r"$\sigma^2 m^{2\left(H-1\right)}$"
+    param = ParamEst(est=1.0 + result.param.est/2.0,
+                     err=result.param.err/2.0,
+                     est_label=r"$\hat{Η}$",
+                     err_label=r"$\sigma_{\hat{Η}}$")
+    c = 10.0**result.const.est
+    const = ParamEst(est=c,
+                     err= c*result.const.err,
+                     est_label=r"$\hat{\sigma}^2$",
+                     err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+
 # ##################################################################################################################
 # # Perform test forspecified implementaion
 # def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
@@ -431,33 +478,3 @@ def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
 #                       dist=Dist.NORMAL,
 #                       loc=0.0,
 #                       scale=1.0)
-
-# ##################################################################################################################
-# # OLS Variable Transforms
-# # Est.AGG_VAR
-# def _create_agg_var_trans(param, const):
-#     formula = r"$\sigma^2 m^{2\left(H-1\right)}$"
-#     param = ParamEst(est=1.0 + param.est/2.0,
-#                      err=param.err/2.0,
-#                      est_label=r"$\hat{Η}$",
-#                      err_label=r"$\sigma_{\hat{Η}}$")
-#     c = 10.0**const.est
-#     const = ParamEst(est=c,
-#                      err= c*const.err,
-#                      est_label=r"$\hat{\sigma}^2$",
-#                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
-#     return OLSSinlgeVarTrans(formula, const, param)
-
-# # Est.PERGRAM
-# def _create_pergram_trans(param, const):
-#     formula = r"$C\omega^{1 - 2H}$"
-#     param = ParamEst(est=(1.0 - param.est)/2.0,
-#                      err=param.err/2.0,
-#                      est_label=r"$\hat{Η}$",
-#                      err_label=r"$\sigma_{\hat{Η}}$")
-#     c = 10.0**const.est
-#     const = ParamEst(est=c,
-#                      err=c*const.err,
-#                      est_label=r"$\hat{C}$",
-#                      err_label=r"$\sigma_{\hat{C}}$")
-#     return OLSSinlgeVarTrans(formula, const, param)

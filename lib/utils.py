@@ -1,4 +1,5 @@
 import numpy
+from enum import Enum
 from typing import Tuple
 
 def get_param_throw_if_missing(param: str, **kwargs):

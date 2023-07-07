@@ -8,37 +8,7 @@ Useful statistical functions.
 import numpy
 from copy import deepcopy
 import statsmodels.api as sm
-from enum import Enum
 from typing import Tuple
-
-class RegType(Enum):
-    """
-    Specify regression model to use for linear repression models.
-
-        Values
-    ------
-    LINEAR : 1
-        Assume a linear relation between regression variables.
-            y = a*x + b
-        where a and b be are regression constants.
-    LOG : 2
-        Assume power law relation between the regression variables.
-            y = b*x**a
-        where a and b be are regression constants.
-    XLOG : 3
-        Assume an exponential relationship between the regression variables.
-            y = b*exp(a*x)
-        where a and b be are regression constants.
-    YLOG : 4
-        Assume a logarithmic relation between the regression variables.
-            y = b*ln(a*x)
-        where a and b be are regression constants.
-    """
-
-    LINEAR = 1
-    LOG = 2
-    XLOG = 3
-    YLOG = 4
 
 def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -657,56 +627,6 @@ def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]):
     """
 
     return [lag_var(samples, s) for s in s_vals]
-
-def OLS(y: numpy.ndarray[float], x: numpy.ndarray[float], type=RegType.LINEAR) -> sm.OLS:
-    """
-    Create statsmodels OLS object using specified samples.
-
-    Parameters
-    ----------
-    y: numpy.ndarray[float]
-        Dependent variable
-    x: numpy.ndarray[float]
-        Variable
-    type=RegType
-        Model type (default RegType.LINEAR)
-
-    Returns
-    -------
-    Tuple[numpy.ndarray[float]]
-        Tuple om m arrays of generated samples.
-    """
-
-    if type == RegType.LOG:
-        x = numpy.log10(x)
-        y = numpy.log10(y)
-
-    x = sm.add_constant(x)
-    return sm.OLS(y, x, missing='drop')
-
-def OLS_fit(y: numpy.ndarray[float], x: numpy.ndarray[float], type=RegType.LINEAR) -> sm.regression.linear_model.RegressionResults:
-    """
-    Perform Ordinary Least Squares regression using the specified sample data.
-
-    Parameters
-    ----------
-    y: numpy.ndarray[float]
-        Dependent variable
-    x: numpy.ndarray[float]
-        Variable
-    type=RegType
-        Model type (default RegType.LINEAR)
-
-    Returns
-    -------
-    sm.regression.linear_model.RegressionResults
-        Regression results.
-    """
-
-    model = OLS(y, x, type=type)
-    results = model.fit()
-    return results
-
 
 def multivariate_normal(μ: numpy.ndarray[float], Ω: numpy.ndarray[float], n: int):
     """

@@ -294,18 +294,18 @@ def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[floa
         Specify legend title. (default None) 
    """
 
-    plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
+    plot_axis_type = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
     title          = get_param_default_if_missing("title", None, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
-    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
-    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
     scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
-    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
-    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
+    legend_loc     = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title   = get_param_default_if_missing("legend_title", None, **kwargs)
 
     if x is None:
         npts = len(data)
@@ -314,6 +314,9 @@ def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[floa
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
+    if labels is None:
+        labels = ["Data", "Fit"]
+
     if xlim is not None:
         axis.set_xlim(xlim)
 
@@ -321,38 +324,36 @@ def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[floa
         axis.set_ylim(ylim)
 
     if title is not None:
-        axis.set_title(title, y=title_offset)
+        axis.set_title(title, y=1.0 + title_offset)
 
     axis.set_ylabel(ylabel)
     axis.set_xlabel(xlabel)
-
-    if plot_type.value == PlotType.LOG.value:
-        if x[0] == 0.0:
-            x = x[1:]
-            data = data[1:]
-        if fx[0] == 0.0:
-            fx = fx[1:]
-            func = func[1:]
+    
+    if plot_axis_type.value == PlotType.LOG.value:
+        data, x = __remove_zeros_if_needed(data, x)
         logStyle(axis, x, data)
         axis.loglog(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
-        axis.loglog(x, func(x), zorder=10, label=labels[1])
-    elif plot_type.value == PlotType.XLOG.value:
-        if x[0] == 0.0:
-            x = x[1:]
-            data = data[1:]
-        if fx[0] == 0.0:
-            fx = fx[1:]
-            func = func[1:]
+        axis.loglog(x, func(x), zorder=10, label=labels[1], lw=lw)
+    elif plot_axis_type.value == PlotType.XLOG.value:
+        data, x = __remove_zeros_if_needed(data, x)
         logXStyle(axis, x, data)
         axis.semilogx(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
-        axis.semilogx(x, func(x), zorder=10, label=labels[1])
-    elif plot_type.value == PlotType.YLOG.value:
+        axis.semilogx(x, func(x), zorder=10, label=labels[1], lw=lw)
+    elif plot_axis_type.value == PlotType.YLOG.value:
+        data, x = __remove_zeros_if_needed(data, x)
         logYStyle(axis, x, data)
         axis.semilogy(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
-        axis.plot(x,func(x), zorder=10, label=labels[1])
+        axis.plot(x,func(x), zorder=10, label=labels[1], lw=lw)
     else:
         axis.plot(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
-        axis.plot(x, func(x), zorder=10, label=labels[1])
+        axis.plot(x, func(x), zorder=10, label=labels[1], lw=lw)
 
     if labels is not None:
         axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.85, 0.85), title=legend_title).set_zorder(10)
+
+
+def __remove_zeros_if_needed(data, x):
+    if x[0] == 0.0:
+        return data[1:], x[1:]
+    else:
+        return data, x

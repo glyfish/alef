@@ -3,6 +3,7 @@ import numpy
 
 from lib.utils import get_param_default_if_missing
 from lib.plots import comp
+from typing import Callable
 
 def curve(y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
@@ -499,3 +500,50 @@ def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndar
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fcurve(axis, data, func, x, fx, **kwargs)
+
+def fscatter(data: numpy.ndarray[float], func: Callable[[float], float], x: numpy.ndarray[float]=None, **kwargs):
+    """"
+    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : Callable[[float], float]
+        Function plotted as a function of x.
+    x : numpy.ndarray[float], optional
+        Value plotted on x-axis (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (10,8))
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
+   """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.fscatter(axis, data, func, x, **kwargs)

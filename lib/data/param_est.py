@@ -1,6 +1,7 @@
 import numpy
 from enum import Enum
-from lib import stats
+from typing import Tuple
+import statsmodels.api as sm
 
 class EstModel(str, Enum):
     """
@@ -80,61 +81,25 @@ class ParamEst:
                         est_label,
                         err_label)
 
-class OLSEstModel(Enum):
+class OLSSinlgeVarTransform:
     """
-    Model used in OLS estimate.
-
-    Values
-    ------
-    LINEAR
-        Assume a linear model of the form y = a + b * x.
-    POWER
-        Assume a power law model of the form y = a * x**b
-    EXPONENTIAL
-        Assume an exponential model of the form y = 10**(a + b * x)
-    LOG
-        Assume a logarithmic model of the form y = a + b * log(x)
-    """
-
-    LINEAR = "LINEAR"
-    POWER = "POWER"
-    EXPONENTIAL = "EXPONENTIAL"
-    LOG = "LOG"
-
-    def formula(self) -> str:
-        if self.value == OLSEstModel.LINEAR:
-            return r"$\alpha + \beta x$"
-        elif self.value == OLSEstModel.POWER:
-            return r"$10^\alpha x^\beta$"
-        elif self.value == OLSEstModel.EXPONENTIAL:
-            return r"100^{$\alpha + \beta x}$"
-        elif self.value == OLSEstModel.LOG:
-            return r"$\alpha + \beta \log_{10}x$"
-        else:
-            raise Exception(f"OLS Regression model type is invalid: {self.reg_type}")
-
-class OLSSingleVarResult:
-    """
-    Single variable OLS estimate result.
+    OLS result transformation.
 
     Properties
     ----------
+    model: str
+        Transformation model.
     const: ParamEst
         Constant estimate.
     param: ParamEst
         Parameter estimate.
-    ols_est_model: OLSEstMode
-        OLS model used in estimate. (default OLSEstModel.LINEAR)
     """
 
-    def __init__(self, const: ParamEst, param: ParamEst, r2: float, ols_est_model: OLSEstModel=OLSEstModel.LINEAR):
-        self.__ols_est_model = ols_est_model
-        self.__est_model = EstModel.OLS_SING_VAR
-        self.__const = const
-        self.__param = param
-        self.__r2 = r2
-        self.__const.set_labels(est_label=r"$\hat{\alpha}$", err_label=r"$\sigma_{\hat{\alpha}}$")
-        self.__param.set_labels(est_label=r"$\hat{\beta}$", err_label=r"$\sigma_{\hat{beta}}$")
+    def __init__(self, model: str, const: ParamEst, param: ParamEst):
+        self.model = model
+        self.param = param
+        self.const = const
+        self.__set_dict()
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -143,45 +108,158 @@ class OLSSingleVarResult:
         return self._props()
 
     def _props(self):
-        return f"ols_est_model=({self.__ols_est_model}), " \
-               f"est_model=({self.__est_model}), " \
+        return f"model=({self.model}), " \
+               f"param=({self.param}), " \
+               f"const=({self.const})"
+
+    def __set_dict(self):
+        self.dict = {"model": self.model,
+                     "param": self.param.dict,
+                     "const": self.const.dict}
+
+class OLSSingleVarResult:
+    """
+    Single variable OLS estimate result.
+
+    Properties
+    ----------
+    est_model: EstModel
+        Estimation model.
+    const: ParamEst
+        Constant estimate.
+    param: ParamEst
+        Parameter estimate.
+    r2: ParamEst
+        Estimate r^2.
+    transform: OLSSinlgeVarTransform
+        Estimated parameter transformation.
+    """
+
+    def __init__(self, const: ParamEst, param: ParamEst, r2: float):
+        self.__est_model = EstModel.OLS_SING_VAR
+        self.const = const
+        self.param = param
+        self.r2 = r2
+        self.transform = None
+        self.__set_dict()
+
+    def __repr__(self):
+        return f"OLSEst({self._props()})"
+
+    def __str__(self):
+        return self._props()
+    def _props(self):
+        return f"est_model=({self.__est_model}), " \
                f"const=({self.__const}), " \
                f"params=({self.__param}, "\
-               f"r2=({self.__r2})"
-
-    def formula(self) -> str:
-        return self.__ols_est_model.formula()
-
-    def trans_param(self):
-        return self.__ols_est_model.param
-
-    def trans_const(self):
-        return self.__ols_est_model.const
-
-    def fit(self):
-        if self.__ols_est_model.value == OLSEstModel.LINEAR.value:
-            return self.__linear_fit()
-        elif self.__ols_est_model.value == OLSEstModel.POWER.value:
-            return self.__power_fit()
-        elif self.__ols_est_model.value == OLSEstModel.EXPONENTIAL.value:
-            raise self.__exp_fit()
-        elif self.__ols_est_model.value == OLSEstModel.LOG.value:
-            raise self.__log_fit()
-        else:
-            raise Exception(f"OLS Regression model type is invalid: {self.reg_type}")
-
-    def __power_fit(self):
-        return lambda x : 10**self.const.est * x**self.param.est
-
-    def __linear_fit(self):
-        return lambda x : self.const.est + x*self.param.est
-
-    def __exp_fit(self):
-        return lambda x : 10**(self.const.est * x*self.param.est)
-
-    def __log_fit(self):
-        return lambda x :self.const.est + self.param.est * numpy.log10(x)
+               f"r2=({self.__r2}), " \
+               f"transform=({self.__transform})"
     
+    def __set_dict(self):
+        self.dict = {"est_model": self.__est_model.value,
+                     "param": self.param.dict,
+                     "const": self.const.dict,
+                     "r2": self.r2,
+                     "transform": self.transform.dict if self.transform is not None else "{}"}
+
+    def set_transform(self, transform: OLSSinlgeVarTransform):
+        self.transform = transform
+        self.__set_dict()
+
+class OLSSingleVariable(Enum):
+    """
+    Specify regression model to use for linear ols repression models.
+
+    Values
+    ------
+    LINEAR : str
+        Assume a linear relation between regression variables.
+            y = a*x + b
+        where a and b be are regression constants.
+    LOG : str
+        Assume power law relation between the regression variables.
+            y = b*x**a
+        where a and b be are regression constants.
+    XLOG : str
+        Assume an exponential relationship between the regression variables.
+            y = b*exp(a*x)
+        where a and b be are regression constants.
+    YLOG : str
+        Assume a logarithmic relation between the regression variables.
+            y = b*ln(a*x)
+        where a and b be are regression constants.
+    """
+
+    LINEAR = "LINEAR"
+    LOG = "LOG"
+    XLOG = "XLOG"
+    YLOG = "YLOG"
+
+    def estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+        """
+        Perform single variable OLS regression on the provided data.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x: numpy.ndarray[float]
+            Variable
+ 
+        Return
+        ------
+        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+            OLS report and result model.
+        """
+
+        report = self.___OLS_fit(y, x)
+        return report, self.__result_from_report(report)
+
+    def __result_from_report(self, report: sm.regression.linear_model.RegressionResults) -> OLSSingleVarResult:
+        """
+        Create an OLS result model from the returned report.
+
+        Parameters
+        ----------
+        report: sm.regression.linear_model.RegressionResults
+            OLS results report.
+ 
+        Return
+        ------
+        OLSSingleVarResult
+            OLS result model.
+        """
+        
+        const = ParamEst.from_dict({"Estimate": report.params[0],
+                                    "Error": report.bse[0]})
+        param = ParamEst.from_dict({"Estimate": report.params[1],
+                                    "Error": report.bse[1]})
+        r2 = report.rsquared
+        return OLSSingleVarResult(const, param, r2)
+    
+    def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
+        """ 
+        Create statsmodels OLS object using specified samples assuming a single dependent variable.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x: numpy.ndarray[float]
+            Variable
+
+        Returns
+        -------
+        sm.OLS
+            OLS object
+        """
+
+        if self.value == OLSSingleVariable.LOG.value:
+            x = numpy.log10(x)
+            y = numpy.log10(y)
+
+        x = sm.add_constant(x)
+        return sm.OLS(y, x, missing='drop').fit()
 
 class ARMAEstType(str, Enum):
     """
