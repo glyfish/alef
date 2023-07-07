@@ -1,6 +1,5 @@
-from matplotlib import pyplot
 import numpy
-from typing import Callable
+from matplotlib import pyplot
 
 from lib.utils import get_param_default_if_missing
 from lib.plots import comp
@@ -61,7 +60,7 @@ def periodogram(data: numpy.ndarray[float], results: OLSSingleVarResult, x: nump
     x_text = 0.1 if H > 0.5 else 0.8
     y_text = 0.1
 
-    legend_loc = "best"
+    legend_loc = "upper right" if H > 0.5 else "upper left"
 
     labels = ["Power Spectrum", transform.model]
     xlabel = r"$\omega$"
