@@ -56,12 +56,14 @@ def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return t, numpy.sqrt(var)
 
-def compute_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_var(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical FBM motion variance.
 
     Parameters
     ----------
+    t: numpy.ndarray[float]
+        Time.
     H: float
         Hurst parameter.
     npts: int
@@ -82,7 +84,8 @@ def compute_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_default_if_missing("npts", None, **kwargs)
 
-    t = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
+    if t is None:
+        t = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
 
     return t, fbm.var(H, t)
 
@@ -145,7 +148,7 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return t, fbm.cov(H, s, t)
 
-def compute_variance_ratio(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_variance_ratio(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM variance ratio for zero lag. For brownian motion the variance ration is 1. If the 
     variance ration is less than one the samples are anticorrelated in time and if it 
@@ -153,6 +156,8 @@ def compute_variance_ratio(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
 
     Parameters
     ----------
+    t: numpy.ndarray[float]
+        Time. (default None)
     H: float
         Hurst parameter.
     npts: int
@@ -171,7 +176,8 @@ def compute_variance_ratio(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
     tmax = get_param_default_if_missing("tmax", None, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    t = create_space(xmin=0, xmax=tmax, npts=npts, Δx=Δt)
+    if t is None:
+        t = create_space(xmin=0, xmax=tmax, npts=npts, Δx=Δt)
 
     return t, t**(2*H - 1.0)
 
