@@ -5,7 +5,9 @@ import statsmodels.api as sm
 from lib.models import fbm
 
 from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSSingleVariable)
-from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, create_space, get_s_vals)
+from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, HypothesisTestType, HypothesisType)
+from lib.data.reports import VarianceRatioTestReport
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, create_space, get_s_vals, verify_type)
 
 
 def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -473,54 +475,98 @@ def __add_agg_var_transform(result: OLSSingleVarResult):
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
-# ##################################################################################################################
-# # Perform test forspecified implementaion
-# def _perform_test_for_impl(x, y, test_type, impl_type, **kwargs):
-#     if impl_type.value == FBM._TestImpl.VR_TWO_TAILED.value:
-#         return _vr_test(y, TestHypothesis.TWO_TAIL, test_type, impl_type, **kwargs)
-#     elif impl_type.value == FBM._TestImpl.VR_LOWER_TAIL.value:
-#         return _vr_test(y, TestHypothesis.LOWER_TAIL, test_type, impl_type, **kwargs)
-#     elif impl_type.value == FBM._TestImpl.VR_UPPER_TAIL.value:
-#         return _vr_test(y, TestHypothesis.UPPER_TAIL, test_type, impl_type, **kwargs)
-#     else:
-#         raise Exception(f"Test type is invalid: {self}")
+def compute_bm_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    """
+    Use variance ratio test to test for brownian motion.
 
-# # _TestImpl.VR_TWO_TAILED, _TestImpl.VR_LOWER_TAIL, _TestImpl.VR_UPPER_TAIL.value
-# def _vr_test(y, hypo_type, test_type, impl_type, **kwargs):
-#     sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
-#     s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
-#     verify_type(s, list)
-#     result = fbm.vr_test(y, s, sig_level, hypo_type)
-#     return result, _vr_report_from_result(result, test_type, impl_type)
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        samples to be tested.
+    sig_level: float
+        Significance level used in test (default 0.1).
+    s: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
 
-# ##################################################################################################################
-# # Construct test report from result object
-# def _vr_report_from_result(result, test_type, impl_type):
-#     sig = TestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
-#     s_vals = [TestParam(label=r"$s$", value=s) for s in result.s_vals]
-#     stats = [TestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
-#     pvals = [TestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
-#     lower = result.critical_values[0]
-#     if lower is not None:
-#         lower = TestParam(label=r"$Z_L(s)$", value=lower)
-#     upper = result.critical_values[1]
-#     if upper is not None:
-#         upper = TestParam(label=r"$Z_U(s)$", value=upper)
-#     test_data = []
-#     for i in range(len(s_vals)):
-#         data = TestData(status=result.status_vals[i],
-#                         stat=stats[i],
-#                         pval=pvals[i],
-#                         params=[s_vals[i]],
-#                         sig=sig,
-#                         lower=lower,
-#                         upper=upper)
-#         test_data.append(data)
-#     return TestReport(status=test_type.status(result.status_vals),
-#                       hyp_type=result.hyp_type,
-#                       test_type=test_type,
-#                       impl_type=impl_type,
-#                       test_data=test_data,
-#                       dist=Dist.NORMAL,
-#                       loc=0.0,
-#                       scale=1.0)
+    Returns
+    -------
+    Tuple[VarianceRatioTestReport, StatisticalTestReport]
+        Test report and result model.
+    """
+
+    return __vr_test(samples, HypothesisType.TWO_TAIL, **kwargs)
+
+def compute_auto_corr_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    """
+    Use variance ratio test to test for correlated fractional brownian motion.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        samples to be tested.
+    sig_level: float
+        Significance level used in test (default 0.1).
+    s: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
+
+    Returns
+    -------
+    Tuple[VarianceRatioTestReport, StatisticalTestReport]
+        Test report and result model.
+    """
+
+    return __vr_test(samples, HypothesisType.UPPER_TAIL, **kwargs)
+
+def compute_auto_anti_corr_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    """
+    Use variance ratio test to test for anti-correlated fractional brownian motion.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        samples to be tested.
+    sig_level: float
+        Significance level used in test (default 0.1).
+    s: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
+
+    Returns
+    -------
+    Tuple[VarianceRatioTestReport, StatisticalTestReport]
+        Test report and result model.
+    """
+
+    return __vr_test(samples, HypothesisType.LOWER_TAIL, **kwargs)
+
+def __vr_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
+    s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
+    verify_type(s, list)
+    result = fbm.vr_test(samples, s, sig_level, hyp_type)
+    return result, __vr_report_from_result(result)
+
+def __vr_report_from_result(result: VarianceRatioTestReport) -> StatisticalTestReport:
+    sig = StatisticalTestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
+    s_vals = [StatisticalTestParam(label=r"$s$", value=s) for s in result.s_vals]
+    stats = [StatisticalTestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
+    pvals = [StatisticalTestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
+    lower = result.critical_values[0]
+    if lower is not None:
+        lower = StatisticalTestParam(label=r"$Z_L(s)$", value=lower)
+    upper = result.critical_values[1]
+    if upper is not None:
+        upper = StatisticalTestParam(label=r"$Z_U(s)$", value=upper)
+    test_data = []
+    for i in range(len(s_vals)):
+        data = StatisticalTestData(status=result.status_vals[i],
+                                   stat=stats[i],
+                                   pval=pvals[i],
+                                   params=[s_vals[i]],
+                                   sig=sig,
+                                   lower=lower,
+                                   upper=upper)
+        test_data.append(data)
+    return StatisticalTestReport(status=result.hyp_test_type.status(result.status_vals),
+                                 hyp_type=result.hyp_type,
+                                 hyp_test_type=result.hyp_test_type,
+                                 test_data=test_data)

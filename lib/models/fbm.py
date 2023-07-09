@@ -5,11 +5,12 @@ Simulation and analysis of Fractional brownian motion.
 """
 
 import numpy
+from scipy.stats import norm
 
 from lib.models import bm
 from lib import stats
 from lib.data.reports import VarianceRatioTestReport
-
+from lib.data.hyp_test import HypothesisType, HypothesisTestType
 
 def var(H: float, t: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -256,41 +257,178 @@ def generate_fft(H: float, n:int, dB: numpy.ndarray[float]=None) ->  numpy.ndarr
         Z[i] = Z[i - 1] + dZ[i]
     return Z
 
-# The homoscedastic test statistic is used n the analysis.
-# def vr_test(samples, s_vals=[4, 6, 10, 16, 24], sig_level=0.1, hyp_type=TestHypothesis.TWO_TAIL):
-#     test_stats = [vr_stat_homo(samples, s) for s in s_vals]
-#     if hyp_type.value == TestHypothesis.TWO_TAIL.value:
-#         return _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type)
-#     elif hyp_type.value == TestHypothesis.UPPER_TAIL.value:
-#         return _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type)
-#     elif hyp_type.value == TestHypothesis.LOWER_TAIL.value:
-#         return _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type)
-#     else:
-#         raise Exception(f"Hypothesis test type is invalid: {hyp_type}")
+def vr_homo_test(samples: numpy.ndarray[float], s_vals: list[int]=[4, 6, 10, 16, 24], sig_level: float=0.1, hyp_type: HypothesisType=HypothesisType.TWO_TAIL) -> VarianceRatioTestReport:
+    """
+    Perform homoscedasticity variance ratio test on given samples using provided parameters.
 
-# # perform two tail variance ratio test
-# def _var_test_two_tail(test_stats, s_vals, sig_level, hyp_type):
-#     sig_level = sig_level/2.0
-#     dist = Dist.NORMAL.create()
-#     lower_critical_value = dist.ppf(sig_level)
-#     upper_critical_value = dist.ppf(1.0 - sig_level)
-#     p_values = [2.0*(1.0 - dist.cdf(numpy.abs(stat))) for stat in test_stats]
-#     return VarianceRatioTestReport(2.0*sig_level, hyp_type, s_vals, test_stats,
-#                                    p_values, [lower_critical_value, upper_critical_value])
+    Parameters
+    ----------
+    Samples: numpy.ndarray[float]
+        samples to be tested.
+    sig_level: float
+        Significance level used in test (default 0.1).
+    s: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
+    hyp_type: HypothesisType
+        Hypothesis type. (default HypothesisType.TWO_TAIL)
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
 
-# # perform upper tail variance ratio test
-# def _var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type):
-#     dist = Dist.NORMAL.create()
-#     upper_critical_value = dist.ppf(1.0 - sig_level)
-#     p_values = [1.0 - dist.cdf(stat) for stat in test_stats]
-#     return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [None, upper_critical_value])
+    test_stats = vr_stat_homo_scan(samples, s_vals)
+    return __vr_test(test_stats, s_vals, sig_level, hyp_type)
 
-# # perform lower tail variance ratio test
-# def _var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type):
-#     dist = Dist.NORMAL.create()
-#     lower_critical_value = dist.ppf(sig_level)
-#     p_values = [dist.cdf(stat) for stat in test_stats]
-#     return VarianceRatioTestReport(sig_level, hyp_type, s_vals, test_stats, p_values, [lower_critical_value, None])
+def vr_hetero_test(samples: numpy.ndarray[float], s_vals: list[int]=[4, 6, 10, 16, 24], sig_level: float=0.1, hyp_type: HypothesisType=HypothesisType.TWO_TAIL) -> VarianceRatioTestReport:
+    """
+    Perform heteroscedasticity variance ratio test on given samples using provided parameters.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples to be tested.
+    sig_level: float
+        Significance level used in test (default 0.1).
+    s: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
+    hyp_type: HypothesisType
+        Hypothesis type. (default HypothesisType.TWO_TAIL)
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
+
+    test_stats = vr_stat_hetero_scan(samples, s_vals)
+    return __vr_test(test_stats, s_vals, sig_level, hyp_type)
+
+def __vr_test(test_stats: numpy.ndarray[float], s_vals: list[int]=[4, 6, 10, 16, 24], sig_level: float=0.1, hyp_type: HypothesisType=HypothesisType.TWO_TAIL) -> VarianceRatioTestReport:    
+    """
+    Perform variance ratio test analysis on provided test statistics using given parameters.
+
+    Parameters
+    ----------
+    test_stats: numpy.ndarray[float]
+        samples to be tested.
+    s_vals: list[int]
+        Lag values used in analysis (default [4, 6, 10, 16, 24]).
+    sig_level: float
+        Significance level used in test (default 0.1).
+    hyp_type: HypothesisType
+        Hypothesis type. (default HypothesisType.TWO_TAIL)
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
+
+    if hyp_type.value == HypothesisType.TWO_TAIL.value:
+        return __var_test_two_tail(test_stats, s_vals, sig_level, hyp_type)
+    elif hyp_type.value == HypothesisType.UPPER_TAIL.value:
+        return __var_test_upper_tail(test_stats, s_vals, sig_level, hyp_type)
+    elif hyp_type.value == HypothesisType.LOWER_TAIL.value:
+        return __var_test_lower_tail(test_stats, s_vals, sig_level, hyp_type)
+    else:
+        raise Exception(f"Hypothesis test type is invalid: {hyp_type}")
+
+def __var_test_two_tail(test_stats: list[float], s_vals: list[int], sig_level: float, hyp_type: HypothesisType) -> VarianceRatioTestReport:
+    """
+    Perform two tailed variance ratio test analysis on provided test statistics using given parameters.
+
+    Parameters
+    ----------
+    test_stats: numpy.ndarray[float]
+        samples to be tested.
+    s_vals: list[int]
+        Lag values used in analysis.
+    sig_level: float
+        Significance level used in test.
+    hyp_type: HypothesisType
+        Hypothesis type.
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
+
+    sig_level = sig_level/2.0
+    lower_critical_value = norm.ppf(sig_level)
+    upper_critical_value = norm.ppf(1.0 - sig_level)
+    p_values = [2.0*(1.0 - norm.cdf(numpy.abs(stat))) for stat in test_stats]
+    return VarianceRatioTestReport(2.0*sig_level, 
+                                   hyp_type,
+                                   HypothesisTestType.BM, 
+                                   s_vals, 
+                                   test_stats,
+                                   p_values, 
+                                   [lower_critical_value, upper_critical_value])
+
+def __var_test_upper_tail(test_stats: list[float], s_vals: list[int], sig_level: float, hyp_type: HypothesisType) -> VarianceRatioTestReport:
+    """
+    Perform upper tailed variance ratio test analysis on provided test statistics using given parameters.
+
+    Parameters
+    ----------
+    test_stats: numpy.ndarray[float]
+        samples to be tested.
+    s_vals: list[int]
+        Lag values used in analysis.
+    sig_level: float
+        Significance level used in test.
+    hyp_type: HypothesisType
+        Hypothesis type.
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
+
+    upper_critical_value = norm.ppf(1.0 - sig_level)
+    p_values = [1.0 - norm.cdf(stat) for stat in test_stats]
+    return VarianceRatioTestReport(sig_level, 
+                                   hyp_type, 
+                                   HypothesisTestType.FBM_AUTO_CORR, 
+                                   s_vals, 
+                                   test_stats, 
+                                   p_values,
+                                   [None, upper_critical_value])
+
+def __var_test_lower_tail(test_stats: list[float], s_vals: list[int], sig_level: float, hyp_type: HypothesisType) -> VarianceRatioTestReport:
+    """
+    Perform lower tailed variance ratio test analysis on provided test statistics using given parameters.
+
+    Parameters
+    ----------
+    test_stats: numpy.ndarray[float]
+        samples to be tested.
+    s_vals: list[int]
+        Lag values used in analysis.
+    sig_level: float
+        Significance level used in test.
+    hyp_type: HypothesisType
+        Hypothesis type.
+    
+    Returns
+    -------
+    VarianceRatioTestReport
+        Test report.
+    """
+
+    lower_critical_value = norm.ppf(sig_level)
+    p_values = [norm.cdf(stat) for stat in test_stats]
+    return VarianceRatioTestReport(sig_level, 
+                                   hyp_type, 
+                                   HypothesisTestType.FBM_NEG_AUTO_CORR, 
+                                   s_vals, 
+                                   test_stats, 
+                                   p_values, 
+                                   [lower_critical_value, None])
 
 def vr_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> numpy.ndarray[float]:
     """

@@ -212,25 +212,26 @@ class StatisticalTestReport:
         desired result is the alternative hypothesis not the null hypothesis.
     hyp_type: HypothesistType
         Hypothesis test type performed (two tailed, upper tail or lower tail).
-    test_type: HypothesisTestType
+    hyp_test_type: HypothesisTestType
         Type of hypothesis test performed.
-    test_data: StatisticalTestData
+    test_data: list[StatisticalTestData]
         Results from test.
     """
 
     def __init__(self, 
                  status: bool, 
                  hyp_type: HypothesisType, 
-                 test_type: HypothesisTestType, 
-                 test_data: StatisticalTestData):
+                 hyp_test_type: HypothesisTestType, 
+                 test_data: list[StatisticalTestData]):
         self.status = status
         self.hyp_type = hyp_type
-        self.test_type = test_type
+        self.hyp_test_type = hyp_test_type
         self.test_data = test_data
-        self.desc = test_type.desc()
+        self.desc = hyp_test_type.desc()
+        print(test_data)
         self.dict = {"Status": status,
                      "HypothesisType": hyp_type,
-                     "TestType": test_type,
+                     "HypothesisTestType": hyp_test_type,
                      "Description": self.desc,
                      "TestData": [data.dict for data in test_data]}
 
@@ -253,8 +254,6 @@ class StatisticalTestReport:
     @classmethod
     def from_dict(cls, dict):
         return StatisticalTestReport(status=dict["Status"],
-                          hyp_type=dict["HypothesisType"],
-                          test_type=dict["TestType"],
-                          impl_type=dict["ImplType"],
-                          desc=dict["Description"],
-                          test_data=[StatisticalTestData.from_dict(data) for data in dict["TestData"]])
+                                     hyp_type=dict["HypothesisType"],
+                                     hyp_test_type=dict["TestType"],
+                                     test_data=[StatisticalTestData.from_dict(data) for data in dict["TestData"]])

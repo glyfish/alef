@@ -1,14 +1,36 @@
 from tabulate import tabulate
 import numpy
 
+from lib.data.hyp_test import HypothesisTestType, HypothesisType
+
 class VarianceRatioTestReport:
     """
     Formatted text report of Lo and Mackinlay variance ratio test results.
+
+    Properties
+    ----------
+    sig_level: float
+        Significance level of test.
+    hyp_type: HypothesisTestType
+        Test hypothesis type. Possible values (BM, FBM_AUTO_CORR, FBM_NEG_AUTO_CORR)
+    s_vals: list[int]
+        Lag values used in used in test.
+    stats: list[float]
+        Test statistic values.
+    p_vals: list[float]
+        Probability values of test statistics.
+    critical_values: list[float]
+        Critical values used in test. Index 0 is the lower tail critical value and 
+        index 1 the upper tail critical value.
+    status_vals: list[bool]
+        Test status for different values of lag, s.
     """
 
-    def __init__(self, sig_level, hyp_type, s_vals, stats, p_vals, critical_values):
+    def __init__(self, sig_level: float, hyp_type: HypothesisType, hyp_test_type: HypothesisTestType, s_vals: list[int], 
+                 stats: list[float], p_vals: list[float], critical_values: list[float]):
         self.sig_level = sig_level
         self.hyp_type = hyp_type
+        self.hyp_test_type = hyp_test_type
         self.s_vals = s_vals
         self.stats = stats
         self.p_vals = p_vals
@@ -32,10 +54,14 @@ class VarianceRatioTestReport:
                f"s_vals={self.s_vals}, " \
                f"stats={self.stats}, " \
                f"p_vals={self.p_vals}, " \
+               f"hyp_type={self.hyp_type.value}, " \
+               f"hyp_test_type={self.hyp_test_type.value}, " \
                f"critical_values={self.critical_values}"
 
     def _header(self, tablefmt):
-        header = [["Hypothesis Type", self.hyp_type], ["Significance", f"{int(100.0*self.sig_level)}%"]]
+        header = [["Hypothesis Type", self.hyp_type], 
+                  ["Hypothesis Test Type", self.hyp_test_type], 
+                  ["Significance", f"{int(100.0*self.sig_level)}%"]]
         if self.critical_values[0] is not None:
             header.append(["Lower Critical Value", format(self.critical_values[0], '1.3f')])
         if self.critical_values[1] is not None:

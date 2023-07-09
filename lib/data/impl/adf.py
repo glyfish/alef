@@ -81,7 +81,7 @@ def compute_adf_drift_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport
     result = adf.adf_test_drift(samples)
     return result, __adf_report_from_result(result, HypothesisTestType.STATIONARITY_DRIFT)
 
-def __adf_report_from_result(result: ADFTestReport, test_type: HypothesisTestType) -> StatisticalTestReport:
+def __adf_report_from_result(result: ADFTestReport, hyp_test_type: HypothesisTestType) -> StatisticalTestReport:
     """
     Perform ADF test on provided samples.
 
@@ -110,7 +110,7 @@ def __adf_report_from_result(result: ADFTestReport, test_type: HypothesisTestTyp
                                    lower=lower_vals[i],
                                    upper=None)
         test_data.append(data)
-    return StatisticalTestReport(status=test_type.status(result.status_vals),
-                      hyp_type=HypothesisType.LOWER_TAIL,
-                      test_type=test_type,
-                      test_data=test_data)
+    return StatisticalTestReport(status=hyp_test_type.status(result.status_vals),
+                                 hyp_type=HypothesisType.LOWER_TAIL,
+                                 hyp_test_type=hyp_test_type,
+                                 test_data=test_data)
