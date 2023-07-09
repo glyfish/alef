@@ -150,7 +150,7 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return t, fbm.cov(H, s, t)
 
-def compute_variance_ratio(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_vr(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM variance ratio for zero lag. For brownian motion the variance ration is 1. If the 
     variance ration is less than one the samples are anticorrelated in time and if it 
@@ -183,7 +183,7 @@ def compute_variance_ratio(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[nump
 
     return t, t**(2*H - 1.0)
 
-def compute_variance_ratio_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_vr_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM variance ratio for specified lags. The lag values, s, can be
     entered or generated. Use the svals keyword to specify values and linear, smin,
@@ -212,7 +212,7 @@ def compute_variance_ratio_scan(samples: numpy.ndarray[float], **kwargs) -> Tupl
     s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_scan(samples, s_vals)
 
-def compute_variance_ratio_homo_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_homo_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM homoscedastic variance ratio test statistic for specified lags. 
     The lag values, s, can be entered or generated. Use the svals keyword to specify 
@@ -241,7 +241,7 @@ def compute_variance_ratio_homo_stat_scan(samples: numpy.ndarray[float], **kwarg
     s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_stat_homo_scan(samples, s_vals)
 
-def compute_variance_ratio_hetero_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_hetero_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM heteroscedastic variance ratio test statistic for specified lags. 
     The lag values, s, can be entered or generated. Use the svals keyword to specify 
@@ -475,7 +475,7 @@ def __add_agg_var_transform(result: OLSSingleVarResult):
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
-def compute_bm_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+def compute_vr_test(samples: numpy.ndarray[float], hyp_test_type: HypothesisTestType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     """
     Use variance ratio test to test for brownian motion.
 
@@ -483,6 +483,8 @@ def compute_bm_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRa
     ----------
     samples: numpy.ndarray[float]
         samples to be tested.
+    hyp_test_type: HypothesisTestType
+        Hypothesis test performed,
     sig_level: float
         Significance level used in test (default 0.1).
     s: list[int]
@@ -494,16 +496,26 @@ def compute_bm_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRa
         Test report and result model.
     """
 
-    return __vr_test(samples, HypothesisType.TWO_TAIL, **kwargs)
+    if hyp_test_type.value == HypothesisTestType.BM.value:
+        return __vr_homo_test(samples, HypothesisType.TWO_TAIL, **kwargs)
+    elif hyp_test_type.value == HypothesisTestType.FBM_AUTO_CORR.value:
+        return __vr_homo_test(samples, HypothesisType.UPPER_TAIL, **kwargs)
+    elif hyp_test_type.value == HypothesisTestType.FBM_NEG_AUTO_CORR.value:
+        return __vr_homo_test(samples, HypothesisType.LOWER_TAIL, **kwargs)
+    else:
+        raise Exception(f"Hypothesis test type is invalid: {hyp_test_type}")
 
-def compute_auto_corr_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+
+def compute_hetero_vr_test(samples: numpy.ndarray[float], hyp_test_type: HypothesisTestType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     """
-    Use variance ratio test to test for correlated fractional brownian motion.
+    Use variance ratio test to test for brownian motion.
 
     Parameters
     ----------
     samples: numpy.ndarray[float]
         samples to be tested.
+    hyp_test_type: HypothesisTestType
+        Hypothesis test performed,
     sig_level: float
         Significance level used in test (default 0.1).
     s: list[int]
@@ -515,34 +527,27 @@ def compute_auto_corr_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[Var
         Test report and result model.
     """
 
-    return __vr_test(samples, HypothesisType.UPPER_TAIL, **kwargs)
+    if hyp_test_type.value == HypothesisTestType.BM.value:
+        return __vr_hetero_test(samples, HypothesisType.TWO_TAIL, **kwargs)
+    elif hyp_test_type.value == HypothesisTestType.FBM_AUTO_CORR.value:
+        return __vr_hetero_test(samples, HypothesisType.UPPER_TAIL, **kwargs)
+    elif hyp_test_type.value == HypothesisTestType.FBM_NEG_AUTO_CORR.value:
+        return __vr_hetero_test(samples, HypothesisType.LOWER_TAIL, **kwargs)
+    else:
+        raise Exception(f"Hypothesis test type is invalid: {hyp_test_type}")
 
-def compute_auto_anti_corr_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
-    """
-    Use variance ratio test to test for anti-correlated fractional brownian motion.
-
-    Parameters
-    ----------
-    samples: numpy.ndarray[float]
-        samples to be tested.
-    sig_level: float
-        Significance level used in test (default 0.1).
-    s: list[int]
-        Lag values used in analysis (default [4, 6, 10, 16, 24]).
-
-    Returns
-    -------
-    Tuple[VarianceRatioTestReport, StatisticalTestReport]
-        Test report and result model.
-    """
-
-    return __vr_test(samples, HypothesisType.LOWER_TAIL, **kwargs)
-
-def __vr_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+def __vr_homo_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
     s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
     verify_type(s, list)
-    result = fbm.vr_test(samples, s, sig_level, hyp_type)
+    result = fbm.vr_homo_test(samples, s, sig_level, hyp_type)
+    return result, __vr_report_from_result(result)
+
+def __vr_hetero_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
+    s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
+    verify_type(s, list)
+    result = fbm.vr_hetero_test(samples, s, sig_level, hyp_type)
     return result, __vr_report_from_result(result)
 
 def __vr_report_from_result(result: VarianceRatioTestReport) -> StatisticalTestReport:

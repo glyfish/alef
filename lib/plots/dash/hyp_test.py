@@ -9,6 +9,7 @@ from lib.data.reports import VarianceRatioTestReport
 def variance_ratio_test(report: VarianceRatioTestReport, **kwargs):
     title = get_param_default_if_missing("title", "Variance Ratio Test", **kwargs)
     npts  = get_param_default_if_missing("npts", 100, **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     test_stats = report.stats
     x_vals = [-5.0, 5.0]
@@ -40,13 +41,14 @@ def variance_ratio_test(report: VarianceRatioTestReport, **kwargs):
         upper_critical_value = norm.ppf(1.0 - sig_level)
         upper_label = f"Upper Tail={format(1.0 - sig_level, '1.3f')}"
 
-    _, axis = pyplot.subplots(figsize=(12, 8))
+    _, axis = pyplot.subplots(figsize=figsize)
 
     text = axis.text(x_vals[0], 0.05*y_vals[-1], f"Significance={format(100.0*sig_level, '2.0f')}%", fontsize=18)
     text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
     axis.set_ylim([-0.05, 1.05])
 
+    axis.set_title(title)
     axis.set_ylabel("Normal(CDF)")
     axis.set_xlabel(r"$Z(s)$")
 

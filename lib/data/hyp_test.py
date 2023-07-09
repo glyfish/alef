@@ -228,7 +228,6 @@ class StatisticalTestReport:
         self.hyp_test_type = hyp_test_type
         self.test_data = test_data
         self.desc = hyp_test_type.desc()
-        print(test_data)
         self.dict = {"Status": status,
                      "HypothesisType": hyp_type,
                      "HypothesisTestType": hyp_test_type,

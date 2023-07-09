@@ -206,7 +206,7 @@ def apply_to_ensemble(func, t: numpy.ndarray[float], ensemble: list[numpy.ndarra
     ensemble: list[numpy.ndarray[float]]
         Ensemble data
     kwargs : **kwargs
-       Functions parameters.
+       Function parameters.
 
     Returns
     -------
@@ -217,9 +217,9 @@ def apply_to_ensemble(func, t: numpy.ndarray[float], ensemble: list[numpy.ndarra
     result = [func(t, data, **kwargs) for data in ensemble]
     return result[0][0], numpy.array([data[1] for data in result])
 
-def apply_to_parameter_scan(func, t: numpy.ndarray[float], scan: list[numpy.ndarray[float]], *args) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
+def apply_to_parameter_scan(func, t: numpy.ndarray[float], scan: list[numpy.ndarray[float]],  **kwargs) -> Tuple[numpy.ndarray[float], list[numpy.ndarray[float]]]:
     """
-    Apply specified function to results of a parameter scan..
+    Apply specified function to results of a parameter scan.
     
     Parameters
     ----------
@@ -228,9 +228,9 @@ def apply_to_parameter_scan(func, t: numpy.ndarray[float], scan: list[numpy.ndar
     t: numpy.ndarray[float]
         Time
     scan : list[numpy.ndarray[float]]
-        Parameter scan data..
-    args : *args
-        Array of parameter scan kwargs
+        Parameter scan data.
+    kwargs : **kwargs
+       Function parameters.
 
     Returns
     -------
@@ -238,7 +238,7 @@ def apply_to_parameter_scan(func, t: numpy.ndarray[float], scan: list[numpy.ndar
         List of function results.
     """
 
-    result = [func(t, scan, **kwargs) for kwargs in args]
+    result = [func(t, data, **kwargs) for data in scan]
     return result[0][0], numpy.array([data[1] for data in result])
 
 def get_s_vals(**kwargs) -> list[int]:
