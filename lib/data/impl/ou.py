@@ -1,3 +1,9 @@
+"""
+lib.data.impl.ou.py
+
+Simulation and analysis of the Ornstein-Uhlenbeck process.
+"""
+
 from enum import Enum
 import uuid
 import numpy
@@ -74,35 +80,6 @@ class OU:
             else:
                 raise Exception(f"Estimate type is invalid: {self}")
 
-###################################################################################################
-## create DataFunc for func_type
-###################################################################################################
-def _create_func(func_type, **kwargs):
-    if func_type.value == OU.Func.MEAN.value:
-        return _create_ou_mean(func_type, **kwargs)
-    elif func_type.value == OU.Func.MEAN_LIMIT.value:
-        return _create_ou_mean_limit(func_type, **kwargs)
-    elif func_type.value == OU.Func.VAR.value:
-        return _create_ou_var(func_type, **kwargs)
-    elif func_type.value == OU.Func.VAR_LIMIT.value:
-        return _create_ou_var_limit(func_type, **kwargs)
-    elif func_type.value == OU.Func.COV.value:
-        return _create_ou_cov(func_type, **kwargs)
-    elif func_type.value == OU.Func.COV_LIMIT.value:
-        return _create_ou_cov_limit(func_type, **kwargs)
-    elif func_type.value == OU.Func.PDF.value:
-        return _create_ou_pdf(func_type, **kwargs)
-    elif func_type.value == OU.Func.CDF.value:
-        return _create_ou_cdf(func_type, **kwargs)
-    elif func_type.value == OU.Func.PDF_LIMIT.value:
-        return _create_ou_pdf_limit(func_type, **kwargs)
-    elif func_type.value == OU.Func.CDF_LIMIT.value:
-        return _create_ou_cdf_limit(func_type, **kwargs)
-    else:
-        Exception(f"Func is invalid: {func_type}")
-
-###################################################################################################
-# Func.MEAN
 def _create_ou_mean(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -121,7 +98,6 @@ def _create_ou_mean(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.MEAN_LIMIT
 def _create_ou_mean_limit(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -138,7 +114,6 @@ def _create_ou_mean_limit(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.VAR
 def _create_ou_var(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -156,7 +131,6 @@ def _create_ou_var(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.VAR_LIMIT
 def _create_ou_var_limit(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
@@ -174,7 +148,6 @@ def _create_ou_var_limit(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.COV
 def _create_ou_cov(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
@@ -196,7 +169,6 @@ def _create_ou_cov(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.COV_LIMIT
 def _create_ou_cov_limit(func_type, **kwargs):
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
@@ -215,7 +187,6 @@ def _create_ou_cov_limit(func_type, **kwargs):
                     fy=fy,
                     fx=fx)
 
-# Func.PDF
 def _create_ou_pdf(func_type, **kwargs):
     t = get_param_throw_if_missing("t", **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -233,7 +204,6 @@ def _create_ou_pdf(func_type, **kwargs):
                     desc="Ornstein-Uhlenbeck PDF",
                     fy=fy)
 
-# Func.CDF
 def _create_ou_cdf(func_type, **kwargs):
     t = get_param_throw_if_missing("t", **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -251,7 +221,6 @@ def _create_ou_cdf(func_type, **kwargs):
                     desc="Ornstein-Uhlenbeck CDF",
                     fy=fy)
 
-# Func.PDF_LIMIT
 def _create_ou_pdf_limit(func_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
@@ -268,7 +237,6 @@ def _create_ou_pdf_limit(func_type, **kwargs):
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ PDF",
                     fy=fy)
 
-# Func.CDF_LIMIT
 def _create_ou_cdf_limit(func_type, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
@@ -285,7 +253,6 @@ def _create_ou_cdf_limit(func_type, **kwargs):
                     desc=r"Ornstein-Uhlenbeck $t\to \infty$ CDF",
                     fy=fy)
 
-# Func.MEAN_HALF_LIFE
 def _create_ou_mean_half_life(func_type, **kwargs):
     fy = lambda x, y : ou.mean_halflife(x)
     return DataFunc(func_type=func_type,
@@ -297,19 +264,6 @@ def _create_ou_mean_half_life(func_type, **kwargs):
                     desc=r"Ornstein-Uhlenbeck Half-Life of Mean Decay",
                     fy=fy)
 
-###################################################################################################
-## create DataSource object for source_type
-###################################################################################################
-def _create_data_source(source_type, x, **kwargs):
-    if source_type.value == OU.Source.XT.value:
-        return _create_xt_source(source_type, x, **kwargs)
-    elif source_type.value == OU.Source.PROC.value:
-        return _create_proc_source(source_type, x, **kwargs)
-    else:
-        raise Exception(f"Source type is invalid: {source_type}")
-
-###################################################################################################
-# Source.XT
 def _create_xt_source(source_type, x, **kwargs):
     t = get_param_throw_if_missing("t", **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
@@ -327,7 +281,6 @@ def _create_xt_source(source_type, x, **kwargs):
                       f=f,
                       x=x)
 
-# Source.PROC
 def _create_proc_source(source_type, x, **kwargs):
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
