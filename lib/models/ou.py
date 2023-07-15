@@ -103,6 +103,25 @@ def var(λ: float, t: float, σ: float=1.0) -> float:
 
     return (σ**2/(2.0*λ))*(1.0 - numpy.exp(-2.0*λ*t))
 
+def var_limit(λ: float, σ: float=1.0) -> float:
+    """
+    Limit as t -> infinity of variance.
+
+    Parameters
+    ----------
+    λ: float
+        Mean reversion rate.
+    σ: float
+        Standard deviation of random component.
+
+    Returns
+    -------
+    float
+        Limiting variance.
+    """
+
+    return  -σ**2/(2.0 * λ)
+
 def cov(λ: float, s: float, t: numpy.ndarray[float], σ: float=1.0) -> numpy.ndarray[float]:
     """
     Covariance of Ornstein-Uhlenbeck process.
@@ -126,23 +145,6 @@ def cov(λ: float, s: float, t: numpy.ndarray[float], σ: float=1.0) -> numpy.nd
 
     c = numpy.exp(-λ*(t - s)) - numpy.exp(-λ*(t + s))
     return σ**2*c/(2.0*λ)
-
-def var_limit(λ: float, σ: float=1.0) -> float:
-    """
-    Limit as t -> infinity of variance.
-
-    λ: float
-        Mean reversion rate.
-    σ: float
-        Standard deviation of random component.
-
-    Returns
-    -------
-    float
-        Limiting variance.
-    """
-
-    return  -σ**2/(2.0 * λ)
 
 def pdf(x: numpy.ndarray[float], μ: float, λ: float, t: float, σ: float=1.0, x0: float=0.0) -> numpy.ndarray[float]:
     """
@@ -214,8 +216,6 @@ def pdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0) -> n
         Drift coefficient.
     λ: float
         Mean reversion rate.
-    t: float
-        Time
     σ: float
         Standard deviation of random component.
 
@@ -240,8 +240,6 @@ def cdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0, x0: 
         Drift coefficient.
     λ: float
         Mean reversion rate.
-    t: float
-        Time
     σ: float
         Standard deviation of random component.
 
@@ -294,7 +292,6 @@ def xt(μ: float, λ: float, t: float, σ: float=1.0, x0: float=0, n: int=1) -> 
     -------
     numpy.ndarray[float]
         Simulation of modeled variable at specified time using given parameters.
-
     """
 
     μt = mean(μ, λ, t, x0)

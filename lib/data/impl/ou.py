@@ -4,317 +4,441 @@ lib.data.impl.ou.py
 Simulation and analysis of the Ornstein-Uhlenbeck process.
 """
 
-from enum import Enum
+from typing import Tuple
 import uuid
 import numpy
 
 from lib.models import ou
 
-from lib.data.func import (DataFunc, FuncBase)
-from lib.data.schema import (DataType)
-from lib.data.source import (DataSource, SourceBase)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space, create_logspace)
-from lib.data.param_est import (EstBase, TestBase, TestImplBase,
-                                TestParam, TestData, TestReport,
-                                ParamEst, ARMAEst)
 
-###################################################################################################
-# Define Ornstien-Uhlenbeck Process
-class OU:
-    # Funcs
-    class Func(FuncBase):
-        MEAN = "OU_MEAN"                        # Ornstein-Uhelenbeck process mean
-        VAR = "OU_VAR"                          # Ornstein-Uhelenbeck process variance
-        COV = "OU_COV"                          # Ornstein-Uhelenbeck process covariance
-        MEAN_LIMIT = "OU_MEAN_LIMIT"            # Ornstein-Uhelenbeck process mean t -> infty
-        VAR_LIMIT = "OU_VAR_LIMIT"              # Ornstein-Uhelenbeck process var t -> infty
-        COV_LIMIT = "OU_COV_LIMIT"              # Ornstein-Uhelenbeck process covariance
-        PDF = "OU_PDF"                          # Ornstein-Uhelenbeck process PDF
-        CDF = "OU_CDF"                          # Ornstein-Uhelenbeck process CDF
-        PDF_LIMIT = "OU_PDF_LIMIT"              # Ornstein-Uhelenbeck process PDF t->infty limit
-        CDF_LIMIT = "OU_CDF_LIMIT"              # Ornstein-Uhelenbeck process CDF t->infty limit
-        MEAN_HALF_LIFE = "OU_MEAN_HALF_LIFE"    # Ornstein-Uhelenbeck process halflife
 
-        def _create_func(self, **kwargs):
-            return _create_func(self, **kwargs)
+def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Mean value of Ornstein-Uhlenbeck process.
 
-    # Sources
-    class Source(SourceBase):
-        PROC = "OU_PROC"                     # Ornstein-Uhlenbeck process simulation
-        XT = "OU_XT"                         # Ornstein-Uhlenbeck process solution
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    x0: float
+        Initial value.
 
-        def _create_data_source(self, x, **kwargs):
-            return _create_data_source(self, x, **kwargs)
+    Returns
+    -------
+    numpy.ndarray[float]
+        Mean as a function of time for given parameters.
+    """
 
-    # Est
-    class Est(EstBase):
-        AR = "OU_AR"             # Use Autoregressive parameter estimation
-
-        def arma_key(self, order):
-            return self.value
-
-        def _perform_est_for_type(self, x, y, **kwargs):
-            if self.value == OU.Est.AR.value:
-                return _ar_estimate(y, **kwargs)
-            else:
-                raise Exception(f"Estimate type is invalid: {self}")
-
-        def _formula(self):
-            if self.value == OU.Est.AR.value:
-                return r"$X_{t+\Delta t}=X_t e^{-\lambda \Delta t}+\mu \left( 1 - e^{-\lambda \Delta t} \right)+\sqrt{ \frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda \Delta t} \right)} \hspace{5pt} \varepsilon_t$"
-            else:
-                raise Exception(f"Estimate type is invalid: {self}")
-
-        def _set_const_labels(self):
-            if self.value == OU.Est.AR.value:
-                self.const.set_labels(est_label=r"$\mu$",
-                                      err_label=r"$\sigma_{\mu}$")
-            else:
-                raise Exception(f"Estimate type is invalid: {self}")
-
-        def _set_param_labels(self, param, i):
-            if self.value == OU.Est.AR.value:
-                param.set_labels(est_label=r"$\lambda$",
-                                 err_label=r"$\sigma_{\lambda}$")
-            else:
-                raise Exception(f"Estimate type is invalid: {self}")
-
-def _create_ou_mean(func_type, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(npts - 1))]
-    fy = lambda x, y : ou.mean(μ, λ, x, x0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"μ": μ, "λ": λ, "x0": x0},
-                    ylabel=r"$\mu_t$",
-                    xlabel=r"$t$",
-                    formula=r"$X_0 e^{-\lambda t} + \mu \left( 1 - e^{-\lambda t} \right)$",
-                    desc=r"Ornstein-Uhlenbeck $\mu_t$",
-                    fy=fy,
-                    fx=fx)
 
-def _create_ou_mean_limit(func_type, **kwargs):
-    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    t = create_space(xmin=0, npts=npts, Δx=Δt)
+
+    return t, ou.mean(μ, λ, t, x0)
+
+def compute_mean_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Limit as t -> infinity of Ornstein-Uhlenbeck process mean value.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    μ: float
+        Drift coefficient.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time anf mean
+    """
+
+    npts = get_param_default_if_missing("npts", 11, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(npts - 1))]
-    fy = lambda x, y : numpy.full(len(x), μ)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"μ": μ},
-                    ylabel=r"$\lim_{t \to \infty} \mu_t$",
-                    xlabel=r"$t$",
-                    formula=r"$\mu$",
-                    desc=r"Ornstein-Uhlenbeck $\lim_{t \to \infty}{\mu_t}$",
-                    fy=fy,
-                    fx=fx)
+    
+    return create_space(xmin=0, npts=npts, Δx=Δt), numpy.full(npts, μ)
 
-def _create_ou_var(func_type, **kwargs):
+
+def compute_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Variance of Ornstein-Uhlenbeck process.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    λ: float
+        Mean reversion rate.
+    σ: float
+        Standard deviation of random component.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and variance.
+    """
+
     npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(npts - 1))]
-    fy = lambda x, y : ou.var(λ, x, σ)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"σ": σ, "λ": λ},
-                    ylabel=r"$\sigma^2_t$",
-                    xlabel=r"$t$",
-                    formula=r"$\frac{\sigma^2}{2\lambda} \left( 1 - e^{-2\lambda t} \right)$",
-                    desc=r"Ornstein-Uhlenbeck $\sigma^2_t$",
-                    fy=fy,
-                    fx=fx)
 
-def _create_ou_var_limit(func_type, **kwargs):
+    t = create_space(xmin=0, npts=npts, Δx=Δt)
+
+    return t, ou.var(λ, t, σ)
+
+def compute_var_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Limit as t -> infinity of Ornstein-Uhlenbeck process variance.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    λ: float
+        Mean reversion rate.
+    σ: float
+        Standard deviation of random component.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and variance.
+    """
+
+
     npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
-    fx = lambda x : x[::int(len(x)/(npts - 1))]
-    fy = lambda x, y : numpy.full(len(x), ou.var_limit(λ, σ))
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"σ": σ, "λ": λ},
-                    ylabel=r"$\lim_{t \to \infty} \sigma^2_t$",
-                    xlabel=r"$t$",
-                    formula=r"$\frac{\sigma^2}{2\lambda}$",
-                    desc=r"Ornstein-Uhlenbeck $\limit_{t \to \infty} \sigma^2_t$",
-                    fy=fy,
-                    fx=fx)
 
-def _create_ou_cov(func_type, **kwargs):
+    return create_space(xmin=0, npts=npts, Δx=Δt), numpy.full(npts, ou.var_limit(λ, σ))
+
+def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Covariance of Ornstein-Uhlenbeck process.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    λ: float
+        Mean reversion rate.
+    s: float
+        Time offset.
+    σ: float
+        Standard deviation of random component.
+
+            Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and covariance.
+    """
+
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
-    x0 = int(s/Δt)
-    step = lambda x : 1 if len(x)-x0 < npts - 1 else int((len(x)-x0)/(npts-1))
-    fx = lambda x : x[x0::step(x)]
-    fy = lambda x, y : ou.cov(λ, s, x, σ)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"σ": σ, "λ": λ, "s": s},
-                    ylabel=r"$Cov(S_s, S_t)$",
-                    xlabel=r"$t$",
-                    formula=r"$ \frac{\sigma^2}{2\lambda} \left[ e^{-\lambda \left( t-s \right)} - e^{-\lambda \left( t+s \right)} \right]$",
-                    desc=r"Ornstein-Uhlenbeck Covariance",
-                    fy=fy,
-                    fx=fx)
 
-def _create_ou_cov_limit(func_type, **kwargs):
+    xmin = int(s/Δt)
+    t = create_space(xmin=xmin, npts=npts, Δx=Δt)
+
+    return t, ou.cov(λ, s, t, σ)
+
+def compute_cov_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Limit as t -> infinity of Ornstein-Uhlenbeck process variance.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δt: float
+        Width of time step. (default 1.0)
+    s: float
+        Time offset.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and covariance limit.
+    """
+
     npts = get_param_default_if_missing("npts", 10, **kwargs)
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
-    step = lambda x : 1 if len(x)-x0 < npts - 1 else int((len(x)-x0)/(npts-1))
-    fx = lambda x : x[x0::step(x)]
-    fy = lambda x, y : numpy.full(npts, 0.0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={"s": s},
-                    ylabel=r"$\lim_{t \to \infty} Cov(S_s, S_t)$",
-                    xlabel=r"$t$",
-                    formula=r"$0$",
-                    desc=r"Ornstein-Uhlenbeck $t \to \infty$ Covariance",
-                    fy=fy,
-                    fx=fx)
 
-def _create_ou_pdf(func_type, **kwargs):
+    xmin = int(s/Δt)
+    t = create_space(xmin=xmin, npts=npts, Δx=Δt)
+
+    return t, numpy.full(npts, 0.0)
+
+def compute_pdf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Ornstein-Uhlenbeck process PDF for a specified time.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δx: float
+        Width of variable increment. (default 1.0)
+    xmin: float
+        Minimum value of modeled variable. (default 0.0)
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    t: float
+        Time
+    σ: float
+        Standard deviation of random component.
+    x0: float
+        Initial value.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Modeled variable and PDF.
+    """
+
     t = get_param_throw_if_missing("t", **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x, y : ou.pdf(x, μ, λ, t, σ=σ, x0=x0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=None,
-                    params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
-                    ylabel=r"$p(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$Normal(\mu_t, \sigma_t)$",
-                    desc="Ornstein-Uhlenbeck PDF",
-                    fy=fy)
 
-def _create_ou_cdf(func_type, **kwargs):
+    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+
+    return x, ou.pdf(x, μ, λ, t, σ=σ, x0=x0)
+
+def compute_cdf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Ornstein-Uhlenbeck process CDF for a specified time.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δx: float
+        Width of variable increment. (default 1.0)
+    xmin: float
+        Minimum value of modeled variable. (default 0.0)
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    t: float
+        Time
+    σ: float
+        Standard deviation of random component.
+    x0: float
+        Initial value.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Modeled variable and CDF.
+    """
+
     t = get_param_throw_if_missing("t", **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x, y : ou.cdf(x, μ, λ, t, σ=σ, x0=x0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=None,
-                    params={"σ": σ, "λ": λ, "t": t, "μ": μ, "x0": x0},
-                    ylabel=r"$P(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$Normal(\mu_t, \sigma_t)$",
-                    desc="Ornstein-Uhlenbeck CDF",
-                    fy=fy)
+    
+    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
 
-def _create_ou_pdf_limit(func_type, **kwargs):
+    return x, ou.cdf(x, μ, λ, t, σ=σ, x0=x0)
+
+def compute_pdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+     Limit as t -> infinity of Ornstein-Uhlenbeck process PDF.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δx: float
+        Width of variable increment. (default 1.0)
+    xmin: float
+        Minimum value of modeled variable. (default 0.0)
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    σ: float
+        Standard deviation of random component.
+    x0: float
+        Initial value.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]] 
+        Modeled variable and PDF limit.
+    """
+
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x, y : ou.pdf_limit(x, μ, λ, σ=σ, x0=x0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=None,
-                    params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
-                    ylabel=r"$p(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$Normal(\mu_t, \sigma_t)$",
-                    desc=r"Ornstein-Uhlenbeck $t\to \infty$ PDF",
-                    fy=fy)
 
-def _create_ou_cdf_limit(func_type, **kwargs):
+    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+
+    return x, ou.pdf_limit(x, μ, λ, σ=σ, x0=x0)
+
+def compute_cdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Ornstein-Uhlenbeck process CDF for t -> infinity.
+
+    Parameters
+    ----------
+    npts: int
+        Number of points. (default 11)
+    Δx: float
+        Width of variable increment. (default 1.0)
+    xmin: float
+        Minimum value of modeled variable. (default 0.0)
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    σ: float
+        Standard deviation of random component.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]] 
+        Modeled variable and PDF limit.
+    """
+
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    fy = lambda x, y : ou.cdf_limit(x, μ, λ, σ=σ, x0=x0)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.DIST,
-                    source_type=v,
-                    params={"σ": σ, "λ": λ, "μ": μ, "x0": x0},
-                    ylabel=r"$P(x)$",
-                    xlabel=r"$x$",
-                    formula=r"$Normal(\mu_t, \sigma_t)$",
-                    desc=r"Ornstein-Uhlenbeck $t\to \infty$ CDF",
-                    fy=fy)
 
-def _create_ou_mean_half_life(func_type, **kwargs):
-    fy = lambda x, y : ou.mean_halflife(x)
-    return DataFunc(func_type=func_type,
-                    data_type=DataType.TIME_SERIES,
-                    source_type=DataType.TIME_SERIES,
-                    params={},
-                    ylabel=r"$t_H(\lambda)$",
-                    xlabel=r"$\lambda$",
-                    desc=r"Ornstein-Uhlenbeck Half-Life of Mean Decay",
-                    fy=fy)
+    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
 
-def _create_xt_source(source_type, x, **kwargs):
+    return x, ou.cdf_limit(x, μ, λ, σ=σ, x0=x0)
+
+def compute_mean_half_life(**kwargs) -> float:
+    """
+    Ornstein-Uhlenbeck half life to limiting mean.
+
+    Parameters
+    ----------
+    λ: float
+        Mean reversion rate.
+
+    Returns
+    -------
+    float
+        Mean half life
+    """
+
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+
+    return ou.mean_halflife(λ)
+
+def create_xt_source(**kwargs) -> numpy.ndarray[float]:
+    """
+    Simulation of modeled variable at a specified time with the specified parameters.
+
+    Parameters
+    ----------
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    t: float
+        Time
+    σ: float
+        Standard deviation of random component.
+    x0: float
+        Initial value.
+    n: int
+        Number of values simulated.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Simulation of modeled variable at specified time using given parameters.
+    """
+
     t = get_param_throw_if_missing("t", **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    f = lambda x : ou.xt(μ, λ, t, σ, x0, len(x))
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
-                      params={"μ": μ, "λ": λ, "t": t, "x0": x0},
-                      ylabel=r"$S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Ornstein-Uhlenbeck Solution",
-                      f=f,
-                      x=x)
+    
+    return ou.xt(μ, λ, t, σ, x0, npts)
 
-def _create_proc_source(source_type, x, **kwargs):
-    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
-    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
+def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Simulation of Ornstein-Uhlenbeck process using provide parameters.
+
+    Parameters
+    ----------
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    Δt: float
+        Time increment.
+    n: int
+        Number of values simulated.
+    σ: float
+        Standard deviation of random component.
+    x0: float
+        Initial value.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Simulation of Ornstein-Uhlenbeck process using provide parameters.
+    """
+
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    npts = get_param_default_if_missing("npts", 10, **kwargs)
+    μ = get_param_default_if_missing("μ", 0.0, **kwargs)
+    λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    f = lambda x : ou.ou(μ, λ, Δt, len(x), σ, x0)
-    return DataSource(source_type=source_type,
-                      schema=DataType.TIME_SERIES.schema(),
-                      name=f"Ornstein-Uhlenbeck-Simulation-{str(uuid.uuid4())}",
-                      params={"μ": μ, "λ": λ, "Δt": Δt, "x0": x0},
-                      ylabel=r"$S_t$",
-                      xlabel=r"$t$",
-                      desc=f"Ornstein-Uhlenbeck Process",
-                      f=f,
-                      x=x)
 
-##################################################################################################################
-# Perform estimate for specified estimate types
-##################################################################################################################
-# Est.AR
-def _ar_estimate(samples, **kwargs):
-    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
-    result = ou.ou_fit(samples, Δt, x0)
-    return result, _arma_estimate_from_result(result, OU.Est.AR)
+    t = create_space(xmin=0, npts=npts, Δx=Δt)
 
-##################################################################################################################
-# Construct estimate objects from result object
-def _arma_estimate_from_result(result, est_type):
-    param = ParamEst.from_dict({"Estimate": result.lambda_est(),
-                                "Error": result.lambda_error()})
-    const = ParamEst.from_dict({"Estimate": result.mu_est(),
-                                "Error": result.mu_error()})
-    sigma2 = ParamEst.from_dict({"Estimate": result.sigma2_est(),
-                                 "Error": result.sigma2_error()})
-    return ARMAEst(est_type, const, sigma2, [param])
+    return t, ou.ou(μ, λ, Δt, npts, σ, x0)
