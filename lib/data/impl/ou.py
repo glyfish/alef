@@ -225,14 +225,14 @@ def compute_pdf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     t = get_param_throw_if_missing("t", **kwargs)
     npts = get_param_default_if_missing("npts", 10, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
+    xmax = get_param_default_if_missing("xmax", 5.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", -5.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
 
-    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+    x = create_space(xmin=xmin, xmax=xmax, npts=npts)
 
     return x, ou.pdf(x, μ, λ, t, σ=σ, x0=x0)
 
@@ -267,14 +267,14 @@ def compute_cdf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     t = get_param_throw_if_missing("t", **kwargs)
     npts = get_param_default_if_missing("npts", 10, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
+    xmax = get_param_default_if_missing("xmax", 5.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", -5.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
     
-    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+    x = create_space(xmin=xmin, xmax=xmax, npts=npts)
 
     return x, ou.cdf(x, μ, λ, t, σ=σ, x0=x0)
 
@@ -296,8 +296,6 @@ def compute_pdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
         Mean reversion rate.
     σ: float
         Standard deviation of random component.
-    x0: float
-        Initial value.
 
     Returns
     -------
@@ -306,16 +304,15 @@ def compute_pdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
     """
 
     npts = get_param_default_if_missing("npts", 10, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
+    xmax = get_param_default_if_missing("xmax", 5.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", -5.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
-    x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
 
-    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+    x = create_space(xmin=xmin, xmax=xmax, npts=npts)
 
-    return x, ou.pdf_limit(x, μ, λ, σ=σ, x0=x0)
+    return x, ou.pdf_limit(x, μ, λ, σ=σ)
 
 def compute_cdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -343,14 +340,14 @@ def compute_cdf_limit(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
     """
 
     npts = get_param_default_if_missing("npts", 10, **kwargs)
-    Δx = get_param_default_if_missing("Δx", 1.0, **kwargs)
-    xmin = get_param_default_if_missing("xmin", 0.0, **kwargs)
+    xmax = get_param_default_if_missing("xmax", 5.0, **kwargs)
+    xmin = get_param_default_if_missing("xmin", -5.0, **kwargs)
     μ = get_param_default_if_missing("μ", 0.0, **kwargs)
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     x0 = get_param_default_if_missing("x0", 0.0, **kwargs)
 
-    x = create_space(xmin=xmin, npts=npts, Δx=Δx)
+    x = create_space(xmin=xmin, xmax=xmax, npts=npts)
 
     return x, ou.cdf_limit(x, μ, λ, σ=σ, x0=x0)
 

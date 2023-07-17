@@ -11,7 +11,6 @@ from typing import overload
 
 from lib.data.reports import OUEstReport
 
-@overload
 def mean(μ: float, λ: float, t: numpy.ndarray[float], x0: float=0.0) -> numpy.ndarray[float]:
     """
     Mean value of Ornstein-Uhlenbeck process.
@@ -35,31 +34,6 @@ def mean(μ: float, λ: float, t: numpy.ndarray[float], x0: float=0.0) -> numpy.
 
     return x0*numpy.exp(-λ*t) + μ*(1.0 - numpy.exp(-λ*t))
 
-@overload
-def mean(μ: float, λ: float, t: float, x0: float=0.0) -> float:
-    """
-    Mean value of Ornstein-Uhlenbeck process.
-
-    Parameters
-    ----------
-    μ: float
-        Drift coefficient.
-    λ: float
-        Mean reversion rate.
-    t: float
-        Time.
-    x0: float
-        Initial value.
-
-    Returns
-    -------
-    float
-        Mean as for given parameters.
-    """
-
-    return x0*numpy.exp(-λ*t) + μ*(1.0 - numpy.exp(-λ*t))
-
-@overload
 def var(λ: float, t: numpy.ndarray[float], σ: float=1.0) -> numpy.ndarray[float]:
     """
     Variance of Ornstein-Uhlenbeck process.
@@ -69,28 +43,6 @@ def var(λ: float, t: numpy.ndarray[float], σ: float=1.0) -> numpy.ndarray[floa
     λ: float
         Mean reversion rate.
     t: numpy.ndarray[float]
-        Time
-    σ: float
-        Standard deviation of random component.
-
-    Returns
-    -------
-    numpy.ndarray[float]
-        variance as a function of time for given parameters.
-    """
-
-    return (σ**2/(2.0*λ))*(1.0 - numpy.exp(-2.0*λ*t))
-
-@overload
-def var(λ: float, t: float, σ: float=1.0) -> float:
-    """
-    Variance of Ornstein-Uhlenbeck process.
-
-    Parameters
-    ----------
-    λ: float
-        Mean reversion rate.
-    t: float
         Time
     σ: float
         Standard deviation of random component.
@@ -120,7 +72,7 @@ def var_limit(λ: float, σ: float=1.0) -> float:
         Limiting variance.
     """
 
-    return  -σ**2/(2.0 * λ)
+    return  σ**2/(2.0 * λ)
 
 def cov(λ: float, s: float, t: numpy.ndarray[float], σ: float=1.0) -> numpy.ndarray[float]:
     """
@@ -171,8 +123,8 @@ def pdf(x: numpy.ndarray[float], μ: float, λ: float, t: float, σ: float=1.0, 
         PDF of modeled variable for specified time.
     """
 
-    μt = mean(μ, λ, t, x0)
-    σt = numpy.sqrt(var(λ, t, σ))
+    μt = __mean(μ, λ, t, x0)
+    σt = numpy.sqrt(__var(λ, t, σ))
     return norm.pdf(x, loc=μt, scale=σt)
 
 def cdf(x: numpy.ndarray[float], μ: float, λ: float, t: float, σ: float=1.0, x0: float=0.0) -> numpy.ndarray[float]:
@@ -200,8 +152,8 @@ def cdf(x: numpy.ndarray[float], μ: float, λ: float, t: float, σ: float=1.0, 
         CDF of modeled variable for specified time.
     """
 
-    μt = mean(μ, λ, t, x0)
-    σt = numpy.sqrt(var(λ, t, σ))
+    μt = __mean(μ, λ, t, x0)
+    σt = numpy.sqrt(__var(λ, t, σ))
     return norm.cdf(x, loc=μt, scale=σt)
 
 def pdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0) -> numpy.ndarray[float]:
@@ -226,6 +178,7 @@ def pdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0) -> n
     """
 
     σl = numpy.sqrt(var_limit(λ, σ))
+    print(λ, σ, μ, σl)
     return norm.pdf(x, loc=μ, scale=σl)
 
 def cdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0, x0: float=0) -> numpy.ndarray[float]:
@@ -294,8 +247,8 @@ def xt(μ: float, λ: float, t: float, σ: float=1.0, x0: float=0, n: int=1) -> 
         Simulation of modeled variable at specified time using given parameters.
     """
 
-    μt = mean(μ, λ, t, x0)
-    σt = numpy.sqrt(var(λ, t, σ))
+    μt = __mean(μ, λ, t, x0)
+    σt = numpy.sqrt(__var(λ, t, σ))
     ε = numpy.random.normal(0.0, 1.0, n)
     return μt + σt*ε
 
@@ -330,3 +283,48 @@ def ou(μ: float, λ: float, Δt: float, n: int, σ: float=1.0, x0: float=0) -> 
     for i in range(0, n-1):
         x[i+1] = x[i] + λ*(μ - x[i])*Δt + σ*Δt*ε[i]
     return x
+
+def __var(λ: float, t: float, σ: float=1.0) -> float:
+    """
+    Variance of Ornstein-Uhlenbeck process.
+
+    Parameters
+    ----------
+    λ: float
+        Mean reversion rate.
+    t: float
+        Time
+    σ: float
+        Standard deviation of random component.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        variance as a function of time for given parameters.
+    """
+
+    return (σ**2/(2.0*λ))*(1.0 - numpy.exp(-2.0*λ*t))
+
+def __mean(μ: float, λ: float, t: float, x0: float=0.0) -> float:
+    """
+    Mean value of Ornstein-Uhlenbeck process.
+
+    Parameters
+    ----------
+    μ: float
+        Drift coefficient.
+    λ: float
+        Mean reversion rate.
+    t: float
+        Time.
+    x0: float
+        Initial value.
+
+    Returns
+    -------
+    float
+        Mean as for given parameters.
+    """
+
+    return x0*numpy.exp(-λ*t) + μ*(1.0 - numpy.exp(-λ*t))
+
