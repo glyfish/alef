@@ -7,7 +7,6 @@ Simulation and analysis of the Ornstein-Uhlenbeck process.
 import numpy
 from scipy.stats import norm
 import statsmodels.tsa as tsa
-from typing import overload
 
 from lib.data.reports import OUEstReport
 
@@ -178,7 +177,6 @@ def pdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0) -> n
     """
 
     σl = numpy.sqrt(var_limit(λ, σ))
-    print(λ, σ, μ, σl)
     return norm.pdf(x, loc=μ, scale=σl)
 
 def cdf_limit(x: numpy.ndarray[float], μ: float, λ: float, σ: float=1.0, x0: float=0) -> numpy.ndarray[float]:

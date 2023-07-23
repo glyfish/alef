@@ -19,6 +19,7 @@ from typing import Callable
 
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
+from lib import config
 
 def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
@@ -139,7 +140,7 @@ def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[f
         axis.plot(fx, func, label=func_label, marker='o', linestyle="None", markeredgewidth=1.0, markersize=10.0)
 
     if labels is not None:
-        axis.legend(loc='best', bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
+        axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.8, 0.8))
 
 def fcurve(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
@@ -357,3 +358,81 @@ def __remove_zeros_if_needed(data, x):
         return data[1:], x[1:]
     else:
         return data, x
+
+def fbar(axis: pyplot.axis, y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray[float]=None, fx: numpy.ndarray[float]=None, **kwargs):
+    """
+    Plot samples in a bar chart and compare to a function.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : numpy.ndarray
+        Value plotted on y-axis.
+    fy : numpy.ndarray
+        Comparison function y-axis values.
+    x : numpy.ndarray
+        Value plotted in x axis (use y index)
+    fx : numpy.ndarray
+        Comparison function x axis values (use func index).
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    alpha : float
+        Bar alpha (default 0.5)
+    border_width : float
+        Bar border width (default)
+    bar_width : float
+        Bar width ras faction of x delta.
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    """
+
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
+    legend_loc     = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title   = get_param_default_if_missing("legend_title", None, **kwargs)
+
+    if title is not None:
+        axis.set_title(title, y=1.0 + title_offset)
+
+    axis.set_prop_cycle(config.distribution_sample_cycler)
+
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+
+    __plot_bar(axis, x, y, 0, **kwargs)
+    
+    label = labels[1] if labels is not None else None
+    axis.plot(fx, fy, label=label, lw=lw, color="#320075", zorder=6)
+
+    axis.legend(loc=legend_loc, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
+
+def __plot_bar(axis, x, y, n, zorder=5, **kwargs):
+    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
+    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
+    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    colors       = get_param_default_if_missing("colors", None, **kwargs)
+
+    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
+        
+    cycler = axis._get_lines.prop_cycler
+    color = colors[n] if colors is not None else next(cycler)['color']
+
+    width = bar_width*(x[1]-x[0])
+
+    label = labels[n] if labels is not None else None
+    return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=label, color=color)
+

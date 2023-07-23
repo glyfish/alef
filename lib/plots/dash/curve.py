@@ -547,3 +547,42 @@ def fscatter(data: numpy.ndarray[float], func: Callable[[float], float], x: nump
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fscatter(axis, data, func, x, **kwargs)
+
+def fbar(y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
+    """
+    Plot samples in a bar chart and compare to a function.
+
+    Parameters
+    ----------
+    y : numpy.ndarray
+        Value plotted on y-axis.
+    fy : numpy.ndarray
+        Comparison function y-axis values.
+    x : numpy.ndarray
+        Value plotted in x axis (use y index)
+    fx : numpy.ndarray
+        Comparison function x axis values (use func index).
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    alpha : float
+        Bar alpha (default 0.5)
+    border_width : float
+        Bar border width (default)
+    bar_width : float
+        Bar width ras faction of x delta.
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.fbar(axis, y, fy, x=x, fx=fx, **kwargs)

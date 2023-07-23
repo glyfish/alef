@@ -1,7 +1,4 @@
 from lib.plots.comp.line import (curve, comparison, stack, twinx, twinx_comparison)
 from lib.plots.comp.bar import (bar)
-from lib.plots.comp.func import (fpoints, fcurve, fscatter)
+from lib.plots.comp.func import (fpoints, fcurve, fscatter, fbar)
 from lib.plots.comp.axis import (PlotType)
-# from lib.plots.comp.reg import (single_var)
-# from lib.plots.comp.hist import (bar, fbar, hist)
-# from lib.plots.comp.hyp_test import (HypTestPlotType, hyp_test)

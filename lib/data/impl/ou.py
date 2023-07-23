@@ -161,8 +161,9 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     λ = get_param_default_if_missing("λ", 1.0, **kwargs)
     s = get_param_default_if_missing("s", 1.0, **kwargs)
 
-    xmin = int(s/Δt)
-    t = create_space(xmin=xmin, npts=npts, Δx=Δt)
+    xmin = s
+    xmax = npts * Δt
+    t = create_space(xmin=xmin, xmax=xmax, Δx=Δt)
 
     return t, ou.cov(λ, s, t, σ)
 

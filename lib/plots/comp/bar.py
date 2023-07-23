@@ -70,7 +70,7 @@ def bar(axis: pyplot.axis, y, x=None, **kwargs):
     axis.set_ylabel(ylabel)
     axis.set_xlabel(xlabel)
 
-    _plot_bar(axis, x, y, 0, **kwargs)
+    __plot_bar(axis, x, y, 0, **kwargs)
 
 def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
     """
@@ -158,13 +158,13 @@ def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_le
         munits.registry[date] = converter
         munits.registry[datetime] = converter  
 
-    list1 = _plot_bar(axis, x_left, left, 0, **kwargs)
+    list1 = __plot_bar(axis, x_left, left, 0, **kwargs)
 
     axis2 = axis.twinx()
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
-    list2 = _plot_bar(axis2, x_right, right, 1, **kwargs)
+    list2 = __plot_bar(axis2, x_right, right, 1, **kwargs)
     
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -273,7 +273,7 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarra
         axis.set_ylabel(bar_ylabel)
     if xlabel is not None:        
         axis.set_xlabel(xlabel)        
-    list1 = _plot_bar(axis, x_bar, y_bar, 0, 1, **kwargs)
+    list1 = __plot_bar(axis, x_bar, y_bar, 0, 1, **kwargs)
 
     axis2 = axis.twinx()
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
@@ -386,13 +386,13 @@ def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: li
         munits.registry[numpy.datetime64] = converter
         munits.registry[date] = converter
         munits.registry[datetime] = converter    
-    list1 = _plot_bar(axis, x_left, left, 0, 1, **kwargs)
+    list1 = __plot_bar(axis, x_left, left, 0, 1, **kwargs)
 
     axis2 = axis.twinx()
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
-    list2 = _plot_bar(axis2, x_right, right, 1, 2, **kwargs)
+    list2 = __plot_bar(axis2, x_right, right, 1, 2, **kwargs)
     
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -413,25 +413,6 @@ def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: li
         list = [list1,  list2]
         labs = [l.get_label() for l in list]
         axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
-
-def _plot_bar(axis, x, y, n, zorder=10, **kwargs):
-    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
-    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
-    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
-    labels       = get_param_default_if_missing("labels", None, **kwargs)
-    colors       = get_param_default_if_missing("colors", None, **kwargs)
-
-    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
-        
-    cycler = axis._get_lines.prop_cycler
-    color = colors[n] if colors is not None else next(cycler)['color']
-
-    width = bar_width*(x[1]-x[0])
-
-    if labels is None:
-        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, color=color)
-    else:
-        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=labels[n], color=color)
 
 def hist(axis: pyplot.axis, samples: numpy.ndarray, fx=None, **kwargs):
     """
@@ -514,3 +495,23 @@ def hist(axis: pyplot.axis, samples: numpy.ndarray, fx=None, **kwargs):
 
     if labels is not None:
         axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
+
+def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
+    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
+    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
+    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
+    labels       = get_param_default_if_missing("labels", None, **kwargs)
+    colors       = get_param_default_if_missing("colors", None, **kwargs)
+
+    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
+        
+    cycler = axis._get_lines.prop_cycler
+    color = colors[n] if colors is not None else next(cycler)['color']
+
+    width = bar_width*(x[1]-x[0])
+
+    if labels is None:
+        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, color=color)
+    else:
+        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=labels[n], color=color)
+
