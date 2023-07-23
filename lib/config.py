@@ -9,7 +9,13 @@ def save_post_asset(figure, post, plot):
     path = os.path.join(plot_asset_path, post, plot) + ".png"
     figure.savefig(path, bbox_inches="tight")
 
-style_file = os.path.join(os.path.abspath('../..'), 'gly.fish.mplstyle')
+project_root = '..'
+for _ in range(45):
+    style_file = os.path.join(os.path.abspath(project_root), 'gly.fish.mplstyle')
+    if os.path.isfile(style_file):
+        break
+    project_root += '/..'
+
 glyfish_style = pathlib.Path(style_file).as_uri()
 
 plot_asset_path = os.path.join(os.getcwd(), 'plots')

@@ -361,7 +361,7 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         else:
             axis[i].plot(x_plot, y_plot, lw=1)
 
-def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
+def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -436,12 +436,10 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x: numpy.ndarray=None
         munits.registry[date] = converter
         munits.registry[datetime] = converter    
 
-    if title is not None:
-        axis.set_title(title, y=title_offset + 1.0)
-    if left_ylabel is not None:
-        axis.set_ylabel(left_ylabel)
-    if xlabel is not None:        
-        axis.set_xlabel(xlabel)        
+    axis.set_title(title, y=title_offset + 1.0)
+    axis.set_ylabel(left_ylabel)
+    axis.set_xlabel(xlabel)
+
     list1 = plot_curve(axis, x[0], left, npts, 0, **kwargs)
 
     axis2 = axis.twinx()

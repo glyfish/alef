@@ -120,7 +120,7 @@ def stack(y: list[numpy.ndarray], x=None, **kwargs):
     _, axis = pyplot.subplots(nplot, sharex=True, figsize=figsize)
     comp.stack(axis, y=y, x=x, **kwargs)
 
-def twinx(left, right, x=None, **kwargs):
+def twinx(left: numpy.ndarray[float], right: numpy.ndarray[float], x=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
