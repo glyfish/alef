@@ -21,7 +21,7 @@ def bar(axis: pyplot.axis, y, x=None, **kwargs):
     y : numpy.ndarray
         Value plotted on y-axis.
     x : numpy.ndarray
-        Value plotted in x axis (use y index)
+        Value plotted in x axis (default use y index)
     title : string, optional
         Plot title (default is None)
     title_offset : float (default is 0.0)

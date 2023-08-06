@@ -51,8 +51,6 @@ def unvec(v):
         m[:,i] = v[d:d+n]
     return m
 
-# First and second stationary order moments
-
 def mean(φ, μ):
     Φ = phi_comp(φ)
     Μ = mean_comp(μ)
@@ -74,6 +72,11 @@ def sd(φ, ω):
     return numpy.sqrt(var(φ, ω))
 
 def autocovariance(φ, ω, n):
+    """
+    Return the stationary auto covariance matrix for the given VAR(n)
+    parameters.
+    """
+
     t = numpy.linspace(0, n-1, n)
     Φ = phi_comp(φ)
     Σ = cov(φ, ω)
@@ -86,21 +89,32 @@ def autocovariance(φ, ω, n):
         γ[i] = Σ*γ[i].T
     return γ
 
-# Compute eigen values of parameter matrix (for stationarity all eigen values must satisfy |λ| < 1)
 def eig(φ):
+    """
+    Compute eigen values of VAR(n) parameter matrix. Stationarity requires that
+    |λ| < 1.
+
+    """
+
     Φ = phi_comp(φ)
     λ, _ = numpy.linalg.eig(Φ)
     return λ
 
 def isStationary(φ):
+    """
+    Return True is the VAR(n) parameter matrix is stationary.
+    """
+
     for λ in eig(φ):
         if abs(λ) >= 1:
             return False
     return True
 
-# Simulators
-
 def var(x0, μ, φ, Ω, n):
+    """
+    Simulate a VAR(n) process.
+    """
+
     x0 = numpy.array(x0.T)
     l, m = x0.shape
     xt = numpy.zeros((n, m))

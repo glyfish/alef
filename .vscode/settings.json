@@ -12,6 +12,7 @@
         "facecolor",
         "fbar",
         "fontsize",
+        "kron",
         "ncol",
         "nlags",
         "nonposy",

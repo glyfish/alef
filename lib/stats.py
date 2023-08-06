@@ -8,7 +8,9 @@ Useful statistical functions.
 import numpy
 from copy import deepcopy
 import statsmodels.api as sm
+from scipy.stats import multivariate_normal
 from typing import Tuple
+
 
 def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -26,6 +28,7 @@ def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
 
     return diff(samples)
+
 
 def from_noise(dB: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -47,6 +50,7 @@ def from_noise(dB: numpy.ndarray[float]) -> numpy.ndarray[float]:
         B[i] = B[i-1] + dB[i]
     return B
 
+
 def to_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Take the exponential of the given samples.
@@ -64,6 +68,7 @@ def to_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
 
     return numpy.exp(samples)
 
+
 def from_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Take the log of the given samples.
@@ -80,6 +85,7 @@ def from_geometric(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
 
     return numpy.log(samples)
+
 
 def ndiff(samples: numpy.ndarray[float], ndiff: int) -> numpy.ndarray[float]:
     """
@@ -105,6 +111,7 @@ def ndiff(samples: numpy.ndarray[float], ndiff: int) -> numpy.ndarray[float]:
         i += 1
     return result
 
+
 def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Difference the given samples.
@@ -125,6 +132,7 @@ def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     for i in range(n-1):
         d[i] = samples[i+1] - samples[i]
     return d
+
 
 def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
     """
@@ -158,6 +166,7 @@ def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
         for j in range(nsim):
             mean[i] += samples[j][i] / float(nsim)
     return mean
+
 
 def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
     """
@@ -195,6 +204,7 @@ def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.n
             var[i] += (samples[j][i] - mean[i])**2 / float(nsim)
     return var/Δt
 
+
 def ensemble_sd(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
@@ -218,6 +228,7 @@ def ensemble_sd(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.nd
     """
 
     return numpy.sqrt(ensemble_var(samples, Δt))
+
 
 def ensemble_acf(samples: list[numpy.ndarray[float]], nlags: int=None) -> numpy.ndarray[float]:
     """
@@ -258,6 +269,7 @@ def ensemble_acf(samples: list[numpy.ndarray[float]], nlags: int=None) -> numpy.
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
 
+
 def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
    Cumulative mean of samples.
@@ -279,6 +291,7 @@ def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     for i in range(1, ny):
         mean[i] = (float(i) * mean[i-1] + samples[i]) / float(i+1)
     return mean
+
 
 def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
     """
@@ -305,6 +318,7 @@ def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[flo
         var[i] = (float(i) * var[i-1] + samples[i]**2) / float(i + 1)
     return (var - mean**2) / Δt
 
+
 def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Cumulative standard deviation of samples.
@@ -323,6 +337,7 @@ def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[floa
     """
 
     return numpy.sqrt(cumu_var(samples, Δt))
+
 
 def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -351,6 +366,7 @@ def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[
         cov[i] = (float(i) * cov[i-1] + x[i] * y[i]) / float(i + 1)
     return cov - meanx * meany
 
+
 def cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> float:
     """
     Covariance of samples computed using brute force summation.
@@ -377,6 +393,7 @@ def cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> float:
         c += x[i] * y[i]
 
     return c / nsample - meanx * meany
+
 
 def cov_fft(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -409,6 +426,7 @@ def cov_fft(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[f
 
     return cc[0:n] / float(n)
 
+
 def acf(samples: numpy.ndarray[float], nlags: int) -> numpy.ndarray[float]:
     """
     Autocorrelation function of samples computed using sm.tsa.stattools.acf.
@@ -427,6 +445,7 @@ def acf(samples: numpy.ndarray[float], nlags: int) -> numpy.ndarray[float]:
     """
 
     return sm.tsa.stattools.acf(samples, nlags=nlags, fft=True, missing="drop")
+
 
 def pspec(x: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -456,6 +475,7 @@ def pspec(x: numpy.ndarray[float]) -> numpy.ndarray[float]:
 
     return power[1:n].real/(n*energy)
 
+
 def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float], nbins: int=50) -> numpy.ndarray[float]:
     """
     Compute PDF histogram of provided samples.
@@ -476,6 +496,7 @@ def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float], nbins: i
     """
     
     return numpy.histogram(samples, bins=nbins, range=range, density=True)
+
 
 def cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -500,6 +521,7 @@ def cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> numpy.ndarra
     for i in range(npoints):
         cdf[i] = numpy.sum(pdf[:i]) * dx
     return cdf
+
 
 def agg(samples: numpy.ndarray[float], m: int) -> numpy.ndarray[float]:
     """
@@ -529,6 +551,7 @@ def agg(samples: numpy.ndarray[float], m: int) -> numpy.ndarray[float]:
         agg[k] = agg[k] / m
 
     return agg
+
 
 def agg_var(samples: numpy.ndarray[float], m_vals: list[int]) -> numpy.ndarray[float]:
     """
@@ -560,7 +583,8 @@ def agg_var(samples: numpy.ndarray[float], m_vals: list[int]) -> numpy.ndarray[f
 
     return var
 
-def agg_time(x: numpy.ndarray[float], m: int):
+
+def agg_time(x: numpy.ndarray[float], m: int) -> numpy.ndarray[float]:
     """
     Compute aggregated time values 
 
@@ -580,6 +604,7 @@ def agg_time(x: numpy.ndarray[float], m: int):
     n = len(x)
     d = int(n/m)
     return numpy.linspace(x[0], x[n-1], d)
+
 
 def lag_var(samples: numpy.ndarray[float], s: int) -> float:
     """
@@ -609,7 +634,8 @@ def lag_var(samples: numpy.ndarray[float], s: int) -> float:
 
     return σ/m
 
-def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]):
+
+def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> list[float]:
     """
     Compute lagged variance for a specified range of values.
 
@@ -628,7 +654,32 @@ def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]):
 
     return [lag_var(samples, s) for s in s_vals]
 
-def multivariate_normal(μ: numpy.ndarray[float], Ω: numpy.ndarray[float], n: int):
+
+def multivariate_normal_pdf(vals: numpy.ndarray, 
+                            μ: numpy.ndarray[float], 
+                            Ω: numpy.ndarray) -> numpy.ndarray[float]:
+    """
+    Return multivariate normal PDF with the specified parameters.
+
+    Parameters
+    ----------
+    vals: numpy.array
+        PDF coordinate values..
+    μ: numpy.ndarray[float]
+        Distribution mean values contains m elements
+    Ω: numpy.ndarray[float, float]
+        Distribution correlation matrix contains mxm elements.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        PDF values for given coordinates.
+    """
+
+    return multivariate_normal.pdf(vals, μ, Ω)
+
+
+def multivariate_normal_samples(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
     """
     Return multivariate normal samples with the specified parameters.
 
@@ -636,15 +687,16 @@ def multivariate_normal(μ: numpy.ndarray[float], Ω: numpy.ndarray[float], n: i
     ----------
     μ: numpy.ndarray[float]
         Distribution mean values contains m elements
-    Ω: numpy.ndarray[float]
+    Ω: numpy.ndarray[float, float]
         Distribution correlation matrix contains mxm elements.
     n: int
         Number of samples.
 
     Returns
     -------
-    Tuple[numpy.ndarray[float]]
-        Tuple om m arrays of generated samples.
+    numpy.ndarray[float]
+        Samples for multivariate normal distribution.
     """
 
     return numpy.random.multivariate_normal(μ, Ω, n)
+

@@ -6,9 +6,6 @@ Simulation and analysis of the Ornstein-Uhlenbeck process.
 
 import numpy
 from scipy.stats import norm
-import statsmodels.tsa as tsa
-
-from lib.data.reports import OUEstReport
 
 def mean(μ: float, λ: float, t: numpy.ndarray[float], x0: float=0.0) -> numpy.ndarray[float]:
     """

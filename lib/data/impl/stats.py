@@ -377,3 +377,67 @@ def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> Tupl
 
     return x, stats.cdf_hist(x, pdf)
 
+def compute_multivariate_normal_pdf(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
+    """
+    Return multivariate normal PDF with the specified parameters.
+
+    Parameters
+    ----------
+    μ: numpy.ndarray[float]
+        Distribution mean values contains m elements
+    Ω: numpy.ndarray[float, float]
+        Distribution correlation matrix contains mxm elements.
+    n: int
+        Number of points along an axis.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        coordinates and generated samples. Generated samples.
+
+    Raises
+    ------
+        Exception invalid array dimensions.
+    """
+
+    σ = max(numpy.diag(Ω))
+    δ = 6.0*σ/n
+    nvars = len(μ)
+
+    if nvars == 1 or nvars > 3:
+        raise Exception("Number of variables must be between 2 or 3")
+
+    x1 = -3.0*σ + μ[0]
+    x2 = 3.0*σ + μ[0]
+    y1 = -3.0*σ + μ[1]
+    y2 = 3.0*σ + μ[1]
+
+    if nvars == 2:
+        vals = numpy.mgrid[x1:x2:δ, y1:y2:δ]
+    else:
+        z1 = -3.0*σ + μ[3]
+        z2 = 3.0*σ + μ[3]
+        vals = numpy.mgrid[x1:x2:δ, y1:y2:δ, z1:z2:δ]
+
+    return vals, stats.multivariate_normal_pdf(vals, μ, Ω)
+
+def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
+    """
+    Return multivariate normal samples with the specified parameters.
+
+    Parameters
+    ----------
+    μ: numpy.ndarray[float]
+        Distribution mean values contains m elements
+    Ω: numpy.ndarray[float, float]
+        Distribution correlation matrix contains mxm elements.
+    n: int
+        Number of samples.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Generated samples.
+    """
+
+    return stats.multivariate_normal_samples(μ, Ω, n)
