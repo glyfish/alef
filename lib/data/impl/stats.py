@@ -400,26 +400,28 @@ def compute_multivariate_normal_pdf(μ: numpy.ndarray[float], Ω: numpy.ndarray[
         Exception invalid array dimensions.
     """
 
-    σ = max(numpy.diag(Ω))
-    δ = 6.0*σ/n
     nvars = len(μ)
-
     if nvars == 1 or nvars > 3:
         raise Exception("Number of variables must be between 2 or 3")
 
+    σ = min(numpy.diag(Ω))
+    δ = 6.0*σ / (n - 1)
+
     x1 = -3.0*σ + μ[0]
-    x2 = 3.0*σ + μ[0]
+    x2 = 3.0*σ + δ + μ[0]
     y1 = -3.0*σ + μ[1]
-    y2 = 3.0*σ + μ[1]
+    y2 = 3.0*σ + δ + μ[1]
 
     if nvars == 2:
         vals = numpy.mgrid[x1:x2:δ, y1:y2:δ]
+        coords = numpy.transpose(vals)[:,:,::-1]
     else:
         z1 = -3.0*σ + μ[3]
-        z2 = 3.0*σ + μ[3]
-        vals = numpy.mgrid[x1:x2:δ, y1:y2:δ, z1:z2:δ]
+        z2 = 3.0*σ + δ + μ[3]
+        vals =  numpy.mgrid[x1:x2:δ, y1:y2:δ, z1:z2:δ]
+        coords = numpy.transpose(vals)[:,:,:,::-1]
 
-    return vals, stats.multivariate_normal_pdf(vals, μ, Ω)
+    return vals, stats.multivariate_normal_pdf(coords, μ, Ω)
 
 def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
     """
@@ -440,4 +442,4 @@ def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: nump
         Generated samples.
     """
 
-    return stats.multivariate_normal_samples(μ, Ω, n)
+    return numpy.transpose(stats.multivariate_normal_samples(μ, Ω, n))
