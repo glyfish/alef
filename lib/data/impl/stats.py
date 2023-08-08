@@ -142,6 +142,28 @@ def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) 
 
     return time, stats.cumu_var(data, Δt)
 
+def compute_cumu_cov(time: numpy.ndarray, x: numpy.ndarray[float], y: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Cumulative covarianve of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    x: numpy.ndarray[float]
+        Sampled data.
+    y: numpy.ndarray[float]
+        Sampled data.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and cumulative covariance of samples as a function of time.
+    """
+
+    return time, stats.cumu_cov(x, y)
+
+
 def compute_agg_var(data: numpy.ndarray, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the aggregated variance using the specified bin sizes.. 
