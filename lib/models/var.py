@@ -2,41 +2,6 @@
 import numpy
 from statsmodels.tsa.api import VAR as pyvar
 
-def var(x0: numpy.matrix[float], μ: numpy.matrix[float], φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
-    """
-    Simulate a VAR(n) process using the provided parameters.
-    
-    Parameters
-    ----------
-    x0: numpy.matrix[float]
-        VAR(n) process initial value matrix.
-    μ: numpy.matrix[float]
-        VAR(n) process offset matrix.
-    φ: numpy.matrix[float]
-        VAR(n) process coefficient matrix.
-    Ω: list[numpy.matrix[float]]
-        VAR(n) process gaussian noise autocovariance function.
-
-    Returns
-    -------
-    numpy.matrix[float]
-        Simulation results.
-    """
-
-    x0 = numpy.array(x0.T)
-    l, m = x0.shape
-    xt = numpy.zeros((n, m))
-    μ = numpy.squeeze(numpy.array(μ), axis=1)
-    ε = numpy.random.multivariate_normal(μ, Ω, n)
-    for i in range(l):
-        xt[i] = x0[i]
-    for i in range(l, n):
-        xt[i] = ε[i]
-        for j in range(l):
-            t1 = φ[j]*numpy.matrix(xt[i-j-1]).T
-            xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
-    return numpy.matrix(xt).T
-
 def mean(φ: numpy.matrix[float], μ: numpy.matrix[float]) -> numpy.matrix[float]:
     """
     Compute the stationary mean matrix for a VAR(n) process with the given parameters.
@@ -59,6 +24,7 @@ def mean(φ: numpy.matrix[float], μ: numpy.matrix[float]) -> numpy.matrix[float
     n, _ = Φ.shape
     tmp = numpy.matrix(numpy.eye(n)) - Φ
     return numpy.linalg.inv(tmp)*Μ
+
 
 def cov(φ: numpy.matrix[float], ω: numpy.matrix[float]) -> numpy.matrix[float]:
     """
@@ -86,6 +52,7 @@ def cov(φ: numpy.matrix[float], ω: numpy.matrix[float]) -> numpy.matrix[float]
     inv_tmp = numpy.linalg.inv(tmp)
     vec_var = inv_tmp * vec(Ω)
     return unvec(vec_var)
+
 
 def acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
@@ -118,7 +85,8 @@ def acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float], n: int) -> numpy
         γ[i] = Σ*γ[i].T
     return γ
 
-def eig(φ: numpy.matrix[float]) -> numpy.ndarray[float]:
+
+def eig(φ: list[numpy.matrix[float]]) -> numpy.ndarray[float]:
     """
     Compute eigen values of VAR(n) parameter matrix transformed to VAR(1) companion form. 
     Stationarity requires that |λ| < 1.
@@ -126,19 +94,20 @@ def eig(φ: numpy.matrix[float]) -> numpy.ndarray[float]:
     Parameters
     ----------
     φ: numpy.matrix[float]
-        VAR(n) coefficient matrix.
+       VAR(n) coefficient matrix in companion form.
 
     Returns
     -------
     numpy.ndarray[float]
-        Array o
+        Array of eigen values.
     """
 
     Φ = phi_comp(φ)
     λ, _ = numpy.linalg.eig(Φ)
     return λ
 
-def isStationary(φ: numpy.matrix[float]) -> bool:
+
+def is_stationary(φ: list[numpy.matrix[float]]) -> bool:
     """
     Return True if the VAR(n) parameter matrix is stationary.
 
@@ -158,14 +127,15 @@ def isStationary(φ: numpy.matrix[float]) -> bool:
             return False
     return True
 
-def phi_comp(φ: numpy.matrix[float]) -> numpy.matrix[float]:
+
+def phi_comp(φ: list[numpy.matrix[float]]) -> numpy.matrix[float]:
     """
     Convert the VAR(n) coefficient matrix to the VAR(1) companion form used for calculations. 
 
-        Parameters
+    Parameters
     ----------
-    ω: numpy.matrix[float]
-        VAR(n) noise covariance matrix.
+   φ: list[numpy.matrix[float]]
+         VAR(n) coefficient matrix
 
     Returns
     -------
@@ -191,14 +161,15 @@ def phi_comp(φ: numpy.matrix[float]) -> numpy.matrix[float]:
 
     return numpy.matrix(p)
 
+
 def mean_comp(μ: numpy.matrix[float]) -> numpy.matrix[float]:
     """
-    Convert the VAR(n) offset matrix to 
+    Convert the VAR(n) offset matrix the VAR(1) companion form used for calculations.
 
     Parameters
     ----------
-    ω: numpy.matrix[float]
-        VAR(n) noise covariance matrix.
+    μ: numpy.matrix[float]
+        VAR(n) offset matrix.
 
     Returns
     -------
@@ -210,6 +181,7 @@ def mean_comp(μ: numpy.matrix[float]) -> numpy.matrix[float]:
     p = numpy.zeros(n**2)
     p[:n] = μ
     return numpy.matrix([p]).T
+
 
 def omega_comp(ω: numpy.matrix[float]) -> numpy.matrix[float]:
     """
@@ -229,7 +201,9 @@ def omega_comp(ω: numpy.matrix[float]) -> numpy.matrix[float]:
     n, _ = ω.shape
     p = numpy.zeros((n**2, n**2))
     p[:n, :n] = ω
+
     return numpy.matrix(p)
+
 
 def vec(m: numpy.matrix[float]) -> numpy.matrix[float]:
     """
@@ -264,6 +238,7 @@ def vec(m: numpy.matrix[float]) -> numpy.matrix[float]:
         v[d:d+n] = m[:,i]
     return v
 
+
 def unvec(v: numpy.matrix[float]) -> numpy.matrix[float]:
     """
     Apply the inverse of the vec operation to the given matrix. For the following
@@ -297,4 +272,40 @@ def unvec(v: numpy.matrix[float]) -> numpy.matrix[float]:
         d = i*n
         m[:,i] = v[d:d+n]
     return m
+
+
+def var(x0: numpy.matrix[float], μ: numpy.matrix[float], φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
+    """
+    Simulate a VAR(n) process using the provided parameters.
+    
+    Parameters
+    ----------
+    x0: numpy.matrix[float]
+        VAR(n) process initial value matrix.
+    μ: numpy.matrix[float]
+        VAR(n) process offset matrix.
+    φ: numpy.matrix[float]
+        VAR(n) process coefficient matrix.
+    Ω: list[numpy.matrix[float]]
+        VAR(n) process gaussian noise autocovariance function.
+
+    Returns
+    -------
+    numpy.matrix[float]
+        Simulation results.
+    """
+
+    x0 = numpy.array(x0.T)
+    l, m = x0.shape
+    xt = numpy.zeros((n, m))
+    μ = numpy.squeeze(numpy.array(μ), axis=1)
+    ε = numpy.random.multivariate_normal(μ, Ω, n)
+    for i in range(l):
+        xt[i] = x0[i]
+    for i in range(l, n):
+        xt[i] = ε[i]
+        for j in range(l):
+            t1 = φ[j]*numpy.matrix(xt[i-j-1]).T
+            xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
+    return numpy.matrix(xt).T
 
