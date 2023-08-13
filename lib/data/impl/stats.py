@@ -144,7 +144,7 @@ def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) 
 
 def compute_cumu_cov(time: numpy.ndarray, x: numpy.ndarray[float], y: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
-    Cumulative covarianve of samples.
+    Cumulative covariance of samples.
 
     Parameters
     ----------
