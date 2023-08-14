@@ -274,7 +274,7 @@ def unvec(v: numpy.matrix[float]) -> numpy.matrix[float]:
     return m
 
 
-def var(x0: numpy.matrix[float], μ: numpy.matrix[float], φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
+def var(x0: numpy.matrix[float], μ: numpy.array[float], φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Simulate a VAR(n) process using the provided parameters.
     
@@ -298,7 +298,6 @@ def var(x0: numpy.matrix[float], μ: numpy.matrix[float], φ: list[numpy.matrix[
     x0 = numpy.array(x0.T)
     l, m = x0.shape
     xt = numpy.zeros((n, m))
-    μ = numpy.squeeze(numpy.array(μ), axis=1)
     ε = numpy.random.multivariate_normal(μ, Ω, n)
     for i in range(l):
         xt[i] = x0[i]

@@ -4,7 +4,7 @@ import numpy
 from lib.models import var
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
-                       verify_type, verify_type, verify_condition, create_space, create_logspace)
+                       verify_type, verify_condition, create_space, create_logspace)
 
 
 def compute_mean(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
@@ -25,12 +25,15 @@ def compute_mean(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]
     """
 
     verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    verify_type(Φ[0], numpy.ndarray)
     m, _ = Φ[0].shape
 
-    Μ_default = numpy.matrix(numpy.zeros(m)).T
+    Μ_default = numpy.numpy.zeros(m)
     Μ = get_param_default_if_missing("Μ", Μ_default, **kwargs)
-    verify_type(Μ, numpy.matrix[float])
+    n = Μ.shape
+    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
+
+    verify_type(Μ, numpy.ndarray)
 
     return var.mean(Φ, Μ)
 
@@ -53,13 +56,12 @@ def compute_cov(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
         Simulation results.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
     m, _ = Φ[0].shape
 
     Ω_default = numpy.matrix(numpy.eye(m))
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    verify_type(Ω, numpy.matrix[float])
+    verify_type(Ω, numpy.ndarray)
 
     return var.cov(Φ, Ω)
 
@@ -82,13 +84,13 @@ def compute_acf(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
         Stationary mean matrix.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
+
     m, _ = Φ[0].shape
 
     Ω_default = numpy.matrix(numpy.eye(m))
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    verify_type(Ω, numpy.matrix[float])
+    verify_type(Ω, numpy.ndarray)
     nlag = get_param_default_if_missing("nlag", 25, **kwargs)
 
     return  create_space(npts=nlag), var.acf(Φ, Ω, nlag)
@@ -109,8 +111,7 @@ def compute_eig_values(Φ: list[numpy.matrix[float]]) -> numpy.ndarray[float]:
         Array of eigen values.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
 
     return var.eig(Φ)
 
@@ -130,8 +131,7 @@ def compute_is_stationary(Φ: list[numpy.matrix[float]]) -> bool:
         True if VAR(n) process is stationary.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
 
     return var.is_stationary(Φ)
 
@@ -151,8 +151,7 @@ def compute_phi_companion_form(Φ: list[numpy.matrix[float]]) -> numpy.matrix[fl
         Companion form of noise covariance matrix.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
 
     return var.phi_comp(Φ)
 
@@ -172,7 +171,10 @@ def compute_mean_companion_form(Μ: numpy.matrix[float]) -> numpy.matrix[float]:
         Companion form of VAR(n) offset matrix.
     """
 
-    verify_type(Μ, numpy.matrix[float])
+    verify_type(Μ, numpy.ndarray)
+    n = Μ.shape
+    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
+
     return var.mean_comp(Μ)
           
 
@@ -191,7 +193,9 @@ def compute_omega_companion_form(Ω: numpy.matrix[float]) -> numpy.matrix[float]
         Companion form of noise covariance matrix.
     """
 
-    verify_type(Ω, numpy.matrix[float])
+    verify_type(Ω, numpy.ndarray)
+    m, n = Ω.shape
+    verify_condition("Φ", m == n, "Ω should be square")
 
     return var.omega_comp(Ω)
 
@@ -250,6 +254,9 @@ def compute_unvec(m: numpy.matrix[float]) -> numpy.matrix[float]:
         Input vector in unvec form.
     """
 
+    _, n = m.shape
+    verify_condition("Input", n == 1, f"should be a column vector")
+
     return var.unvec(m)
 
 def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
@@ -275,24 +282,45 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
         Simulation results.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.matrix[float])
+    __verify_phi(Φ)
+
     n = len(Φ)
     m, _ = Φ[0].shape
 
     Ω_default = numpy.matrix(numpy.eye(m))
-    μ_default = numpy.matrix(numpy.zeros(m)).T
+    Μ_default = numpy.matrix(numpy.zeros(m)).T
     x0_default = numpy.matrix(numpy.zeros((m, n)))
 
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    μ = get_param_default_if_missing("μ", μ_default, **kwargs)
+    Μ = get_param_default_if_missing("Μ", Μ_default, **kwargs)
     x0 = get_param_default_if_missing("x0", x0_default, **kwargs)
-    verify_type(x0, numpy.matrix[float])
-    verify_type(Ω, numpy.matrix[float])
-    verify_type(μ, numpy.matrix[float])
+
+    m, n = Ω.shape
+    verify_condition("Φ", m == n, "should be square")
+    n = Μ.shape
+    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
+    m0, n0 = x0.shape
+    verify_condition("x0", n == 1, f"should be a column vector")
+
+    verify_type(x0, numpy.ndarray)
+    verify_type(Ω, numpy.ndarray)
+    verify_type(Μ, numpy.ndarray)
 
     npts = get_param_default_if_missing("npts", 1000, **kwargs)
 
-    return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
+    return create_space(npts=npts), var.var(x0, Μ, Φ, Ω, npts)
+
+def __verify_phi(Φ):
+    """
+    Verify that Φ satisfies the required shape.
+    """
+
+    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
+    m0, n0 = Φ[0].shape
+    for i in range(len(Φ)):
+        verify_type(Φ[i], numpy.ndarray)
+        m, n = Φ[i].shape
+        verify_condition(f"Φ[{i}]", m == n, f"should be square")
+        verify_condition(f"Φ[{i}]", m0 == m and n0 == n, f"should have size ({m0}, {n0})")
 
     
