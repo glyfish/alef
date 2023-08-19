@@ -143,33 +143,35 @@ def phi_comp(φ: list[numpy.matrix[float]]) -> numpy.matrix[float]:
         Companion form of noise covariance matrix.
     """
 
-    l, n, _ = φ.shape
+    n, m, _ = φ.shape
     p = φ[0]
-    for i in range(1,l):
-        p = numpy.concatenate((p, φ[i]), axis=1)
     for i in range(1, n):
-        if i == 1:
-            r = numpy.eye(n)
+        p = numpy.concatenate((p, φ[i]), axis=1)
+    for i in range(n-1):
+        if i == 0:
+            r = numpy.eye(m)
         else:
-            r = numpy.zeros((n, n))
-        for j in range(1,l):
-            if j == i - 1:
-                r = numpy.concatenate((r, numpy.eye(n)), axis=1)
+            r = numpy.zeros((m, m))
+        for j in range(1, n):
+            if j == i:
+                r = numpy.concatenate((r, numpy.eye(m)), axis=1)
             else:
-                r = numpy.concatenate((r, numpy.zeros((n, n))), axis=1)
+                r = numpy.concatenate((r, numpy.zeros((m, m))), axis=1)
         p = numpy.concatenate((p, r), axis=0)
 
     return numpy.matrix(p)
 
 
-def mean_comp(μ: numpy.matrix[float]) -> numpy.matrix[float]:
+def mean_comp(Μ: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Convert the VAR(n) offset matrix the VAR(1) companion form used for calculations.
 
     Parameters
     ----------
-    μ: numpy.matrix[float]
+    Μ: numpy.matrix[float]
         VAR(n) offset matrix.
+    n: int
+        Order of VAR process.
 
     Returns
     -------
@@ -177,13 +179,13 @@ def mean_comp(μ: numpy.matrix[float]) -> numpy.matrix[float]:
         Companion form of VAR(n) offset matrix.
     """
 
-    n = len(μ)
-    p = numpy.zeros(n**2)
-    p[:n] = μ
+    m = len(Μ)
+    p = numpy.zeros(m * n)
+    p[:m] = Μ
     return numpy.matrix([p]).T
 
 
-def omega_comp(ω: numpy.matrix[float]) -> numpy.matrix[float]:
+def omega_comp(ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Convert VAR(n) gaussian noise covariance matrix to companion form.
 
@@ -191,6 +193,8 @@ def omega_comp(ω: numpy.matrix[float]) -> numpy.matrix[float]:
     ----------
     ω: numpy.matrix[float]
         VAR(n) noise covariance matrix.
+    n: int
+        Order of VAR process.
 
     Returns
     -------
@@ -198,9 +202,10 @@ def omega_comp(ω: numpy.matrix[float]) -> numpy.matrix[float]:
         Companion form of noise covariance matrix.
     """
 
-    n, _ = ω.shape
-    p = numpy.zeros((n**2, n**2))
-    p[:n, :n] = ω
+    m, _ = ω.shape
+
+    p = numpy.zeros((m * n, m * n))
+    p[:m, :m] = ω
 
     return numpy.matrix(p)
 
@@ -274,20 +279,22 @@ def unvec(v: numpy.matrix[float]) -> numpy.matrix[float]:
     return m
 
 
-def var(x0: numpy.matrix[float], μ: numpy.array[float], φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
+def var(X0: numpy.matrix[float], Μ: numpy.ndarray[float], Φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], nsample: int) -> numpy.matrix[float]:
     """
     Simulate a VAR(n) process using the provided parameters.
     
     Parameters
     ----------
-    x0: numpy.matrix[float]
+    X0: numpy.matrix[float]
         VAR(n) process initial value matrix.
-    μ: numpy.matrix[float]
+    Μ: numpy.matrix[float]
         VAR(n) process offset matrix.
-    φ: numpy.matrix[float]
+    Φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
     Ω: list[numpy.matrix[float]]
         VAR(n) process gaussian noise autocovariance function.
+    nsample: int
+        Number of samples.
 
     Returns
     -------
@@ -295,16 +302,16 @@ def var(x0: numpy.matrix[float], μ: numpy.array[float], φ: list[numpy.matrix[f
         Simulation results.
     """
 
-    x0 = numpy.array(x0.T)
-    l, m = x0.shape
-    xt = numpy.zeros((n, m))
-    ε = numpy.random.multivariate_normal(μ, Ω, n)
+    X0 = numpy.array(X0.T)
+    l, m = X0.shape
+    xt = numpy.zeros((nsample, m))
+    ε = numpy.random.multivariate_normal(Μ, Ω, nsample)
     for i in range(l):
-        xt[i] = x0[i]
-    for i in range(l, n):
+        xt[i] = X0[i]
+    for i in range(l, nsample):
         xt[i] = ε[i]
         for j in range(l):
-            t1 = φ[j]*numpy.matrix(xt[i-j-1]).T
+            t1 = Φ[j]*numpy.matrix(xt[i-j-1]).T
             xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
     return numpy.matrix(xt).T
-
+    

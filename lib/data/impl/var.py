@@ -156,7 +156,7 @@ def compute_phi_companion_form(Φ: list[numpy.matrix[float]]) -> numpy.matrix[fl
     return var.phi_comp(Φ)
 
 
-def compute_mean_companion_form(Μ: numpy.matrix[float]) -> numpy.matrix[float]:
+def compute_mean_companion_form(Μ: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Convert the VAR(n) offset matrix to 
 
@@ -164,6 +164,8 @@ def compute_mean_companion_form(Μ: numpy.matrix[float]) -> numpy.matrix[float]:
     ----------
     Μ: numpy.matrix[float]
         VAR(n) offset matrix.
+    n: int
+        Order of VAR process.
 
     Returns
     -------
@@ -172,13 +174,13 @@ def compute_mean_companion_form(Μ: numpy.matrix[float]) -> numpy.matrix[float]:
     """
 
     verify_type(Μ, numpy.ndarray)
-    n = Μ.shape
-    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
+    verify_condition("Μ", len(Μ.shape) == 1, f"should be 1-D vector")
+    verify_condition("n", n > 0, f"should be positive")
 
-    return var.mean_comp(Μ)
+    return var.mean_comp(Μ, n)
           
 
-def compute_omega_companion_form(Ω: numpy.matrix[float]) -> numpy.matrix[float]:
+def compute_omega_companion_form(Ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Convert VAR(n) gaussian noise covariance matrix to companion form.
 
@@ -186,6 +188,8 @@ def compute_omega_companion_form(Ω: numpy.matrix[float]) -> numpy.matrix[float]
     ----------
     Ω: list[numpy.matrix[float]]
         VAR(n) noise covariance matrix.
+    n: int
+        Order of VAR process.
 
     Returns
     -------
@@ -194,10 +198,10 @@ def compute_omega_companion_form(Ω: numpy.matrix[float]) -> numpy.matrix[float]
     """
 
     verify_type(Ω, numpy.ndarray)
-    m, n = Ω.shape
-    verify_condition("Φ", m == n, "Ω should be square")
+    m, l = Ω.shape
+    verify_condition("Φ", m == l, "Ω should be square")
 
-    return var.omega_comp(Ω)
+    return var.omega_comp(Ω, n)
 
 
 def compute_vec(m: numpy.matrix[float]) -> numpy.matrix[float]:
