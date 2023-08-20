@@ -61,7 +61,7 @@ def compute_cov(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None) -
     return var.cov(φ, ω)
 
 
-def compute_acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None, **kwargs) -> numpy.matrix[float]:
+def compute_acov(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None, **kwargs) -> numpy.matrix[float]:
     """
     Compute the stationary auto covariance matrix for the given VAR(n)
     parameters.
@@ -88,7 +88,7 @@ def compute_acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None, *
     verify_type(ω, numpy.ndarray)
     nlag = get_param_default_if_missing("nlag", 25, **kwargs)
 
-    return  create_space(npts=nlag), var.acf(φ, ω, nlag)
+    return  create_space(npts=nlag), var.acov(φ, ω, nlag)
 
 def compute_eig_values(Φ: list[numpy.matrix[float]]) -> numpy.ndarray[float]:
     """

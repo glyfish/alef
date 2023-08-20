@@ -19,10 +19,10 @@ def mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float]) -> numpy.matri
         Stationary mean matrix.
     """
 
-    n, _, _ = φ.shape
+    n, m, _ = φ.shape
     Φ = phi_comp(φ)
     Μ = mean_comp(μ, n)
-    tmp = numpy.matrix(numpy.eye(n)) - Φ
+    tmp = numpy.matrix(numpy.eye(n * m)) - Φ
     return numpy.linalg.inv(tmp)*Μ
 
 
@@ -44,18 +44,18 @@ def cov(φ: numpy.matrix[float], ω: numpy.matrix[float]) -> numpy.matrix[float]
         Stationary covariance matrix.
     """
 
-    n, _, _ = φ.shape
+    n, m, _ = φ.shape
 
     Ω = omega_comp(ω, n)
     Φ = phi_comp(φ)
-    eye = numpy.matrix(numpy.eye(n**2))
+    eye = numpy.matrix(numpy.eye(m**2 * n**2))
     tmp = eye - numpy.kron(Φ, Φ)
     inv_tmp = numpy.linalg.inv(tmp)
     vec_var = inv_tmp * vec(Ω)
     return unvec(vec_var)
 
 
-def acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
+def acov(φ: list[numpy.matrix[float]], ω: numpy.matrix[float], n: int) -> numpy.matrix[float]:
     """
     Compute the stationary auto covariance matrix for the given VAR(n)
     parameters.
