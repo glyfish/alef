@@ -7,7 +7,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
 
 
-def compute_mean(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
+def compute_mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float] = None) -> numpy.matrix[float]:
     """
     Compute the stationary mean matrix for a VAR(n) process with the given parameters.
 
@@ -15,7 +15,7 @@ def compute_mean(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]
     ----------
     φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
-    Μ: numpy.matrix[float]
+    μ: numpy.matrix[float]
         VAR(n) process offset matrix. (default column of zeros)
 
     Returns
@@ -24,30 +24,26 @@ def compute_mean(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]
         Stationary mean matrix.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    verify_type(Φ[0], numpy.ndarray)
-    m, _ = Φ[0].shape
+    verify_condition(φ, len(φ) > 0, "len(φ) > 0")
+    verify_type(φ[0], numpy.ndarray)
+    m, _ = φ[0].shape
 
-    Μ_default = numpy.numpy.zeros(m)
-    Μ = get_param_default_if_missing("Μ", Μ_default, **kwargs)
-    n = Μ.shape
-    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
+    μ = numpy.zeros(m) if μ is None else μ
+    verify_type(μ, numpy.ndarray)
 
-    verify_type(Μ, numpy.ndarray)
-
-    return var.mean(Φ, Μ)
+    return var.mean(φ, μ)
 
 
-def compute_cov(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
+def compute_cov(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None) -> numpy.matrix[float]:
     """
     Compute the stationary covariance matrix for the given VAR(n) process
     parameters.
     
     Parameters
     ----------
-    Φ: numpy.matrix[float]
+    φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
-    Ω: list[numpy.matrix[float]]
+    ω: list[numpy.matrix[float]]
         VAR(n) process gaussian noise autocovariance function. (identity matrix)
 
     Returns
@@ -56,27 +52,28 @@ def compute_cov(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
         Simulation results.
     """
 
-    __verify_phi(Φ)
-    m, _ = Φ[0].shape
+    __verify_phi(φ)
+    m, _ = φ[0].shape
 
-    Ω_default = numpy.matrix(numpy.eye(m))
-    Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    verify_type(Ω, numpy.ndarray)
+    ω = numpy.matrix(numpy.eye(m)) if ω is None else ω
+    verify_type(ω, numpy.ndarray)
 
-    return var.cov(Φ, Ω)
+    return var.cov(φ, ω)
 
 
-def compute_acf(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
+def compute_acf(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None, **kwargs) -> numpy.matrix[float]:
     """
     Compute the stationary auto covariance matrix for the given VAR(n)
     parameters.
 
     Parameters
     ----------
-    Φ: numpy.matrix[float]
+    φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
     Ω: numpy.matrix[float]
         VAR(n) process gaussian noise autocovariance matrix.
+    nlag: int
+        Number of lags. (default 25)
 
     Returns
     -------
@@ -84,16 +81,14 @@ def compute_acf(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
         Stationary mean matrix.
     """
 
-    __verify_phi(Φ)
+    __verify_phi(φ)
+    m, _ = φ[0].shape
 
-    m, _ = Φ[0].shape
-
-    Ω_default = numpy.matrix(numpy.eye(m))
-    Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    verify_type(Ω, numpy.ndarray)
+    ω = numpy.matrix(numpy.eye(m)) if ω is None else ω
+    verify_type(ω, numpy.ndarray)
     nlag = get_param_default_if_missing("nlag", 25, **kwargs)
 
-    return  create_space(npts=nlag), var.acf(Φ, Ω, nlag)
+    return  create_space(npts=nlag), var.acf(φ, ω, nlag)
 
 def compute_eig_values(Φ: list[numpy.matrix[float]]) -> numpy.ndarray[float]:
     """
@@ -314,17 +309,17 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
 
     return create_space(npts=npts), var.var(x0, Μ, Φ, Ω, npts)
 
-def __verify_phi(Φ):
+def __verify_phi(φ):
     """
     Verify that Φ satisfies the required shape.
     """
 
-    verify_condition(Φ, len(Φ) > 0, "len(φ) > 0")
-    m0, n0 = Φ[0].shape
-    for i in range(len(Φ)):
-        verify_type(Φ[i], numpy.ndarray)
-        m, n = Φ[i].shape
-        verify_condition(f"Φ[{i}]", m == n, f"should be square")
-        verify_condition(f"Φ[{i}]", m0 == m and n0 == n, f"should have size ({m0}, {n0})")
+    verify_condition(φ, len(φ) > 0, "len(φ) > 0")
+    m0, n0 = φ[0].shape
+    for i in range(len(φ)):
+        verify_type(φ[i], numpy.ndarray)
+        m, n = φ[i].shape
+        verify_condition(f"φ[{i}]", m == n, f"should be square")
+        verify_condition(f"φ[{i}]", m0 == m and n0 == n, f"should have size ({m0}, {n0})")
 
     

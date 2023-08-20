@@ -2,7 +2,7 @@
 import numpy
 from statsmodels.tsa.api import VAR as pyvar
 
-def mean(φ: numpy.matrix[float], μ: numpy.matrix[float]) -> numpy.matrix[float]:
+def mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float]) -> numpy.matrix[float]:
     """
     Compute the stationary mean matrix for a VAR(n) process with the given parameters.
 
@@ -10,7 +10,7 @@ def mean(φ: numpy.matrix[float], μ: numpy.matrix[float]) -> numpy.matrix[float
     ----------
     φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
-    μ: numpy.matrix[float]
+    μ: numpy.ndarray[float]
         VAR(n) process offset matrix.
 
     Returns
@@ -19,9 +19,9 @@ def mean(φ: numpy.matrix[float], μ: numpy.matrix[float]) -> numpy.matrix[float
         Stationary mean matrix.
     """
 
+    n, _, _ = φ.shape
     Φ = phi_comp(φ)
-    Μ = mean_comp(μ)
-    n, _ = Φ.shape
+    Μ = mean_comp(μ, n)
     tmp = numpy.matrix(numpy.eye(n)) - Φ
     return numpy.linalg.inv(tmp)*Μ
 
@@ -44,9 +44,10 @@ def cov(φ: numpy.matrix[float], ω: numpy.matrix[float]) -> numpy.matrix[float]
         Stationary covariance matrix.
     """
 
-    Ω = omega_comp(ω)
+    n, _, _ = φ.shape
+
+    Ω = omega_comp(ω, n)
     Φ = phi_comp(φ)
-    n, _ = Φ.shape
     eye = numpy.matrix(numpy.eye(n**2))
     tmp = eye - numpy.kron(Φ, Φ)
     inv_tmp = numpy.linalg.inv(tmp)
