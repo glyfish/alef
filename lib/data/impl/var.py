@@ -264,13 +264,13 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
     
     Parameters
     ----------
-    Φ: numpy.matrix[float]
+    Φ: list[numpy.matrix[float]]
         VAR(n) process coefficient matrix.
     x0: numpy.matrix[float]
         VAR(n) process initial value matrix. (default zero column matrix)
-    μ: numpy.matrix[float]
+    μ: numpy.ndarray[float]
         VAR(n) process offset matrix.(default zero column matrix)
-    Ω: list[numpy.matrix[float]]
+    Ω: numpy.matrix[float]
         VAR(n) process gaussian noise autocovariance function. (identity matrix)
     npts: int
         Number of steps simulated. (default 1000)
@@ -283,31 +283,28 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
 
     __verify_phi(Φ)
 
-    n = len(Φ)
-    m, _ = Φ[0].shape
+    n, m, _ = Φ.shape
 
     Ω_default = numpy.matrix(numpy.eye(m))
-    Μ_default = numpy.matrix(numpy.zeros(m)).T
+    μ_default = numpy.zeros(m)
     x0_default = numpy.matrix(numpy.zeros((m, n)))
 
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
-    Μ = get_param_default_if_missing("Μ", Μ_default, **kwargs)
+    μ = get_param_default_if_missing("μ", μ_default, **kwargs)
     x0 = get_param_default_if_missing("x0", x0_default, **kwargs)
 
     m, n = Ω.shape
     verify_condition("Φ", m == n, "should be square")
-    n = Μ.shape
-    verify_condition("Μ", len(n) == 1, f"should be 1-D vector")
     m0, n0 = x0.shape
-    verify_condition("x0", n == 1, f"should be a column vector")
+    verify_condition("x0", m0 == m and n0 == n, f"should have shape ({m}, {n})")
 
     verify_type(x0, numpy.ndarray)
     verify_type(Ω, numpy.ndarray)
-    verify_type(Μ, numpy.ndarray)
+    verify_type(μ, numpy.ndarray)
 
     npts = get_param_default_if_missing("npts", 1000, **kwargs)
 
-    return create_space(npts=npts), var.var(x0, Μ, Φ, Ω, npts)
+    return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
 
 def __verify_phi(φ):
     """

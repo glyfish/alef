@@ -1,6 +1,7 @@
 
 import numpy
 from statsmodels.tsa.api import VAR as pyvar
+from lib.stats import multivariate_normal_samples
 
 def mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float]) -> numpy.matrix[float]:
     """
@@ -303,10 +304,9 @@ def var(X0: numpy.matrix[float], Μ: numpy.ndarray[float], Φ: list[numpy.matrix
         Simulation results.
     """
 
-    X0 = numpy.array(X0.T)
-    l, m = X0.shape
+    m, n, _ = Φ.shape
     xt = numpy.zeros((nsample, m))
-    ε = numpy.random.multivariate_normal(Μ, Ω, nsample)
+    ε = multivariate_normal_samples(Μ, Ω, nsample)
     for i in range(l):
         xt[i] = X0[i]
     for i in range(l, nsample):
