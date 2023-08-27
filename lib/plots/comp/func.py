@@ -114,7 +114,7 @@ def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[f
     if plot_axis_type.value == PlotType.LOG.value:
         if x[0] == 0.0:
             x = x[1:]
-            y = y[1:]
+            data = data[1:]
         if fx[0] == 0.0:
             fx = fx[1:]
             func = func[1:]
@@ -124,7 +124,7 @@ def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[f
     elif plot_axis_type.value == PlotType.XLOG.value:
         if x[0] == 0.0:
             x = x[1:]
-            y = y[1:]
+            data = data[1:]
         if fx[0] == 0.0:
             fx = fx[1:]
             func = func[1:]

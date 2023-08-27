@@ -88,7 +88,7 @@ def compute_acov(φ: list[numpy.matrix[float]], ω: numpy.matrix[float] = None, 
     verify_type(ω, numpy.ndarray)
     nlag = get_param_default_if_missing("nlag", 25, **kwargs)
 
-    return  create_space(npts=nlag), var.acov(φ, ω, nlag)
+    return  create_space(npts=nlag + 1), var.acov(φ, ω, nlag + 1)
 
 def compute_eig_values(Φ: list[numpy.matrix[float]]) -> numpy.ndarray[float]:
     """
