@@ -281,21 +281,21 @@ def unvec(v: numpy.matrix[float]) -> numpy.matrix[float]:
     return m
 
 
-def var(X0: numpy.matrix[float], Μ: numpy.ndarray[float], Φ: list[numpy.matrix[float]], Ω: numpy.matrix[float], nsample: int) -> numpy.matrix[float]:
+def var(x0: numpy.matrix[float], μ: numpy.ndarray[float], φ: list[numpy.matrix[float]], ω: numpy.matrix[float], npts: int) -> numpy.matrix[float]:
     """
     Simulate a VAR(n) process using the provided parameters.
     
     Parameters
     ----------
-    X0: numpy.matrix[float]
+    x0: numpy.matrix[float]
         VAR(n) process initial value matrix.
-    Μ: numpy.matrix[float]
+    μ: numpy.matrix[float]
         VAR(n) process offset matrix.
-    Φ: numpy.matrix[float]
+    φ: numpy.matrix[float]
         VAR(n) process coefficient matrix.
-    Ω: list[numpy.matrix[float]]
+    ω: list[numpy.matrix[float]]
         VAR(n) process gaussian noise autocovariance function.
-    nsample: int
+    npts: int
         Number of samples.
 
     Returns
@@ -304,15 +304,15 @@ def var(X0: numpy.matrix[float], Μ: numpy.ndarray[float], Φ: list[numpy.matrix
         Simulation results.
     """
 
-    m, n, _ = Φ.shape
-    xt = numpy.zeros((nsample, m))
-    ε = multivariate_normal_samples(Μ, Ω, nsample)
-    for i in range(l):
-        xt[i] = X0[i]
-    for i in range(l, nsample):
-        xt[i] = ε[i]
-        for j in range(l):
-            t1 = Φ[j]*numpy.matrix(xt[i-j-1]).T
+    n, m, _ = φ.shape
+    xt = numpy.zeros((npts, m))
+    ε = multivariate_normal_samples(numpy.zeros(m), ω, npts)
+    for i in range(n):
+        xt[i] = x0[i]
+    for i in range(n, npts):
+        xt[i] = ε[i] + μ
+        for j in range(n):
+            t1 = φ[j]*numpy.matrix(xt[i-j-1]).T
             xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
-    return numpy.matrix(xt).T
+    return numpy.transpose(xt)
     

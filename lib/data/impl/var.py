@@ -287,16 +287,17 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
 
     Ω_default = numpy.matrix(numpy.eye(m))
     μ_default = numpy.zeros(m)
-    x0_default = numpy.matrix(numpy.zeros((m, n)))
+    x0_default = numpy.matrix(numpy.zeros((n, m)))
 
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
     μ = get_param_default_if_missing("μ", μ_default, **kwargs)
     x0 = get_param_default_if_missing("x0", x0_default, **kwargs)
 
-    m, n = Ω.shape
-    verify_condition("Φ", m == n, "should be square")
-    m0, n0 = x0.shape
-    verify_condition("x0", m0 == m and n0 == n, f"should have shape ({m}, {n})")
+    m0, n0 = Ω.shape
+    verify_condition("Ω", m0 == m and n0 == m, f"should have shape({m},{m})")
+    n0, m0 = x0.shape
+    verify_condition("x0", m0 == m and n0 == n, f"should have shape ({n},{m})")
+    verify_condition("μ", len(μ) == m, f"should have length ({m},)")
 
     verify_type(x0, numpy.ndarray)
     verify_type(Ω, numpy.ndarray)

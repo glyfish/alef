@@ -285,6 +285,10 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         X-axis label. (default None)
     ylabels : str or list[str]
         Y-axis label. (default None)
+    xlim : (float, float)
+        X-axis limits. (default None)
+    ylim : (float, float)
+        Y-axis limits. (default None)
     lw : int
         Line width. (default 1)
     npts : int
@@ -297,6 +301,7 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
     ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     lw             = get_param_default_if_missing("lw", 1, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
@@ -339,15 +344,16 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
             axis[i].set_ylabel(ylabels)
 
         if ylim is None:
-            ylim_plot = [1.1*numpy.amin(y_plot), 1.1*numpy.amax(y_plot)]
-        else:
-            ylim_plot = ylim
+            ylim = [1.1*numpy.amin(y_plot), 1.1*numpy.amax(y_plot)]
 
-        axis[i].set_ylim(ylim_plot)
-        axis[i].set_xlim([x_plot[0], x_plot[-1]])
+        if xlim is None:
+            xlim = [x_plot[0], x_plot[-1]]
+
+        axis[i].set_ylim(ylim)
+        axis[i].set_xlim(xlim)
 
         if labels is not None:
-            ypos = 0.8*(ylim_plot[1] - ylim_plot[0]) + ylim_plot[0]
+            ypos = 0.8*(ylim[1] - ylim[0]) + ylim[0]
             xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
             text = axis[i].text(xpos, ypos, labels[i])
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
