@@ -1,6 +1,7 @@
 
 import numpy
-from statsmodels.tsa.api import VAR as pyvar
+from pandas import DataFrame
+from statsmodels.tsa.api import VAR
 from lib.stats import multivariate_normal_samples
 
 def mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float]) -> numpy.matrix[float]:
@@ -316,3 +317,5 @@ def var(x0: numpy.matrix[float], μ: numpy.ndarray[float], φ: list[numpy.matrix
             xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
     return numpy.transpose(xt)
     
+    def fit(data: DataFrame):
+        pass
