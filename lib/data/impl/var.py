@@ -2,6 +2,7 @@ from enum import Enum
 import numpy
 
 from lib.models import var
+from statsmodels.tsa.vector_ar.var_model import VARResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
@@ -306,6 +307,47 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
     npts = get_param_default_if_missing("npts", 1000, **kwargs)
 
     return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
+
+def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
+    """
+    Estimate the parameters for and assumed VAR(n) model.
+
+    Parameters
+    ----------
+    samples: list[numpy.ndarray[float]]
+        VAR(n) process endogenous variable samples.
+    names: list[str]
+        Names of sample variables. (default None)
+    maxlags: int
+        Maximum number of time lags tried. (default is 12)
+    trend: str
+        Assumed trend (default 'c'). 
+        Values 'n'=no trend, 'c'=constant offset, 'ct'=linear trend, 'ctt'=quadratic and linear trend.
+
+    Returns
+    -------
+    VARResult
+        Analysis results.
+    """
+    
+    nvar = len(samples)
+    default_names = [f"$S_{{{i}}}$" for i in range(nvar)]
+
+    maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
+    trend = get_param_default_if_missing("trend", 'c', **kwargs)
+    names = get_param_default_if_missing("names", default_names, **kwargs)
+    verify_condition("samples", nvar == len(names), f"and names should have the same length of {nvar}")
+
+    endog = {}
+    for i in range(nvar):
+        endog[names[i]] = samples[i]
+
+    return var.fit(endog=endog, maxlags=maxlags, trend=trend)
+
+
+
+def __var_estimate_from_result(result: VARResults):
+    pass
 
 def __verify_phi(φ):
     """

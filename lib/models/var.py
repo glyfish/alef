@@ -2,6 +2,7 @@
 import numpy
 from pandas import DataFrame
 from statsmodels.tsa.api import VAR
+from statsmodels.tsa.vector_ar.var_model import VARResults
 from lib.stats import multivariate_normal_samples
 
 def mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float]) -> numpy.matrix[float]:
@@ -317,5 +318,42 @@ def var(x0: numpy.matrix[float], μ: numpy.ndarray[float], φ: list[numpy.matrix
             xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
     return numpy.transpose(xt)
     
-    def fit(data: DataFrame):
-        pass
+def fit(endog: DataFrame, maxlags: int=12, trend: str="c") -> VARResults:
+    """
+    Estimate the parameters for and assumed VAR(n) model.
+
+    Parameters
+    ----------
+    endog: DataFrame
+        VAR(n) process endogenous variable samples.
+    maxlags: int
+        Maximum number of time lags tried. (default is 12)
+    trend: str
+        Assumed trend (default 'c'). 
+        Values 'n'=no trend, 'c'=constant offset, 'ct'=linear trend, 'ctt'=quadratic and linear trend.
+
+    Returns
+    -------
+    VARResult
+        Analysis results.
+    """
+
+    return __var_model(endog).fit(maxlags=maxlags, trend=trend)
+    
+        
+def __var_model(endog: DataFrame) -> VAR:
+    """
+    Estimate the parameters for and assumed VAR(n) model.
+
+    Parameters
+    ----------
+    endog: DataFrame
+        VAR(n) process endogenous variable samples.
+
+    Returns
+    -------
+    VAR
+        Analysis results.
+    """
+
+    return VAR(endog)
