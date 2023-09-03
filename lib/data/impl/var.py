@@ -2,6 +2,7 @@ from enum import Enum
 import numpy
 
 from lib.models import var
+from pandas import DataFrame
 from statsmodels.tsa.vector_ar.var_model import VARResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
@@ -331,7 +332,7 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
     """
     
     nvar = len(samples)
-    default_names = [f"$S_{{{i}}}$" for i in range(nvar)]
+    default_names = [f"S{i}" for i in range(nvar)]
 
     maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
@@ -341,10 +342,9 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
     endog = {}
     for i in range(nvar):
         endog[names[i]] = samples[i]
+    endog=DataFrame(endog)
 
-    return var.fit(endog=endog, maxlags=maxlags, trend=trend)
-
-
+    return var.fit(endog, maxlags=maxlags, trend=trend)
 
 def __var_estimate_from_result(result: VARResults):
     pass

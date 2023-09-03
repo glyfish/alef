@@ -12,12 +12,15 @@ class EstModel(str, Enum):
     ARMA
         Assume an ARMA(p,q) model when performing estimate.
     OLS_SING_VAR
-        Assume a single variable OLS model when performing regression/
-
+        Assume a single variable OLS model when performing regression.
+    VAR
+        ASSUME a VAR(p) model when performing estimate.
     """
 
     ARMA = "ARMA"
     OLS_SING_VAR = "OLS_SING_VAR"
+    VAR = "VAR"
+
 
 class ParamEst:
     """
@@ -25,21 +28,33 @@ class ParamEst:
 
     Properties
     ----------
-    est : float
+    est: float
         Estimate value.
-    err : float
+    err: float
         Estimate error.
-    est_label : str
+    est_label: str
         Estimate label used when display results.
-    err_label : str
+    err_label: str
         Estimate error label used when display results.
+    param_type: str
+        Parameter type.
+    row: int
+        Parameter row index.
+    column: int
+        Parameter column index. 
     """
 
-    def __init__(self, est: float, err: float, est_label: str=None, err_label: str=None):
+    def __init__(self, est: float, err: float, est_label: str=None, err_label: str=None, param_type: str=None, est_id: str=None, row: int=0, 
+                 column: int=0, order: int=0):
             self.est = est
             self.err = err
             self.est_label = est_label
             self.err_label = err_label
+            self.row = row
+            self.column = column
+            self.order = order
+            self.param_type = param_type
+            self.est_id = est_id
             self.__set_dict()
 
     def set_labels(self, est_label, err_label):
@@ -56,17 +71,25 @@ class ParamEst:
     def __props(self):
         return f"est=({self.est}), " \
                f"err=({self.err}, " \
-               f"est_label=({self.est_label}), "\
-               f"err_label=({self.err_label})"
+               f"est_label=({self.est_label}), " \
+               f"err_label=({self.err_label}), " \
+               f"row=({self.row}), " \
+               f"column=({self.column}), " \
+               f"param_type=({self.param_type}), " \
+               f"est_id=({self.est_id})"
 
     def __set_dict(self):
         self.dict = {"Estimate": self.est,
                      "Error": self.err,
                      "Estimate Label": self.est_label,
-                     "Error Label": self.err_label}
+                     "Error Label": self.err_label,
+                     "row": self.row,
+                     "column": self.column,
+                     "param_type": self.param_type,
+                     "est_id": self.est_id}
 
     @staticmethod
-    def from_dict(meta_data):
+    def from_dict(meta_data, row: int=0, column: int=0, est_id: str=None):
         if "Estimate Label" in meta_data:
             est_label = meta_data["Estimate Label"]
         else:
@@ -76,10 +99,8 @@ class ParamEst:
         else:
             err_label = None
 
-        return ParamEst(meta_data["Estimate"],
-                        meta_data["Error"],
-                        est_label,
-                        err_label)
+        return ParamEst(meta_data["Estimate"], meta_data["Error"], est_label, err_label, row, column, est_id)
+
 
 class OLSSinlgeVarTransform:
     """
@@ -117,6 +138,25 @@ class OLSSinlgeVarTransform:
                      "param": self.param.dict,
                      "const": self.const.dict}
 
+
+class OLSSingleVarParamType(str, Enum):
+    """
+    OLS single variable estimate parameter type.
+
+    Values
+    ------
+    OLS_SINGLE_VAR_CONST
+        Estimate of constant parameter.
+    OLS_SINGLE_VAR_R2
+        Estimate of R2 parameter.
+    OLS_SINGLE_VAR_PARAM
+        Estimate of slope parameter.
+    """
+
+    OLS_SINGLE_VAR_CONST = "OLS_SINGLE_VAR_CONST"
+    OLS_SINGLE_VAR_R2 = "OLS_SINGLE_VAR_R2"
+    OLS_SINGLE_VAR_PARAM = "OLS_SINGLE_VAR_PARAM"
+
 class OLSSingleVarResult:
     """
     Single variable OLS estimate result.
@@ -135,12 +175,13 @@ class OLSSingleVarResult:
         Estimated parameter transformation.
     """
 
-    def __init__(self, const: ParamEst, param: ParamEst, r2: float):
+    def __init__(self, const: ParamEst, param: ParamEst, r2: float, est_id: str=None):
         self.__est_model = EstModel.OLS_SING_VAR
         self.const = const
         self.param = param
         self.r2 = r2
         self.transform = None
+        self.__est_id = est_id
         self.__set_dict()
 
     def __repr__(self):
@@ -148,15 +189,18 @@ class OLSSingleVarResult:
 
     def __str__(self):
         return self._props()
+    
     def _props(self):
-        return f"est_model=({self.__est_model}), " \
+        return f"est_id={self.__est_id}, " \
+               f"est_model=({self.__est_model}), " \
                f"const=({self.__const}), " \
                f"params=({self.__param}, "\
                f"r2=({self.__r2}), " \
                f"transform=({self.__transform})"
     
     def __set_dict(self):
-        self.dict = {"est_model": self.__est_model.value,
+        self.dict = {"est_id": self.__est_id,
+                     "est_model": self.__est_model.value,
                      "param": self.param.dict,
                      "const": self.const.dict,
                      "r2": self.r2,
@@ -165,6 +209,7 @@ class OLSSingleVarResult:
     def set_transform(self, transform: OLSSinlgeVarTransform):
         self.transform = transform
         self.__set_dict()
+
 
 class OLSSingleVariable(Enum):
     """
@@ -261,6 +306,7 @@ class OLSSingleVariable(Enum):
         x = sm.add_constant(x)
         return sm.OLS(y, x, missing='drop').fit()
 
+
 class ARMAEstType(str, Enum):
     """
     ARMA model type.
@@ -304,6 +350,25 @@ class ARMAEstType(str, Enum):
         else:
             raise Exception(f"Estimate type is invalid: {self}")
 
+class ARMAParamType(str, Enum):
+    """
+    ARAM estimate parameter type.
+
+    Values
+    ------
+    ARMA_CONST
+        Estimate of constant parameter.
+    ARMA_PARAM
+        Estimate of R2 parameter.
+    ARAM_SIG2
+        Estimate of slope parameter.
+    """
+
+    ARMA_CONST = "ARMA_CONST"
+    ARMA_PARAM = "ARMA_PARAM"
+    ARAM_SIG2 = "ARAM_SIG2"
+
+
 class ARMAEst:
     """
     ARMA parameter estimate result.
@@ -319,13 +384,15 @@ class ARMAEst:
     arma_est_type: ARMAEstType
         ARMA model estimate type.
     """
-    def __init__(self, const: ParamEst, params: list[ParamEst], sigma2: ParamEst, arma_est_type: ARMAEstType=ARMAEstType.AR):
+
+    def __init__(self, const: ParamEst, params: list[ParamEst], sigma2: ParamEst, arma_est_type: ARMAEstType=ARMAEstType.AR, est_id: str=None):
         self.__est_model = EstModel.ARMA
         self.__arma_est_type = arma_est_type
         self.__const = const
         self.__order = len(params)
         self.__params = params
         self.__sigma2 = sigma2
+        self.__est_id = est_id
         self.__set_const_labels()
         self.__set_params_labels()
         self.__set_sigma2_labels()
@@ -340,10 +407,93 @@ class ARMAEst:
     def _props(self):
         return f"est_model=({self.__est_model}), " \
                f"arma_est_type=({self.__arma_est_type}), " \
+               f"est_id={self.__est_id}, " \
                f"const=({self.__const}), " \
                f"order=({self.__order}), " \
                f"params=({self.__params}), " \
                f"sigma2=({self.__sigma2})"
+
+    def __set_const_labels(self):
+        self.__const.set_labels(est_label=r"$\hat{\mu^*}$",
+                                err_label=r"$\sigma_{\hat{\mu^*}}$")
+
+    def __set_params_labels(self):
+        for i in range(len(self.__params)):
+            self.__arma_est_type.set_param_labels(self.__params[i], i)
+
+    def __set_sigma2_labels(self):
+        self.__sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
+                                 err_label=r"$\sigma_{\hat{\sigma^2}}$")
+
+    def __set_dict(self):
+        self.dict = {"est_model": self.__est_model.value,
+                     "arma_est_type": self.__arma_est_type.value,
+                     "est_id": self.__est_id,
+                     "order": self.__order,
+                     "const": self.__const.dict,
+                     "sigma2": self.__sigma2.dict,
+                     "params": [param.dict for param in self.__params]}
+
+
+class VARParamType(str, Enum):
+    """
+    VAR estimate parameter type.
+
+    Values
+    ------
+    VAR_CONST
+        Estimate of constant parameter.
+    VAR_PARAM
+        Estimate of R2 parameter.
+    VAR_OMEGA
+        Estimate of slope parameter.
+    """
+
+    VAR_CONST = "VAR_CONST"
+    VAR_PARAM = "VAR_PARAM"
+    VAR_SIG2 = "VAR_SIG2"
+
+
+class VAREst:
+    """
+    VAR parameter estimate result.
+
+    Parameters
+    ----------
+    const: list[ParamEst]
+        Estimate of model constant parameter.
+    params: list[ParamEst]
+        Estimate of model Parameters.
+    omega: ParamEst
+        Estimate of variance of model random component.
+    arma_est_type: ARMAEstType
+        ARMA model estimate type.
+    """
+
+    def __init__(self, const: list[ParamEst], params: list[list[list[ParamEst]]], omega: list[list[ParamEst]]):
+        self.__est_model = EstModel.ARMA
+        self.__const = const
+        self.__order = len(params)
+        self.__params = params
+        self.__omega = omega
+        self.__set_const_labels()
+        self.__set_params_labels()
+        self.__set_sigma2_labels()
+        self.__set_dict()
+
+    def __repr__(self):
+        return f"VAREst({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"est_model=({self.__est_model}), " \
+               f"arma_est_type=({self.__arma_est_type}), " \
+               f"const=({self.__const}), " \
+               f"order=({self.__order}), " \
+               f"params=({self.__params}), " \
+               f"omega=({self.__omega})"
 
     def __set_const_labels(self):
         self.__const.set_labels(est_label=r"$\hat{\mu^*}$",
