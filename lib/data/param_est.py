@@ -63,8 +63,9 @@ class ParamEst:
         self.est_label = est_label
         self.err_label = err_label
 
-    def to_json(self):
-        return dumps(self, default=lambda o: o.__dict__)
+    def to_json(self, pretty: bool=False):
+        indent = 4 if pretty else None
+        return dumps(self, indent=indent, default=lambda o: o.__dict__)
 
     def __repr__(self):
         return f"ParamEst({self.__props()})"
@@ -117,8 +118,9 @@ class OLSSinlgeVarTransform:
         self.param = param
         self.const = const
 
-    def to_json(self):
-        return dumps(self, default=lambda o: o.__dict__)
+    def to_json(self, pretty: bool=False):
+        indent = 4 if pretty else None
+        return dumps(self, indent=indent, default=lambda o: o.__dict__)
 
     def __repr__(self):
         return f"OLSEst({self._props()})"

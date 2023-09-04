@@ -7,7 +7,8 @@ from lib.models import fbm
 
 from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSParamType)
 from lib.data.impl.stats import OLS
-from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, HypothesisTestType, HypothesisType)
+from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, HypothesisTestType, HypothesisType,
+                               HypothesisTestStatus)
 from lib.data.reports import VarianceRatioTestReport
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, create_space, get_s_vals, verify_type)
 
@@ -552,6 +553,27 @@ def compute_hetero_vr_test(samples: numpy.ndarray[float], hyp_test_type: Hypothe
         raise Exception(f"Hypothesis test type is invalid: {hyp_test_type}")
 
 def __vr_homo_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    """
+    Perform the homoscedastic version of the variance ratio test on the provided samples and perform the specified
+    hypothesis type.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    hyp_type: HypothesisType
+        Specify the typw of hypothesis to apply: LOWER_TAIL, UPPER_TAIL, TWO_TAIL.
+    sig_level: float
+        Significance level used in test.
+    s: list[int]
+        Values of lag used in calculation lagged variance.
+        
+    Returns
+    -------
+    Tuple[VarianceRatioTestReport, StatisticalTestReport]
+        Test report and statistical test report model.
+    """
+
     sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
     s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
     verify_type(s, list)
@@ -559,6 +581,27 @@ def __vr_homo_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kw
     return result, __vr_report_from_result(result)
 
 def __vr_hetero_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
+    """
+    Perform the heteroscedastic version of the variance ratio test on the provided samples and perform the specified
+    hypothesis type.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Test samples.
+    hyp_type: HypothesisType
+        Specify the typw of hypothesis to apply: LOWER_TAIL, UPPER_TAIL, TWO_TAIL.
+    sig_level: float
+        Significance level used in test.
+    s: list[int]
+        Values of lag used in calculation lagged variance.
+        
+    Returns
+    -------
+    Tuple[VarianceRatioTestReport, StatisticalTestReport]
+        Test report and statistical test report model.
+    """
+
     sig_level = get_param_default_if_missing("sig_level", 0.1, **kwargs)
     s = get_param_default_if_missing("s", [4, 6, 10, 16, 24], **kwargs)
     verify_type(s, list)
@@ -566,27 +609,48 @@ def __vr_hetero_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **
     return result, __vr_report_from_result(result)
 
 def __vr_report_from_result(result: VarianceRatioTestReport) -> StatisticalTestReport:
-    sig = StatisticalTestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
-    s_vals = [StatisticalTestParam(label=r"$s$", value=s) for s in result.s_vals]
-    stats = [StatisticalTestParam(label=r"$Z(s)$", value=stat) for stat in result.stats]
-    pvals = [StatisticalTestParam(label=r"$p-value$", value=pval) for pval in result.p_vals]
+    """
+    Create a variance ratio StatisticalTestReport using the data from VarianceRatioTestReport.
+
+    Parameters
+    ----------
+    result: VarianceRatioTestReport
+        Result obtained from variance ration test.
+
+    Returns
+    -------
+    StatisticalTestReport
+        Output statistical test report model.
+    """
+
+    hyp_test_id = str(uuid.uuid4())
+
+    sig = StatisticalTestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level, hyp_test_id=hyp_test_id)
+    s_vals = [StatisticalTestParam(label=r"$s$", value=s, hyp_test_id=hyp_test_id) for s in result.s_vals]
+    stats = [StatisticalTestParam(label=r"$Z(s)$", value=stat, hyp_test_id=hyp_test_id) for stat in result.stats]
+    pvals = [StatisticalTestParam(label=r"$p-value$", value=pval, hyp_test_id=hyp_test_id) for pval in result.p_vals]
     lower = result.critical_values[0]
+
     if lower is not None:
-        lower = StatisticalTestParam(label=r"$Z_L(s)$", value=lower)
+        lower = StatisticalTestParam(label=r"$Z_L(s)$", value=lower, hyp_test_id=hyp_test_id)
     upper = result.critical_values[1]
     if upper is not None:
-        upper = StatisticalTestParam(label=r"$Z_U(s)$", value=upper)
+        upper = StatisticalTestParam(label=r"$Z_U(s)$", value=upper, hyp_test_id=hyp_test_id)
     test_data = []
+
     for i in range(len(s_vals)):
-        data = StatisticalTestData(status=result.status_vals[i],
+        status = HypothesisTestStatus.from_bool(result.status_vals[i])
+        data = StatisticalTestData(status=status,
                                    stat=stats[i],
                                    pval=pvals[i],
                                    params=[s_vals[i]],
                                    sig=sig,
                                    lower=lower,
-                                   upper=upper)
+                                   upper=upper,
+                                   hyp_test_id=hyp_test_id)
         test_data.append(data)
     return StatisticalTestReport(status=result.hyp_test_type.status(result.status_vals),
                                  hyp_type=result.hyp_type,
                                  hyp_test_type=result.hyp_test_type,
-                                 test_data=test_data)
+                                 test_data=test_data,
+                                 hyp_test_id=hyp_test_id)

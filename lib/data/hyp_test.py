@@ -1,6 +1,31 @@
 from enum import Enum
+import json
+import numpy
 
-class HypothesisTestType(Enum):
+class HypothesisTestStatus(str, Enum):
+    """
+    Hypothesis test status.
+
+    Values
+    ------
+
+    PASSED
+        The test passed.
+    FAILED
+        The test failed
+    """
+
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+
+    def to_bool(self) -> bool:
+        return self.value == "PASSED"
+
+    @staticmethod
+    def from_bool(status: bool):
+        return HypothesisTestStatus.PASSED if status else HypothesisTestStatus.FAILED
+
+class HypothesisTestType(str, Enum):
     """
     Supported hypothesis tests.
 
@@ -35,29 +60,29 @@ class HypothesisTestType(Enum):
     FBM_AUTO_CORR = "AUTO_CORR"
     FBM_NEG_AUTO_CORR = "NEG_AUTO_CORR"
 
-    def status(self, status):
+    def status(self, status) -> HypothesisTestStatus:
         if self.value == HypothesisTestType.STATIONARITY.value:
-            return not status[2]
+            return HypothesisTestStatus.from_bool(not status[2])
         elif self.value == HypothesisTestType.STATIONARITY_OFFSET.value:
-            return not status[2]
+            return HypothesisTestStatus.from_bool(not status[2])
         elif self.value == HypothesisTestType.STATIONARITY_DRIFT.value:
-            return not status[2]
+            return HypothesisTestStatus.from_bool(not status[2])
         elif self.value == HypothesisTestType.BM.value:
             npass = 0
             for stat in status:
                 if stat:
                     npass += 1
-            return npass >= len(status)/2
+            return HypothesisTestStatus.from_bool(npass >= 1)
         elif self.value == HypothesisTestType.FBM_AUTO_CORR.value:
             for stat in status:
                 if not stat:
-                    return True
-            return False
+                    return HypothesisTestStatus.PASSED
+            return HypothesisTestStatus.FAILED
         elif self.value == HypothesisTestType.FBM_NEG_AUTO_CORR.value:
             for stat in status:
                 if not stat:
-                    return True
-            return False
+                    return HypothesisTestStatus.PASSED
+            return HypothesisTestStatus.FAILED
         else:
             raise Exception(f"Test type is invalid: {self}")
 
@@ -78,7 +103,7 @@ class HypothesisTestType(Enum):
             raise Exception(f"Test type is invalid: {self}")
 
 
-class HypothesisType(Enum):
+class HypothesisType(str, Enum):
     """
     Hypotheses type.
 
@@ -105,14 +130,15 @@ class StatisticalTestParam:
     label: str
         Test parameter label.
     value: float
-        Test parameter value.    
+        Test parameter value.
+    hyp_test_id: str
+        Hypothesis test identifier.   
     """
 
-    def __init__(self, label: str, value: float):
+    def __init__(self, label: str, value: float, hyp_test_id: str):
         self.label = label
         self.value = value
-        self.dict = {"Value": value,
-                     "Label": label}
+        self.hyp_test_id = hyp_test_id
 
     def __repr__(self):
         return f"TestParam({self._props()})"
@@ -122,12 +148,18 @@ class StatisticalTestParam:
 
     def _props(self):
         return f"label=({self.label}), " \
-               f"value=({self.value})"
+               f"value=({self.value}), " \
+               f"hyp_test_id=({self.hyp_test_id})"
+
+    def to_json(self, pretty: bool=False):
+        indent = 4 if pretty else None
+        return json.dumps(self, indent=indent, default=lambda o: o.__dict__)
 
     @staticmethod
-    def from_dict(meta_data):
-        return StatisticalTestParam(label=meta_data["Label"],
-                                    value=meta_data["Value"])
+    def from_dict(data):
+        return StatisticalTestParam(label=data["label"],
+                                    value=data["value"],
+                                    hyp_test_id=data["hyp_test_id"])
 
 class StatisticalTestData:
     """
@@ -135,7 +167,7 @@ class StatisticalTestData:
 
     Properties
     ----------
-    status: bool
+    status: HypothesisTestStatus
         Test status.
     stat: StatisticalTestParam
         Value of test statistic.
@@ -149,16 +181,19 @@ class StatisticalTestData:
         Value of test statistic used for lower tail test.
     upper: StatisticalTestParam
         Value of test statistic used for upper tail test.
+    hyp_test_id: str
+        Hypothesis test identifier.   
     """
 
     def __init__(self, 
-                 status: bool, 
+                 status: HypothesisTestStatus, 
                  stat: StatisticalTestParam, 
                  pval: StatisticalTestParam, 
                  params: list[StatisticalTestParam], 
                  sig: StatisticalTestParam, 
                  lower: StatisticalTestParam, 
-                 upper: StatisticalTestParam):
+                 upper: StatisticalTestParam,
+                 hyp_test_id: str):
         self.status = status
         self.stat = stat
         self.pval = pval
@@ -166,13 +201,7 @@ class StatisticalTestData:
         self.sig = sig
         self.lower = lower
         self.upper = upper
-        self.dict = {"Status": status,
-                     "Statistic": stat.dict,
-                     "PValue": pval.dict,
-                     "Parameters": [param.dict for param in params],
-                     "Significance": sig.dict,
-                     "Lower Critical Value": lower.dict if lower is not None else None,
-                     "Upper Critical Value": upper.dict if upper is not None else None}
+        self.hyp_test_id = hyp_test_id
 
     def __repr__(self):
         return f"StatisticalTestData({self.__props()})"
@@ -187,19 +216,27 @@ class StatisticalTestData:
                f"params=({self.params}), " \
                f"sig=({self.sig}), " \
                f"lower=({self.lower}), " \
-               f"upper=({self.upper})"
+               f"upper=({self.upper}), " \
+               f"hyp_test_id=({self.hyp_test_id})"
+               
+
+    def to_json(self, pretty: bool=False):
+        indent = 4 if pretty else None
+        return json.dumps(self, indent=indent, default=lambda o: o.__dict__)
 
     @staticmethod
-    def from_dict(dict):
-        lower = dict["Lower Critical Value"]
-        upper = dict["Upper Critical Value"]
-        return StatisticalTestData(status=dict["Status"],
-                                   stat=StatisticalTestParam.from_dict(dict["Statistic"]),
-                                   pval=StatisticalTestParam.from_dict(dict["PValue"]),
-                                   params=[StatisticalTestParam.from_dict(param) for param in dict["Parameters"]],
-                                   sig=StatisticalTestParam.from_dict(dict["Significance"]),
-                                   lower=StatisticalTestParam.from_dict(lower) if lower is not None else None,
-                                   upper=StatisticalTestParam.from_dict(upper) if upper is not None else None)
+    def from_dict(data):
+        status = data["status"] if "status" in data else HypothesisTestStatus.FAILED
+        stat = StatisticalTestParam.from_dict(data["stat"]) if "stat" in data else None
+        pval = StatisticalTestParam.from_dict(data["pval"]) if "pval" in data else None
+        params = [StatisticalTestParam.from_dict(param) for param in dict["params"]]
+        sig = StatisticalTestParam.from_dict(data["sig"]) if "sig" in data else None
+        lower = StatisticalTestParam.from_dict(data["lower"]) if "lower" in data else None
+        upper = StatisticalTestParam.from_dict(data["upper"]) if "upper" in data else None
+        hyp_test_id = data["hyp_test_id"] if "hyp_test_id" in data else None
+
+        return StatisticalTestData(status=status, stat=stat, pval=pval, params=params, sig=sig,
+                                   lower=lower,upper=upper, hyp_test_id=hyp_test_id)
 
 class StatisticalTestReport:
     """
@@ -207,7 +244,7 @@ class StatisticalTestReport:
 
     Parameters
     ----------
-    status: bool
+    status: HypothesisTestStatus
         Test status. This status may be the negation from the status of the performed test if the 
         desired result is the alternative hypothesis not the null hypothesis.
     hyp_type: HypothesistType
@@ -216,43 +253,48 @@ class StatisticalTestReport:
         Type of hypothesis test performed.
     test_data: list[StatisticalTestData]
         Results from test.
+    hyp_test_id: str
+        Hypothesis test identifier.   
     """
 
     def __init__(self, 
-                 status: bool, 
+                 status: HypothesisTestStatus, 
                  hyp_type: HypothesisType, 
                  hyp_test_type: HypothesisTestType, 
-                 test_data: list[StatisticalTestData]):
+                 test_data: list[StatisticalTestData],
+                 hyp_test_id: str=None):
         self.status = status
         self.hyp_type = hyp_type
         self.hyp_test_type = hyp_test_type
         self.test_data = test_data
         self.desc = hyp_test_type.desc()
-        self.dict = {"Status": status,
-                     "HypothesisType": hyp_type,
-                     "HypothesisTestType": hyp_test_type,
-                     "Description": self.desc,
-                     "TestData": [data.dict for data in test_data]}
+        self.hyp_test_id = hyp_test_id
 
     def __repr__(self):
         return f"TestReport({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
     def __props(self):
         return f"status=({self.status}), " \
                f"hyp_type=({self.hyp_type}), " \
-               f"test_type=({self.test_type}), " \
+               f"hyp_test_type=({self.hyp_test_type}), " \
                f"desc=({self.desc}, " \
-               f"test_data=({self.test_data})"
+               f"test_data=({self.test_data}), " \
+               f"hyp_test_id=({self.hyp_test_id})"
 
-    def key(self):
-        return self.test_type.value
+    def to_json(self, pretty: bool=False):
+        indent = 4 if pretty else None
+        return json.dumps(self, indent=indent, default=lambda o: o.__dict__)
 
-    @classmethod
-    def from_dict(cls, dict):
-        return StatisticalTestReport(status=dict["Status"],
-                                     hyp_type=dict["HypothesisType"],
-                                     hyp_test_type=dict["TestType"],
-                                     test_data=[StatisticalTestData.from_dict(data) for data in dict["TestData"]])
+    @staticmethod
+    def from_dict(data):
+        status = data["status"] if "status" in data else HypothesisTestStatus.FAILED
+        hyp_type = data["hyp_type"] if "hyp_type" in data else None
+        hyp_test_type = data["hyp_test_type"] if "hyp_test_type" in data else None
+        test_data = [StatisticalTestData.from_dict(test_data) for test_data in data["test_data"]]
+        hyp_test_id = data["hyp_test_id"] if "hyp_test_id" in data else None
+
+        return StatisticalTestReport(status=status, hyp_type=hyp_type, hyp_test_type=hyp_test_type, test_data=test_data,
+                                     hyp_test_id=hyp_test_id)

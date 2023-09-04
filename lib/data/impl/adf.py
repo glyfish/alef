@@ -1,10 +1,11 @@
 
 from typing import Tuple
 import numpy
+import uuid
 
 from lib.models import adf
 from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, 
-                               HypothesisTestType, HypothesisType)
+                               HypothesisTestType, HypothesisType, HypothesisTestStatus)
 from lib.data.reports import ADFTestReport
 
 from lib.utils import get_param_default_if_missing, create_space
@@ -96,21 +97,26 @@ def __adf_report_from_result(result: ADFTestReport, hyp_test_type: HypothesisTes
         ADF result report and test result model.
     """
     
-    sigs = [StatisticalTestParam(label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
-    stat = StatisticalTestParam(label=r"$t$", value=result.stat)
-    pval = StatisticalTestParam(label=r"$p-value$", value = result.pval)
-    lower_vals = [StatisticalTestParam(label=r"$t_L$", value=val) for val in result.critical_vals]
+    hyp_test_id = str(uuid.uuid4())
+
+    sigs = [StatisticalTestParam(label=result.sig_str[i], value=result.sig[i], hyp_test_id=hyp_test_id) for i in range(3)]
+    stat = StatisticalTestParam(label=r"$t$", value=result.stat, hyp_test_id=hyp_test_id)
+    pval = StatisticalTestParam(label=r"$p-value$", value = result.pval, hyp_test_id=hyp_test_id)
+    lower_vals = [StatisticalTestParam(label=r"$t_L$", value=val, hyp_test_id=hyp_test_id) for val in result.critical_vals]
     test_data = []
     for i in range(3):
-        data = StatisticalTestData(status=result.status_vals[i],
+        status = HypothesisTestStatus.from_bool(result.status_vals[i])
+        data = StatisticalTestData(status=status,
                                    stat=stat,
                                    pval=pval,
                                    params=[],
                                    sig=sigs[i],
                                    lower=lower_vals[i],
-                                   upper=None)
+                                   upper=None,
+                                   hyp_test_id=hyp_test_id)
         test_data.append(data)
     return StatisticalTestReport(status=hyp_test_type.status(result.status_vals),
                                  hyp_type=HypothesisType.LOWER_TAIL,
                                  hyp_test_type=hyp_test_type,
-                                 test_data=test_data)
+                                 test_data=test_data,
+                                 hyp_test_id=hyp_test_id)
