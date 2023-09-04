@@ -10,7 +10,7 @@ import statsmodels.tsa as tsa
 from typing import Tuple
 import uuid
 
-from lib.data.param_est import (ParamEst, ARMAEst, ARMAEstType)
+from lib.data.param_est import (ParamEst, ARMAEst, ARMAEstType, ARMAParamType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
@@ -496,17 +496,24 @@ def __arma_estimate_from_result(result: tsa.arima.model.ARIMAResults, arma_est_t
         ARMA estimate type.
     """
 
-    est_id = uuid.uuid4()
+    est_id = str(uuid.uuid4())
     nparams = len(result.params)
     params = []
 
     for i in range(1, nparams-1):
-        params.append(ParamEst.from_dict({"Estimate": result.params[i],
-                                          "Error": result.bse[i]}), order=i, est_id=est_id)
+        params.append(ParamEst.from_dict({"est": result.params[i], 
+                                          "err": result.bse[i],
+                                          "order": i, 
+                                          "est_id": est_id,
+                                          "param_type": ARMAParamType.ARMA_PARAM.value}))
         
-    const = ParamEst.from_dict({"Estimate": result.params[0],
-                                "Error": result.bse[0]}, est_id=est_id)
-    sigma2 = ParamEst.from_dict({"Estimate": result.params[nparams-1],
-                                 "Error": result.bse[nparams-1]}, est_id=est_id)
+    const = ParamEst.from_dict({"est": result.params[0], 
+                                "err": result.bse[0],
+                                "est_id": est_id,
+                                "param_type": ARMAParamType.ARMA_CONST.value})
+    sigma2 = ParamEst.from_dict({"est": result.params[nparams-1], 
+                                 "err": result.bse[nparams-1],
+                                 "est_id": est_id,
+                                 "param_type": ARMAParamType.ARMA_SIG2.value})
     
     return ARMAEst(const, params, sigma2, arma_est_type, est_id)

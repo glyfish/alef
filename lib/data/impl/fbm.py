@@ -1,10 +1,12 @@
 import numpy
 from typing import Tuple
 import statsmodels.api as sm
+import uuid
 
 from lib.models import fbm
 
-from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSSingleVariable)
+from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSParamType)
+from lib.data.impl.stats import OLS
 from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, HypothesisTestType, HypothesisType)
 from lib.data.reports import VarianceRatioTestReport
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, create_space, get_s_vals, verify_type)
@@ -406,7 +408,7 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
         Ols report and result model.
     """
 
-    report, result = OLSSingleVariable.LOG.estimate(pspec, freq)
+    report, result = OLS.LOG.single_variable_estimate(pspec, freq)
     __add_pergram_transform(result)
     return report, result
 
@@ -421,15 +423,22 @@ def __add_pergram_transform(result: OLSSingleVarResult):
     """
 
     model = r"$C\omega^{1 - 2H}$"
+
     param = ParamEst(est=(1.0 - result.param.est)/2.0,
                      err=result.param.err/2.0,
                      est_label=r"$\hat{Η}$",
-                     err_label=r"$\sigma_{\hat{Η}}$")
+                     err_label=r"$\sigma_{\hat{Η}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_PARAM.value)
+
     c = 10.0**result.const.est
     const = ParamEst(est=c,
                      err=c*result.const.err,
                      est_label=r"$\hat{C}$",
-                     err_label=r"$\sigma_{\hat{C}}$")
+                     err_label=r"$\sigma_{\hat{C}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_CONST.value)
+    
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
 def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_var: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
@@ -449,7 +458,7 @@ def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_va
         Ols report and result model.
     """
 
-    report, result = OLSSingleVariable.LOG.estimate(agg_var, m_vals)
+    report, result = OLS.LOG.single_variable_estimate(agg_var, m_vals)
     __add_agg_var_transform(result)
     return report, result
 
@@ -467,12 +476,18 @@ def __add_agg_var_transform(result: OLSSingleVarResult):
     param = ParamEst(est=1.0 + result.param.est/2.0,
                      err=result.param.err/2.0,
                      est_label=r"$\hat{Η}$",
-                     err_label=r"$\sigma_{\hat{Η}}$")
+                     err_label=r"$\sigma_{\hat{Η}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_PARAM.value)
+
     c = 10.0**result.const.est
     const = ParamEst(est=c,
                      err= c*result.const.err,
                      est_label=r"$\hat{\sigma}^2$",
-                     err_label=r"$\sigma^2_{\hat{\sigma}^2}$")
+                     err_label=r"$\sigma^2_{\hat{\sigma}^2}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_CONST.value)
+    
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
 def compute_vr_test(samples: numpy.ndarray[float], hyp_test_type: HypothesisTestType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:

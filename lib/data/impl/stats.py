@@ -7,8 +7,12 @@ Compute generic statistics functions.
 
 import numpy
 from typing import Tuple
+from enum import Enum
+import statsmodels.api as sm
+import uuid
 
 from lib import stats
+from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSParamType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
@@ -465,3 +469,106 @@ def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: nump
     """
 
     return numpy.transpose(stats.multivariate_normal_samples(μ, Ω, n))
+
+
+class OLS(Enum):
+    """
+    Specify regression model to use for linear ols repression models.
+
+    Values
+    ------
+    LINEAR : str
+        Assume a linear relation between regression variables.
+            y = a*x + b
+        where a and b be are regression constants.
+    LOG : str
+        Assume power law relation between the regression variables.
+            y = b*x**a
+        where a and b be are regression constants.
+    XLOG : str
+        Assume an exponential relationship between the regression variables.
+            y = b*exp(a*x)
+        where a and b be are regression constants.
+    YLOG : str
+        Assume a logarithmic relation between the regression variables.
+            y = b*ln(a*x)
+        where a and b be are regression constants.
+    """
+
+    LINEAR = "LINEAR"
+    LOG = "LOG"
+    XLOG = "XLOG"
+    YLOG = "YLOG"
+
+    def single_variable_estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+        """
+        Perform single variable OLS regression on the provided data.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x: numpy.ndarray[float]
+            Variable
+ 
+        Return
+        ------
+        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+            OLS report and result model.
+        """
+
+        result = self.___OLS_fit(y, x)
+        return result, self.__ols_estimate_from_result(result)
+
+    def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
+        """ 
+        Create statsmodels OLS object using specified samples assuming a single dependent variable.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x: numpy.ndarray[float]
+            Variable
+
+        Returns
+        -------
+        sm.OLS
+            OLS object
+        """
+
+        if self.value == OLS.LOG.value:
+            x = numpy.log10(x)
+            y = numpy.log10(y)
+
+        x = sm.add_constant(x)
+        return sm.OLS(y, x, missing='drop').fit()
+
+    def __ols_estimate_from_result(self, result: sm.regression.linear_model.RegressionResults) -> OLSSingleVarResult:
+        """
+        Create an OLS result model from the returned report.
+
+        Parameters
+        ----------
+        report: sm.regression.linear_model.RegressionResults
+            OLS results report.
+ 
+        Return
+        ------
+        OLSSingleVarResult
+            OLS result model.
+        """
+        
+        est_id = str(uuid.uuid4())
+        const = ParamEst.from_dict({"est": result.params[0], 
+                                    "err": result.bse[0],
+                                    "est_id": est_id,
+                                    "param_type": OLSParamType.OLS_CONST.value})
+        param = ParamEst.from_dict({"est": result.params[1], 
+                                    "err": result.bse[1],
+                                    "est_id": est_id,
+                                    "param_type": OLSParamType.OLS_PARAM.value})
+
+        r2 = result.rsquared
+        return OLSSingleVarResult(const, param, r2, est_id)
+    

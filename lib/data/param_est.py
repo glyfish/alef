@@ -1,7 +1,6 @@
 import numpy
 from enum import Enum
-from typing import Tuple
-import statsmodels.api as sm
+from json import dumps
 
 class EstModel(str, Enum):
     """
@@ -36,16 +35,20 @@ class ParamEst:
         Estimate label used when display results.
     err_label: str
         Estimate error label used when display results.
-    param_type: str
-        Parameter type.
+    order: int
+        Parameter order index.
     row: int
         Parameter row index.
     column: int
         Parameter column index. 
+    est_id: str
+        Estimate ID..
+    param_type: str
+        Parameter type.
     """
 
-    def __init__(self, est: float, err: float, est_label: str=None, err_label: str=None, param_type: str=None, est_id: str=None, row: int=0, 
-                 column: int=0, order: int=0):
+    def __init__(self, est: float, err: float, est_label: str=None, err_label: str=None, 
+                 order: int=0, row: int=0, column: int=0, est_id: str=None, param_type: str=None):
             self.est = est
             self.err = err
             self.est_label = est_label
@@ -53,14 +56,15 @@ class ParamEst:
             self.row = row
             self.column = column
             self.order = order
-            self.param_type = param_type
             self.est_id = est_id
-            self.__set_dict()
+            self.param_type = param_type
 
     def set_labels(self, est_label, err_label):
         self.est_label = est_label
         self.err_label = err_label
-        self.__set_dict()
+
+    def to_json(self):
+        return dumps(self, default=lambda o: o.__dict__)
 
     def __repr__(self):
         return f"ParamEst({self.__props()})"
@@ -73,34 +77,26 @@ class ParamEst:
                f"err=({self.err}, " \
                f"est_label=({self.est_label}), " \
                f"err_label=({self.err_label}), " \
+               f"order=({self.order}), " \
                f"row=({self.row}), " \
                f"column=({self.column}), " \
-               f"param_type=({self.param_type}), " \
-               f"est_id=({self.est_id})"
-
-    def __set_dict(self):
-        self.dict = {"Estimate": self.est,
-                     "Error": self.err,
-                     "Estimate Label": self.est_label,
-                     "Error Label": self.err_label,
-                     "row": self.row,
-                     "column": self.column,
-                     "param_type": self.param_type,
-                     "est_id": self.est_id}
+               f"est_id=({self.est_id}), " \
+               f"param_type=({self.param_type})"
 
     @staticmethod
-    def from_dict(meta_data, row: int=0, column: int=0, est_id: str=None):
-        if "Estimate Label" in meta_data:
-            est_label = meta_data["Estimate Label"]
-        else:
-            est_label = None
-        if "Error Label" in meta_data:
-            err_label = meta_data["Error Label"]
-        else:
-            err_label = None
-
-        return ParamEst(meta_data["Estimate"], meta_data["Error"], est_label, err_label, row, column, est_id)
-
+    def from_dict(data):
+        est = data["est"] if "est" in data else None
+        est_label = data["est_label"] if "est_label" in data else None
+        err = data["err"] if "err" in data else None
+        err_label = data["err_label"] if "err_label" in data else None
+        order = data["order"] if "order" in data else 1
+        row = data["row"] if "row" in data else 0
+        column = data["column"] if "column" in data else 0
+        err_label = data["err_label"] if "err_label" in data else None
+        est_id = data["est_id"] if "est_id" in data else None
+        param_type = data["param_type"] if "param_type" in data else None
+        return ParamEst(est, err, est_label, err_label, order, row, column, est_id, param_type)
+    
 
 class OLSSinlgeVarTransform:
     """
@@ -120,7 +116,9 @@ class OLSSinlgeVarTransform:
         self.model = model
         self.param = param
         self.const = const
-        self.__set_dict()
+
+    def to_json(self):
+        return dumps(self, default=lambda o: o.__dict__)
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -133,29 +131,31 @@ class OLSSinlgeVarTransform:
                f"param=({self.param}), " \
                f"const=({self.const})"
 
-    def __set_dict(self):
-        self.dict = {"model": self.model,
-                     "param": self.param.dict,
-                     "const": self.const.dict}
 
-
-class OLSSingleVarParamType(str, Enum):
+class OLSParamType(str, Enum):
     """
     OLS single variable estimate parameter type.
 
     Values
     ------
-    OLS_SINGLE_VAR_CONST
+    OLS_CONST
         Estimate of constant parameter.
-    OLS_SINGLE_VAR_R2
+    OLS_R2
         Estimate of R2 parameter.
-    OLS_SINGLE_VAR_PARAM
+    OLS_PARAM
+        Estimate of slope parameter.
+    TRANS_CONST
+        Estimate of slope parameter.
+    TRANS_PARAM
         Estimate of slope parameter.
     """
 
-    OLS_SINGLE_VAR_CONST = "OLS_SINGLE_VAR_CONST"
-    OLS_SINGLE_VAR_R2 = "OLS_SINGLE_VAR_R2"
-    OLS_SINGLE_VAR_PARAM = "OLS_SINGLE_VAR_PARAM"
+    OLS_CONST = "OLS_CONST"
+    OLS_R2 = "OLS_R2"
+    OLS_PARAM = "OLS_PARAM"
+    TRANS_CONST = "TRANS_CONST"
+    TRANS_PARAM = "TRANS_PARAM"
+
 
 class OLSSingleVarResult:
     """
@@ -176,13 +176,12 @@ class OLSSingleVarResult:
     """
 
     def __init__(self, const: ParamEst, param: ParamEst, r2: float, est_id: str=None):
-        self.__est_model = EstModel.OLS_SING_VAR
+        self.est_model = EstModel.OLS_SING_VAR
         self.const = const
         self.param = param
         self.r2 = r2
         self.transform = None
-        self.__est_id = est_id
-        self.__set_dict()
+        self.est_id = est_id
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -191,120 +190,21 @@ class OLSSingleVarResult:
         return self._props()
     
     def _props(self):
-        return f"est_id={self.__est_id}, " \
-               f"est_model=({self.__est_model}), " \
-               f"const=({self.__const}), " \
-               f"params=({self.__param}, "\
-               f"r2=({self.__r2}), " \
-               f"transform=({self.__transform})"
+        return f"est_id={self.est_id}, " \
+               f"est_model=({self.est_model}), " \
+               f"const=({self.const}), " \
+               f"params=({self.param}, "\
+               f"r2=({self.r2}), " \
+               f"transform=({self.transform})"
     
-    def __set_dict(self):
-        self.dict = {"est_id": self.__est_id,
-                     "est_model": self.__est_model.value,
-                     "param": self.param.dict,
-                     "const": self.const.dict,
-                     "r2": self.r2,
-                     "transform": self.transform.dict if self.transform is not None else "{}"}
-
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
+    
     def set_transform(self, transform: OLSSinlgeVarTransform):
         self.transform = transform
-        self.__set_dict()
-
-
-class OLSSingleVariable(Enum):
-    """
-    Specify regression model to use for linear ols repression models.
-
-    Values
-    ------
-    LINEAR : str
-        Assume a linear relation between regression variables.
-            y = a*x + b
-        where a and b be are regression constants.
-    LOG : str
-        Assume power law relation between the regression variables.
-            y = b*x**a
-        where a and b be are regression constants.
-    XLOG : str
-        Assume an exponential relationship between the regression variables.
-            y = b*exp(a*x)
-        where a and b be are regression constants.
-    YLOG : str
-        Assume a logarithmic relation between the regression variables.
-            y = b*ln(a*x)
-        where a and b be are regression constants.
-    """
-
-    LINEAR = "LINEAR"
-    LOG = "LOG"
-    XLOG = "XLOG"
-    YLOG = "YLOG"
-
-    def estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
-        """
-        Perform single variable OLS regression on the provided data.
-
-        Parameters
-        ----------
-        y: numpy.ndarray[float]
-            Dependent variable
-        x: numpy.ndarray[float]
-            Variable
- 
-        Return
-        ------
-        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
-            OLS report and result model.
-        """
-
-        report = self.___OLS_fit(y, x)
-        return report, self.__result_from_report(report)
-
-    def __result_from_report(self, report: sm.regression.linear_model.RegressionResults) -> OLSSingleVarResult:
-        """
-        Create an OLS result model from the returned report.
-
-        Parameters
-        ----------
-        report: sm.regression.linear_model.RegressionResults
-            OLS results report.
- 
-        Return
-        ------
-        OLSSingleVarResult
-            OLS result model.
-        """
-        
-        const = ParamEst.from_dict({"Estimate": report.params[0],
-                                    "Error": report.bse[0]})
-        param = ParamEst.from_dict({"Estimate": report.params[1],
-                                    "Error": report.bse[1]})
-        r2 = report.rsquared
-        return OLSSingleVarResult(const, param, r2)
-    
-    def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
-        """ 
-        Create statsmodels OLS object using specified samples assuming a single dependent variable.
-
-        Parameters
-        ----------
-        y: numpy.ndarray[float]
-            Dependent variable
-        x: numpy.ndarray[float]
-            Variable
-
-        Returns
-        -------
-        sm.OLS
-            OLS object
-        """
-
-        if self.value == OLSSingleVariable.LOG.value:
-            x = numpy.log10(x)
-            y = numpy.log10(y)
-
-        x = sm.add_constant(x)
-        return sm.OLS(y, x, missing='drop').fit()
 
 
 class ARMAEstType(str, Enum):
@@ -360,13 +260,13 @@ class ARMAParamType(str, Enum):
         Estimate of constant parameter.
     ARMA_PARAM
         Estimate of R2 parameter.
-    ARAM_SIG2
+    ARMA_SIG2
         Estimate of slope parameter.
     """
 
     ARMA_CONST = "ARMA_CONST"
     ARMA_PARAM = "ARMA_PARAM"
-    ARAM_SIG2 = "ARAM_SIG2"
+    ARMA_SIG2 = "ARMA_SIG2"
 
 
 class ARMAEst:
@@ -386,17 +286,22 @@ class ARMAEst:
     """
 
     def __init__(self, const: ParamEst, params: list[ParamEst], sigma2: ParamEst, arma_est_type: ARMAEstType=ARMAEstType.AR, est_id: str=None):
-        self.__est_model = EstModel.ARMA
-        self.__arma_est_type = arma_est_type
-        self.__const = const
-        self.__order = len(params)
-        self.__params = params
-        self.__sigma2 = sigma2
-        self.__est_id = est_id
+        self.est_model = EstModel.ARMA
+        self.arma_est_type = arma_est_type
+        self.const = const
+        self.order = len(params)
+        self.params = params
+        self.sigma2 = sigma2
+        self.est_id = est_id
         self.__set_const_labels()
         self.__set_params_labels()
         self.__set_sigma2_labels()
-        self.__set_dict()
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
 
     def __repr__(self):
         return f"ARMAEst({self._props()})"
@@ -414,25 +319,16 @@ class ARMAEst:
                f"sigma2=({self.__sigma2})"
 
     def __set_const_labels(self):
-        self.__const.set_labels(est_label=r"$\hat{\mu^*}$",
-                                err_label=r"$\sigma_{\hat{\mu^*}}$")
+        self.const.set_labels(est_label=r"$\hat{\mu^*}$",
+                              err_label=r"$\sigma_{\hat{\mu^*}}$")
 
     def __set_params_labels(self):
-        for i in range(len(self.__params)):
-            self.__arma_est_type.set_param_labels(self.__params[i], i)
+        for i in range(len(self.params)):
+            self.arma_est_type.set_param_labels(self.params[i], i)
 
     def __set_sigma2_labels(self):
-        self.__sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
-                                 err_label=r"$\sigma_{\hat{\sigma^2}}$")
-
-    def __set_dict(self):
-        self.dict = {"est_model": self.__est_model.value,
-                     "arma_est_type": self.__arma_est_type.value,
-                     "est_id": self.__est_id,
-                     "order": self.__order,
-                     "const": self.__const.dict,
-                     "sigma2": self.__sigma2.dict,
-                     "params": [param.dict for param in self.__params]}
+        self.sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
+                               err_label=r"$\sigma_{\hat{\sigma^2}}$")
 
 
 class VARParamType(str, Enum):
