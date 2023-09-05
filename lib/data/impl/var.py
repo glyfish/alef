@@ -344,10 +344,29 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
         endog[names[i]] = samples[i]
     endog=DataFrame(endog)
 
-    return var.fit(endog, maxlags=maxlags, trend=trend)
+    result = var.fit(endog, maxlags=maxlags, trend=trend)
+    result_model = __var_estimate_from_result(result)
+    return result
 
 def __var_estimate_from_result(result: VARResults):
-    pass
+    coefs = result.coefs
+    n, m, _ = coefs.shape
+
+    stderr = result.stderr.iloc[1:].to_numpy()
+    stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(stderr, n)])
+
+    const = result.params.loc['const'].to_numpy()
+    const_stderr = result.stderr.loc['const'].to_numpy()
+
+    omega = result.resid_corr
+
+    print(n, m)
+    print(const)
+    print(const_stderr)
+    print(coefs)
+    print(stderr)
+    print(omega)
+
 
 def __verify_phi(φ):
     """

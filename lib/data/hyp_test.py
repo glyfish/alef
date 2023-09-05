@@ -60,7 +60,7 @@ class HypothesisTestType(str, Enum):
     FBM_AUTO_CORR = "AUTO_CORR"
     FBM_NEG_AUTO_CORR = "NEG_AUTO_CORR"
 
-    def status(self, status) -> HypothesisTestStatus:
+    def status(self, status: bool) -> HypothesisTestStatus:
         if self.value == HypothesisTestType.STATIONARITY.value:
             return HypothesisTestStatus.from_bool(not status[2])
         elif self.value == HypothesisTestType.STATIONARITY_OFFSET.value:
