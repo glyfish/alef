@@ -1,5 +1,6 @@
 from enum import Enum
 import numpy
+import uuid
 
 from lib.models import var
 from pandas import DataFrame
@@ -7,6 +8,7 @@ from statsmodels.tsa.vector_ar.var_model import VARResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
+from lib.data.param_est import (ParamEst, VAREst, VARParamType)
 
 
 def compute_mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float] = None) -> numpy.matrix[float]:
@@ -345,27 +347,56 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
     endog=DataFrame(endog)
 
     result = var.fit(endog, maxlags=maxlags, trend=trend)
-    result_model = __var_estimate_from_result(result)
-    return result
+    return result, __var_estimate_from_result(result)
 
-def __var_estimate_from_result(result: VARResults):
-    coefs = result.coefs
-    n, m, _ = coefs.shape
+def __var_estimate_from_result(result: VARResults) -> VAREst:
+    est_params = result.coefs
+    n, m, _ = est_params.shape
 
-    stderr = result.stderr.iloc[1:].to_numpy()
-    stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(stderr, n)])
+    est_stderr = result.stderr.iloc[1:].to_numpy()
+    est_stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(est_stderr, n)])
 
-    const = result.params.loc['const'].to_numpy()
-    const_stderr = result.stderr.loc['const'].to_numpy()
+    est_const = result.params.loc['const'].to_numpy()
+    est_const_stderr = result.stderr.loc['const'].to_numpy()
 
-    omega = result.resid_corr
+    est_omega = result.resid_corr
 
-    print(n, m)
-    print(const)
-    print(const_stderr)
-    print(coefs)
-    print(stderr)
-    print(omega)
+    est_id = str(uuid.uuid4())
+    const = []
+    params = []
+    omega = []
+ 
+    for i in range(m):
+        const.append(ParamEst(est=est_const[i], 
+                              err=est_const_stderr[i], 
+                              est_label=f"$\hat{{M}}_{{i}}$", 
+                              err_label=f"$\sigma^M_{{i}}$", 
+                              column=i, 
+                              est_id=est_id, 
+                              param_type=VARParamType.VAR_CONST.value))
+
+    for i in range(n):
+        for j in range(m):
+            for k in range(m):
+                params.append(ParamEst(est=est_params[i,j,k], 
+                                       err=est_stderr[i,j,k],
+                                       est_label=f"$\\hat{{Phi}}_{{i}}$", 
+                                       err_label=f"$\sigma^\Phi_{{i}}$", 
+                                       order=i + 1,
+                                       row=j,
+                                       column=k, 
+                                       est_id=est_id,
+                                       param_type=VARParamType.VAR_PARAM.value))
+    for i in range(m):
+        for j in range(m):
+            omega.append(ParamEst(est=est_omega[i,j], 
+                                  est_label=f"$\\hat{{Omega}}_{{i}}$", 
+                                  row=i,
+                                  column=j,
+                                  est_id=est_id,
+                                  param_type=VARParamType.VAR_OMEGA.value))
+
+    return VAREst(const=const, params=params, omega=omega)
 
 
 def __verify_phi(φ):

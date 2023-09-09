@@ -47,8 +47,8 @@ class ParamEst:
         Parameter type.
     """
 
-    def __init__(self, est: float, err: float, est_label: str=None, err_label: str=None, 
-                 order: int=0, row: int=0, column: int=0, est_id: str=None, param_type: str=None):
+    def __init__(self, est: float, err: float=None, est_label: str=None, err_label: str=None, 
+                 order: int=1, row: int=0, column: int=0, est_id: str=None, param_type: str=None):
             self.est = est
             self.err = err
             self.est_label = est_label
@@ -349,7 +349,7 @@ class VARParamType(str, Enum):
 
     VAR_CONST = "VAR_CONST"
     VAR_PARAM = "VAR_PARAM"
-    VAR_SIG2 = "VAR_SIG2"
+    VAR_OMEGA = "VAR_OMEGA"
 
 
 class VAREst:
@@ -369,15 +369,11 @@ class VAREst:
     """
 
     def __init__(self, const: list[ParamEst], params: list[list[list[ParamEst]]], omega: list[list[ParamEst]]):
-        self.__est_model = EstModel.ARMA
+        self.__est_model = EstModel.VAR
         self.__const = const
         self.__order = len(params)
         self.__params = params
         self.__omega = omega
-        self.__set_const_labels()
-        self.__set_params_labels()
-        self.__set_sigma2_labels()
-        self.__set_dict()
 
     def __repr__(self):
         return f"VAREst({self._props()})"
@@ -393,22 +389,9 @@ class VAREst:
                f"params=({self.__params}), " \
                f"omega=({self.__omega})"
 
-    def __set_const_labels(self):
-        self.__const.set_labels(est_label=r"$\hat{\mu^*}$",
-                                err_label=r"$\sigma_{\hat{\mu^*}}$")
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
 
-    def __set_params_labels(self):
-        for i in range(len(self.__params)):
-            self.__arma_est_type.set_param_labels(self.__params[i], i)
-
-    def __set_sigma2_labels(self):
-        self.__sigma2.set_labels(est_label=r"$\hat{\sigma^2}$",
-                                 err_label=r"$\sigma_{\hat{\sigma^2}}$")
-
-    def __set_dict(self):
-        self.dict = {"est_model": self.__est_model.value,
-                     "arma_est_type": self.__arma_est_type.value,
-                     "order": self.__order,
-                     "const": self.__const.dict,
-                     "sigma2": self.__sigma2.dict,
-                     "params": [param.dict for param in self.__params]}
