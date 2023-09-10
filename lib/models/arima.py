@@ -352,7 +352,7 @@ def maq(θ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]
     θ_sim = numpy.r_[1, θ]
     return sm.tsa.arma_generate_sample(φ_sim, θ_sim, n, σ)
 
-def arma(φ: numpy.ndarray[float], θ: numpy.ndarray[float], n: int, σ: float=1) -> numpy.ndarray[float]:
+def arma(φ: numpy.ndarray[float], θ: numpy.ndarray[float], n: int, σ: float=1.0) -> numpy.ndarray[float]:
     """
     Generate ARMA(p, q) using specified parameters and the statsmodels.tas simulator.
 
