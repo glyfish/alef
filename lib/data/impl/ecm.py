@@ -172,6 +172,6 @@ def create_ecm_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
     npts = get_param_default_if_missing("npts", 1000, **kwargs)
 
-    xt, yt = ecm.ecm(φ, δ, α, β, γ, λ, σ, npts)
+    xt, yt = ecm.ecm(φ, δ, α, β, γ, λ, npts, σ)
 
     return create_space(xmax=npts - 1, npts=npts), xt, yt
