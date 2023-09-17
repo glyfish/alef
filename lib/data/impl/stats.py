@@ -520,6 +520,28 @@ class OLS(Enum):
         result = self.___OLS_fit(y, x)
         return result, self.__ols_estimate_from_result(result)
 
+    def two_variable_estimate(self, y: numpy.ndarray[float], x1: numpy.ndarray[float], x2: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+        """
+        Perform single variable OLS regression on the provided data.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x1: numpy.ndarray[float]
+            Independent variable one
+        x2: numpy.ndarray[float]
+            Independent variable two
+ 
+        Return
+        ------
+        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+            OLS report and result model.
+        """
+
+        result = self.___OLS_fit(y, numpy.transpose(numpy.array([x1, x2])))
+        return result, self.__ols_single_estimate_from_result(result)
+
     def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
         """ 
         Create statsmodels OLS object using specified samples assuming a single dependent variable.
@@ -546,7 +568,7 @@ class OLS(Enum):
 
     def __ols_estimate_from_result(self, result: sm.regression.linear_model.RegressionResults) -> OLSSingleVarResult:
         """
-        Create an OLS result model from the returned report.
+        Create an OLS result model from the ols single variable returned report.
 
         Parameters
         ----------
