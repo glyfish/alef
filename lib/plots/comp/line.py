@@ -187,6 +187,7 @@ def comparison(axis, y, x=None, **kwargs):
     colors          = get_param_default_if_missing("colors", None, **kwargs)
 
     ncurve = len(y)
+    
     if ncurve == 0:
         raise Exception("Length of y must be greater than zero.")
 

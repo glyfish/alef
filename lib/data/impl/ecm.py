@@ -134,7 +134,7 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return create_space(xmax=npts - 1, npts=npts), ecm.cov(φ, σ, β, npts)
 
-def create_ecm_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
+def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate an ECM time series from an AR(1) process using the specified parameters.
 
@@ -174,4 +174,4 @@ def create_ecm_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
 
     xt, yt = ecm.ecm(φ, δ, α, β, γ, λ, npts, σ)
 
-    return create_space(xmax=npts - 1, npts=npts), xt, yt
+    return create_space(xmax=npts - 1, npts=npts), [xt, yt]

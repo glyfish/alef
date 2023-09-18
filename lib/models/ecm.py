@@ -112,7 +112,8 @@ def ecm(φ: float, δ: float, α: float, β: float, γ: float, λ: float, npts: 
         Generated x(t) and y(t) ECM time series.
     """
 
-    xt = arima.arima_from_arma(arima.ar1(φ, npts, σ), 1)
+    ar = arima.ar1(φ, npts, σ)
+    xt = arima.arima_from_arma(ar, 1)
     yt = numpy.zeros(npts)
     ξt = numpy.random.normal(0.0, σ, npts)
     for i in range(1, npts):

@@ -71,7 +71,7 @@ def compute_ndiff(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> 
     data: numpy.ndarray[float]
         Sampled data.
     ndiff : int
-        Number of differences taken.
+        Number of differences taken (default 1).
 
     Returns
     -------
