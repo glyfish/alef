@@ -11,7 +11,6 @@ import statsmodels.api as sm
 from scipy.stats import multivariate_normal
 from typing import Tuple
 
-
 def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Difference the given samples.
@@ -134,13 +133,13 @@ def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     return d
 
 
-def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
+def ensemble_mean(samples: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
     """
     Compute the time varying mean of the sampled ensemble.
 
     Parameters
     ----------
-    samples: list[numpy.ndarray[float]]
+    samples: numpy.ndarray[Tuple[int, int], float]
         Ensemble of sampled data.
 
     Returns
@@ -168,13 +167,13 @@ def ensemble_mean(samples: list[numpy.ndarray[float]]) -> numpy.ndarray[float]:
     return mean
 
 
-def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
+def ensemble_var(samples: numpy.ndarray[Tuple[int, int], float], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Compute the time varying variance of the sampled ensemble.
 
     Parameters
     ----------
-    samples: list[numpy.ndarray[float]]
+    samples: numpy.ndarray[Tuple[int, int], float]
         Ensemble of sampled data.
     Δt: float
         Time delta (default 1.0)
@@ -205,13 +204,13 @@ def ensemble_var(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.n
     return var/Δt
 
 
-def ensemble_sd(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.ndarray[float]:
+def ensemble_sd(samples: numpy.ndarray[Tuple[int, int], float], Δt: float=1.0) -> numpy.ndarray[float]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
     Parameters
     ----------
-    samples: list[numpy.ndarray[float]]
+    samples: numpy.ndarray[Tuple[int, int], float]
         Ensemble of sampled data.
     Δt: float
         Time delta (default 1.0)
@@ -230,13 +229,13 @@ def ensemble_sd(samples: list[numpy.ndarray[float]], Δt: float=1.0) -> numpy.nd
     return numpy.sqrt(ensemble_var(samples, Δt))
 
 
-def ensemble_acf(samples: list[numpy.ndarray[float]], nlags: int=None) -> numpy.ndarray[float]:
+def ensemble_acf(samples: numpy.ndarray[Tuple[int, int], float], nlags: int=None) -> numpy.ndarray[float]:
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
     Parameters
     ----------
-    samples: list[numpy.ndarray[float]]
+    samples: numpy.ndarray[Tuple[int, int], float]
         Sampled data.
     nlags: int
         Number of lags (default len(sample))
@@ -269,6 +268,64 @@ def ensemble_acf(samples: list[numpy.ndarray[float]], nlags: int=None) -> numpy.
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
 
+def ensemble_cov(x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
+    """
+    Compute the ensemble averaged covariance of the sampled ensemble.
+
+    Parameters
+    ----------
+    x: numpy.ndarray[Tuple[int, int], float]
+        x data samples.
+    y: numpy.ndarray[Tuple[int, int], float]
+        y data samples.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble averaged auto correlation function.
+    """
+
+    x_nsim, x_npts = x.shape
+    y_nsim, y_npts = y.shape
+    npts = min(x_npts, y_npts)
+    nsim = min(x_nsim, y_nsim)
+
+    cov = numpy.zeros(npts)
+    mean_x = ensemble_mean(x)
+    mean_y = ensemble_mean(y)
+    for i in range(npts):
+        for j in range(nsim):
+            cov[i] += (x[j,i] - mean_x[i])*(y[j,i] - mean_y[i])
+    return cov / float(nsim)
+
+def ensemble_correlation_coefficient(x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
+    """
+    Compute the ensemble averaged correlation coefficient of the sampled ensemble.
+
+    Parameters
+    ----------
+    x: numpy.ndarray[Tuple[int, int], float]
+        x data samples.
+    y: numpy.ndarray[Tuple[int, int], float]
+        y data samples.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Ensemble averaged auto correlation function.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    cov = ensemble_cov(x, y)
+    std_x = ensemble_sd(x)
+    std_y = ensemble_sd(y)
+    for i in range(1,len(cov)):
+        cov[i] = cov[i] / (std_x[i]*std_y[i])
+    return cov
 
 def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """

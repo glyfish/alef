@@ -23,6 +23,8 @@ def compute_xt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
     ----------
     npts: int
         Number of points to evaluate
+    Δt: float
+        Width of time step. (default 1.0)
 
     Returns
     -------
@@ -31,8 +33,9 @@ def compute_xt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
     """
 
     npts = get_param_throw_if_missing("npts", **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, 0.0)
+    return create_space(xmax=npts - 1, npts=npts, Δx=Δt), numpy.full(npts, 0.0)
 
 def compute_yt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -42,6 +45,8 @@ def compute_yt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
     ----------
     npts: int
         Number of points to evaluate
+    Δt: float
+        Width of time step. (default 1.0)
 
     Returns
     -------
@@ -50,8 +55,9 @@ def compute_yt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
     """
 
     npts = get_param_throw_if_missing("npts", **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    return create_space(xmax=npts - 1, npts=npts), numpy.full(npts, 0.0)
+    return create_space(xmax=npts - 1, npts=npts, Δx=Δt), numpy.full(npts, 0.0)
 
 def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -63,6 +69,10 @@ def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
         AR(1) parameter satisfying |φ| < 1.
     σ: float
         Residual variance.
+    tmax: int
+        Maximum time. (default None)
+    Δt: float
+        Width of time step. (default 1.0)
     npts: int
         Number of points to evaluate
 
@@ -74,9 +84,11 @@ def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
 
     φ = get_param_throw_if_missing("φ", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmax=npts - 1, npts=npts), ecm.xt_var(φ, σ, npts)
+    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.xt_var(φ, σ, npts)
 
 def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -90,6 +102,10 @@ def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
         ECM correlation parameter.
     σ: float
         Residual variance.
+    tmax: int
+        Maximum time. (default None)
+    Δt: float
+        Width of time step. (default 1.0)
     npts: int
         Number of points to evaluate
 
@@ -102,9 +118,11 @@ def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
     φ = get_param_throw_if_missing("φ", **kwargs)
     β = get_param_throw_if_missing("β", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmax=npts - 1, npts=npts), ecm.yt_var(φ, σ, β, npts)
+    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.yt_var(φ, σ, β, npts)
 
 def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -130,9 +148,11 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     φ = get_param_throw_if_missing("φ", **kwargs)
     β = get_param_throw_if_missing("β", **kwargs)
     σ = get_param_default_if_missing("σ", 1.0, **kwargs)
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+    tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmax=npts - 1, npts=npts), ecm.cov(φ, σ, β, npts)
+    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.cov(φ, σ, β, npts)
 
 def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
     """

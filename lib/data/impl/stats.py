@@ -244,7 +244,7 @@ def compute_lag_var(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray
     s_vals =  [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, stats.lag_var_scan(data, s_vals)
 
-def compute_ensemble_mean(time: numpy.ndarray, data: list[numpy.ndarray[float]]) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_mean(time: numpy.ndarray, data: numpy.ndarray[Tuple[int, int], float]) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying mean of the sampled ensemble.
 
@@ -252,7 +252,7 @@ def compute_ensemble_mean(time: numpy.ndarray, data: list[numpy.ndarray[float]])
     ----------
     time: numpy.ndarray
         Time
-    data: list[numpy.ndarray[float]]
+    data: numpy.ndarray[Tuple[int, int], float]
         Sampled data.
 
     Returns
@@ -268,7 +268,7 @@ def compute_ensemble_mean(time: numpy.ndarray, data: list[numpy.ndarray[float]])
 
     return time, stats.ensemble_mean(data)
 
-def compute_ensemble_sd(time: numpy.ndarray, data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_sd(time: numpy.ndarray, data: numpy.ndarray[Tuple[int, int], float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying standard deviation of the sampled ensemble.
 
@@ -276,7 +276,7 @@ def compute_ensemble_sd(time: numpy.ndarray, data: list[numpy.ndarray[float]], *
     ----------
     time: numpy.ndarray
         Time
-    data: list[numpy.ndarray[float]]
+    data: numpy.ndarray[Tuple[int, int], float]
         Sampled data.
     Δt: float
         Time delta (default 1.0)
@@ -296,7 +296,7 @@ def compute_ensemble_sd(time: numpy.ndarray, data: list[numpy.ndarray[float]], *
 
     return time, stats.ensemble_sd(data, Δt)
 
-def compute_ensemble_var(time: numpy.ndarray[float], data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_var(time: numpy.ndarray[float], data: numpy.ndarray[Tuple[int, int], float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the time varying variance of the sampled ensemble.
 
@@ -304,7 +304,7 @@ def compute_ensemble_var(time: numpy.ndarray[float], data: list[numpy.ndarray[fl
     ----------
     time: numpy.ndarray
         Time
-    data: list[numpy.ndarray[float]]
+    data: numpy.ndarray[Tuple[int, int], float]
         Sampled data.
     Δt: float
         Time delta (default 1.0)
@@ -324,7 +324,7 @@ def compute_ensemble_var(time: numpy.ndarray[float], data: list[numpy.ndarray[fl
 
     return time, stats.ensemble_var(data, Δt)
 
-def compute_ensemble_acf(time: numpy.ndarray, data: list[numpy.ndarray[float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_ensemble_acf(time: numpy.ndarray, data: numpy.ndarray[Tuple[int, int], float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ensemble averaged autocorrelation function of the sampled ensemble.
 
@@ -332,7 +332,7 @@ def compute_ensemble_acf(time: numpy.ndarray, data: list[numpy.ndarray[float]], 
     ----------
     time: numpy.ndarray
         Time
-    data: list[numpy.ndarray[float]]
+    data: numpy.ndarray[Tuple[int, int], float]
         Sampled data.
     nlags: int
         Number of lags (default len(sample))
@@ -351,6 +351,58 @@ def compute_ensemble_acf(time: numpy.ndarray, data: list[numpy.ndarray[float]], 
     nlags = get_param_default_if_missing("nlags", None, **kwargs)
 
     return time[:nlags], stats.ensemble_acf(data, nlags)
+
+def compute_ensemble_cov(time: numpy.ndarray[float], x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute the ensemble averaged covariance function of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    x: numpy.ndarray[Tuple[int, int], float]
+        x data samples.
+    y: numpy.ndarray[Tuple[int, int], float]
+        y data samples.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Ensemble averaged auto correlation function.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    return time, stats.ensemble_cov(x, y)
+
+def compute_ensemble_correlation_coefficient(time: numpy.ndarray[float], x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute the ensemble averaged covariance function of the sampled ensemble.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    x: numpy.ndarray[Tuple[int, int], float]
+        x data samples.
+    y: numpy.ndarray[Tuple[int, int], float]
+        y data samples.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Ensemble averaged auto correlation function.
+
+    Raises
+    ______
+    Exception
+        Samples are not a two dimensional array.
+    """
+
+    return time, stats.ensemble_correlation_coefficient(x, y)
 
 def compute_pdf_hist(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
