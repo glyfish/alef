@@ -88,7 +88,8 @@ def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
     tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.xt_var(φ, σ, npts)
+    t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
+    return t_vals, ecm.xt_var(φ, σ, t_vals)
 
 def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -122,7 +123,8 @@ def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
     tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.yt_var(φ, σ, β, npts)
+    t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
+    return t_vals, ecm.yt_var(φ, σ, β, t_vals)
 
 def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -152,7 +154,8 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     tmax = get_param_default_if_missing("tmax", None, **kwargs)
     npts = get_param_throw_if_missing("npts", **kwargs)
 
-    return create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt), ecm.cov(φ, σ, β, npts)
+    t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
+    return t_vals, ecm.cov(φ, σ, β, t_vals)
 
 def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
     """
