@@ -24,11 +24,12 @@ from datetime import datetime, date
 import matplotlib.ticker
 import matplotlib.dates as mdates
 import matplotlib.units as munits
+from matplotlib import pyplot
 
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import get_param_default_if_missing
 
-def curve(axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
+def curve(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
     Plot a curve.
 
@@ -128,7 +129,7 @@ def curve(axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
         raise Exception("Invalid PlotAxisType")
 
 
-def comparison(axis, y, x=None, **kwargs):
+def comparison(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
     Plot multiple curves on same scale.
 
@@ -264,7 +265,7 @@ def comparison(axis, y, x=None, **kwargs):
         ncol = math.ceil(ncurve / 6 )
         axis.legend(loc=legend_loc, ncol=ncol, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)
 
-def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
+def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
     """
     Plot a horizontal stack of multiple curves on the same x-scale.
 
@@ -368,7 +369,7 @@ def stack(axis, y: list[numpy.ndarray], x=None, **kwargs):
         else:
             axis[i].plot(x_plot, y_plot, lw=1)
 
-def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
+def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -447,14 +448,14 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
     axis.set_ylabel(left_ylabel)
     axis.set_xlabel(xlabel)
 
-    list1 = plot_curve(axis, x[0], left, npts, 0, **kwargs)
+    list1 = __plot_curve(axis, x[0], left, npts, 0, **kwargs)
 
     axis2 = axis.twinx()
     axis2.grid(False)
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
-    list2 = plot_curve(axis2, x[1], right, npts, 1, **kwargs)
+    list2 = __plot_curve(axis2, x[1], right, npts, 1, **kwargs)
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -468,14 +469,14 @@ def twinx(axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
     if xlim is not None:
         axis.set_xlim(xlim)
 
-    twinx_ticks(axis, axis2)
+    __twinx_ticks(axis, axis2)
 
     if labels is not None:
         labels_list = list1 + list2
         labs = [l.get_label() for l in labels_list]
         axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
-def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x=None, **kwargs):
+def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -557,7 +558,7 @@ def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray]
         munits.registry[date] = converter
         munits.registry[datetime] = converter    
 
-    list1 = [plot_curve(axis, x[i], left[i], npts, i, **kwargs) for i in range(len(left))]
+    list1 = [__plot_curve(axis, x[i], left[i], npts, i, **kwargs) for i in range(len(left))]
 
     axis2 = axis.twinx()
     axis2.grid(False)
@@ -565,7 +566,7 @@ def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray]
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
 
-    list2 = [plot_curve(axis2, x[i], right[i], npts, len(left) + i, **kwargs)  for i in range(len(right))]
+    list2 = [__plot_curve(axis2, x[i], right[i], npts, len(left) + i, **kwargs)  for i in range(len(right))]
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -579,15 +580,96 @@ def twinx_comparison(axis, left: list[numpy.ndarray], right: list[numpy.ndarray]
     if xlim is not None:
         axis.set_xlim(xlim)
 
-    twinx_ticks(axis, axis2)
+    __twinx_ticks(axis, axis2)
 
     if labels is not None:
         labels_list = [item for sublist in list1 + list2 for item in sublist]
         labs = [l.get_label() for l in labels_list]
         axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
 
+
+def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
+    """"
+    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    x : numpy.ndarray[float]
+        Value plotted on x-axis.
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+   """
+
+    plot_axis_type = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    lw             = get_param_default_if_missing("lw", 2, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
+    scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
+
+    if x is None:
+        npts = len(data)
+        x = numpy.linspace(0.0, float(npts - 1), npts)
+
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
+    if labels is None:
+        labels = ["Data", "Fit"]
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
+
+    if title is not None:
+        axis.set_title(title, y=1.0 + title_offset)
+
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+    
+    if plot_axis_type.value == PlotType.LOG.value:
+        logStyle(axis, x, data)
+        axis.loglog(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+    elif plot_axis_type.value == PlotType.XLOG.value:
+        logXStyle(axis, x, data)
+        axis.semilogx(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+    elif plot_axis_type.value == PlotType.YLOG.value:
+        logYStyle(axis, x, data)
+        axis.semilogy(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+    else:
+        axis.plot(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+
+
 # Compute twinx ticks
-def twinx_ticks(axis1, axis2):
+def __twinx_ticks(axis1, axis2):
     y1_lim = axis1.get_ylim()
     y2_lim = axis2.get_ylim()
     f = lambda x : y2_lim[0] + (x - y1_lim[0])*(y2_lim[1] - y2_lim[0])/(y1_lim[1] - y1_lim[0])
@@ -595,7 +677,7 @@ def twinx_ticks(axis1, axis2):
     axis2.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(ticks))
 
 # Plot twinx curve
-def plot_curve(axis, x, y, npts, n, **kwargs):
+def __plot_curve(axis, x, y, npts, n, **kwargs):
     lw             = get_param_default_if_missing("lw", 2, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     colors         = get_param_default_if_missing("colors", None, **kwargs)

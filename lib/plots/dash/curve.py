@@ -35,12 +35,15 @@ def curve(y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
         Specify the limits for the x axis. (default None)
     scilimits : (-int, int)
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
     """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.curve(axis, y, x, **kwargs)
+
 
 def comparison(y: list[numpy.ndarray], x=None, **kwargs):
     """
@@ -77,12 +80,15 @@ def comparison(y: list[numpy.ndarray], x=None, **kwargs):
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     legend_loc : string
         Specify legend location. (default best)
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
     """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.comparison(axis, y, x=x, **kwargs)
+
 
 def stack(y: list[numpy.ndarray], x=None, **kwargs):
     """
@@ -119,6 +125,7 @@ def stack(y: list[numpy.ndarray], x=None, **kwargs):
     nplot = len(y)
     _, axis = pyplot.subplots(nplot, sharex=True, figsize=figsize)
     comp.stack(axis, y=y, x=x, **kwargs)
+
 
 def twinx(left: numpy.ndarray[float], right: numpy.ndarray[float], x=None, **kwargs):
     """
@@ -157,12 +164,15 @@ def twinx(left: numpy.ndarray[float], right: numpy.ndarray[float], x=None, **kwa
         Specify legend location. (default best)
     prec : int
         Precision shown for y axis ticks.
-    """
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx(axis, left, right, x, **kwargs)
+
 
 def twinx_comparison(left: list[numpy.ndarray], right: list[numpy.ndarray], x: numpy.ndarray=None, **kwargs):
     """
@@ -206,12 +216,15 @@ def twinx_comparison(left: list[numpy.ndarray], right: list[numpy.ndarray], x: n
         Specify the order where axis is labeled using scientific notation. (default (-3, 3))
     legend_loc : string
         Specify legend location. (default best)
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
     """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx_comparison(axis, left=left, right=right, x=x, **kwargs)
+
 
 def bar(y, x=None, **kwargs):
     """
@@ -247,6 +260,7 @@ def bar(y, x=None, **kwargs):
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.bar(axis, y, x, **kwargs)
+
 
 def twinx_bar_line(y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.ndarray=None, x_line: numpy.ndarray=None, **kwargs):
     """
@@ -359,12 +373,15 @@ def twinx_bar(left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=N
         Bar border width (default)
     bar_width : float
         Bar width ras faction of x delta.
-    """
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.twinx_bar(axis, left, right, x_left, x_right, **kwargs)
+
 
 def hist(samples: numpy.ndarray, fx=None, **kwargs):
     """
@@ -410,6 +427,7 @@ def hist(samples: numpy.ndarray, fx=None, **kwargs):
     _, axis = pyplot.subplots(figsize=figsize)
     comp.hist(axis, samples, fx, **kwargs)
 
+
 def fpoints(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
     Compare data to a function by plotting the data as a curve
@@ -449,12 +467,15 @@ def fpoints(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.nda
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     plot_axis_type : PlotAxisType
         The type of axis used in the plot    
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
     """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fpoints(axis, data, func, x, fx, **kwargs)
+
 
 def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """"
@@ -494,12 +515,15 @@ def fcurve(data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndar
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     plot_axis_type : PlotAxisType
         The type of axis used in the plot    
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
     """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fcurve(axis, data, func, x, fx, **kwargs)
+
 
 def fscatter(data: numpy.ndarray[float], func: Callable[[float], float], x: numpy.ndarray[float]=None, **kwargs):
     """"
@@ -541,12 +565,15 @@ def fscatter(data: numpy.ndarray[float], func: Callable[[float], float], x: nump
         Specify legend location. (default best)
     legend_title : string
         Specify legend title. (default None) 
-   """
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+  """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fscatter(axis, data, func, x, **kwargs)
+
 
 def fbar(y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """
@@ -580,9 +607,58 @@ def fbar(y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray=Non
         Specify the limits for the x axis. (default None)
     ylim : (float, float)
         Specify the limits for the y axis. (default None)
-    """
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
 
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
     comp.fbar(axis, y, fy, x=x, fx=fx, **kwargs)
+
+
+def scatter(y: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
+    """"
+    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : numpy.ndarray
+        Data plotted on y-axis.
+    x : numpy.ndarray[float]
+        Value plotted on x-axis
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
+    
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.scatter(axis, y, x, **kwargs)
+

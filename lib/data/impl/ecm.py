@@ -9,11 +9,14 @@ import numpy
 from lib.models import ecm
 import statsmodels.tsa as tsa
 from typing import Tuple
+import statsmodels.api as sm
 import uuid
 
-from lib.data.param_est import (ParamEst)
+from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSParamType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
+from lib.data.impl.stats import OLS
+
 
 def compute_xt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -37,6 +40,7 @@ def compute_xt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
 
     return create_space(xmax=npts - 1, npts=npts, Δx=Δt), numpy.full(npts, 0.0)
 
+
 def compute_yt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ECM process mean value.
@@ -58,6 +62,7 @@ def compute_yt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
     return create_space(xmax=npts - 1, npts=npts, Δx=Δt), numpy.full(npts, 0.0)
+
 
 def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -90,6 +95,7 @@ def compute_xt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
 
     t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
     return t_vals, ecm.xt_var(φ, σ, t_vals)
+
 
 def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -126,6 +132,7 @@ def compute_yt_var(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]
     t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
     return t_vals, ecm.yt_var(φ, σ, β, t_vals)
 
+
 def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute the ECM process variance value.
@@ -156,6 +163,29 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     t_vals = create_space(xmin=0, npts=npts, xmax=tmax, Δx=Δt)
     return t_vals, ecm.cov(φ, σ, β, t_vals)
+
+
+def compute_beta_estimate(xt: numpy.ndarray[float], yt: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+    """
+    Compute OLS estimate of ECM β parameter.
+
+    Parameters
+    ----------
+    xt: numpy.ndarray[float]
+        ECM variable.
+    yt: numpy.ndarray[float]
+        ECM variable.
+
+    Returns
+    -------
+    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+        Ols report and result model.
+    """
+
+    report, result = OLS.LINEAR.single_variable_estimate(yt, xt)
+    __add_beta_transform(result)
+    return report, result
+
 
 def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -198,3 +228,33 @@ def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float],
     xt, yt = ecm.ecm(φ, δ, α, β, γ, λ, npts, σ)
 
     return create_space(xmax=npts - 1, npts=npts), [xt, yt]
+
+
+def __add_beta_transform(result: OLSSingleVarResult):
+    """
+    Add transformation OLS beta parameter estimate.
+
+    Parameters
+    ----------
+    result: OLSSingleVarResult
+        OLS analysis results.
+    """
+
+    model = r"$\hat{\alpha} + \hat{\beta} x_t$"
+
+    param = ParamEst(est=result.param.est,
+                     err=result.param.err,
+                     est_label=r"$\hat{\beta}$",
+                     err_label=r"$\sigma_{\hat{\beta}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_PARAM.value)
+
+    const = ParamEst(est=result.const.est,
+                     err=result.const.err,
+                     est_label=r"$\hat{\alpha}$",
+                     err_label=r"$\sigma_{\hat{\alpha}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_CONST.value)
+    
+    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+

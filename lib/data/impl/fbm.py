@@ -38,6 +38,7 @@ def compute_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
 
     return create_space(xmin=0, npts=npts, Δx=Δt), numpy.full(npts, μ)
 
+
 def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute theoretical FBM standard deviation.
@@ -60,6 +61,7 @@ def compute_sd(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     t, var = compute_var(**kwargs)
 
     return t, numpy.sqrt(var)
+
 
 def compute_var(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -94,6 +96,7 @@ def compute_var(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[f
 
     return t, fbm.var(H, t)
 
+
 def compute_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Fractional brownian motion autocorrelation function.
@@ -120,6 +123,7 @@ def compute_acf(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     t = create_space(xmin=0, npts=nlags, Δx=Δt)
 
     return t, fbm.acf(H, t)
+
 
 def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -152,6 +156,7 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     t = create_space(xmin=tmin, xmax=tmax, npts=npts, Δx=Δt)
 
     return t, fbm.cov(H, s, t)
+
 
 def compute_vr(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -186,6 +191,7 @@ def compute_vr(t: numpy.ndarray[float]=None, **kwargs) -> Tuple[numpy.ndarray[fl
 
     return t, t**(2*H - 1.0)
 
+
 def compute_vr_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM variance ratio for specified lags. The lag values, s, can be
@@ -214,6 +220,7 @@ def compute_vr_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndar
 
     s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_scan(samples, s_vals)
+
 
 def compute_homo_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -244,6 +251,7 @@ def compute_homo_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[
     s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_stat_homo_scan(samples, s_vals)
 
+
 def compute_hetero_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute FBM heteroscedastic variance ratio test statistic for specified lags. 
@@ -272,6 +280,7 @@ def compute_hetero_vr_stat_scan(samples: numpy.ndarray[float], **kwargs) -> Tupl
 
     s_vals = [int(s) for s in get_s_vals(**kwargs)]
     return s_vals, fbm.vr_stat_hetero_scan(samples, s_vals)
+
 
 def create_noise_cholesky_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -305,6 +314,7 @@ def create_noise_cholesky_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.
 
     return Δt * create_space(xmin=0, npts=npts), fbm.cholesky_noise(H, npts, dB, L)
 
+
 def create_noise_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate fractional brownian noise using the FFT method and the provided 
@@ -333,6 +343,7 @@ def create_noise_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarr
     dB = get_param_default_if_missing("dB", None, **kwargs)
 
     return Δt * create_space(xmin=0, npts=npts), fbm.fft_noise(H, npts, dB)
+
 
 def create_cholesky_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
@@ -365,6 +376,7 @@ def create_cholesky_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarra
 
     return Δt * create_space(xmin=0, npts=npts), fbm.generate_cholesky(H, npts, dB, L)
 
+
 def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Generate fractional brownian motion using the FFT method with the provided 
@@ -392,6 +404,7 @@ def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
 
     return Δt * create_space(xmin=0, npts=npts), fbm.generate_fft(H, npts, dB)
     
+
 def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
     """
     Estimate Hurst parameter using OLS on the periodogram assuming a power law.
@@ -412,6 +425,7 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
     report, result = OLS.LOG.single_variable_estimate(pspec, freq)
     __add_pergram_transform(result)
     return report, result
+
 
 def __add_pergram_transform(result: OLSSingleVarResult):
     """
@@ -442,6 +456,7 @@ def __add_pergram_transform(result: OLSSingleVarResult):
     
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
 
+
 def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_var: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
     """
     Estimate Hurst parameter using OLS on the aggregated variance.
@@ -462,6 +477,7 @@ def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_va
     report, result = OLS.LOG.single_variable_estimate(agg_var, m_vals)
     __add_agg_var_transform(result)
     return report, result
+
 
 def __add_agg_var_transform(result: OLSSingleVarResult):
     """
@@ -490,6 +506,7 @@ def __add_agg_var_transform(result: OLSSingleVarResult):
                      param_type=OLSParamType.TRANS_CONST.value)
     
     result.set_transform(OLSSinlgeVarTransform(model, const, param))
+
 
 def compute_vr_test(samples: numpy.ndarray[float], hyp_test_type: HypothesisTestType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     """
@@ -552,6 +569,7 @@ def compute_hetero_vr_test(samples: numpy.ndarray[float], hyp_test_type: Hypothe
     else:
         raise Exception(f"Hypothesis test type is invalid: {hyp_test_type}")
 
+
 def __vr_homo_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     """
     Perform the homoscedastic version of the variance ratio test on the provided samples and perform the specified
@@ -580,6 +598,7 @@ def __vr_homo_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kw
     result = fbm.vr_homo_test(samples, s, sig_level, hyp_type)
     return result, __vr_report_from_result(result)
 
+
 def __vr_hetero_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:
     """
     Perform the heteroscedastic version of the variance ratio test on the provided samples and perform the specified
@@ -607,6 +626,7 @@ def __vr_hetero_test(samples: numpy.ndarray[float], hyp_type: HypothesisType, **
     verify_type(s, list)
     result = fbm.vr_hetero_test(samples, s, sig_level, hyp_type)
     return result, __vr_report_from_result(result)
+
 
 def __vr_report_from_result(result: VarianceRatioTestReport) -> StatisticalTestReport:
     """
