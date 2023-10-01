@@ -84,3 +84,38 @@ def contour_hist(samples: numpy.ndarray[float, float],
 
     figure, axis = pyplot.subplots(figsize=figsize)
     comp.contour_hist(axis, figure, samples, f, x, y, values, **kwargs)
+
+def colored_scatter(y, x, color_values, **kwargs):
+    """
+    Make a scatter plot of the x and y data and color the scatter dots with value 
+    specified in colors.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : [numpy.ndarray]
+        Data plotted in scatter plot y axis.
+    x : [numpy.ndarray]
+        Data plotted in scatter plot x axis.
+    color_values : [numpy.ndarray]
+        Data used to compute scatter point color.
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is None)
+    ylabel : string, optional
+        Plot y-axis label (default is None)
+    color_bar_label : str
+        Label shown to right of color bar (default None)
+    npts : int, optional
+        Number of points plotted (default is length of y)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    """

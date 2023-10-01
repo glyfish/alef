@@ -211,7 +211,7 @@ def compute_gamma_lambda_estimate(yt: numpy.ndarray[float], xt: numpy.ndarray[fl
     dxt = diff(xt)
     dyt = diff(yt)
 
-    report, result = OLS.LINEAR.two_variable_estimate(dyt, dxt, εt[1:])
+    report, result = OLS.LINEAR.two_variable_estimate(dyt, dxt, εt[:-1])
     __add_gamma_lambda_transform(result)
     return report, result
 

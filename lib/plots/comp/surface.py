@@ -134,7 +134,12 @@ def contour_hist(axis: pyplot.axis,
     contour = axis.contour(x, y, f, values, cmap=config.contour_color_map)
     axis.clabel(contour, contour.levels, fmt="%.3f", inline=True, fontsize=contour_font_size)
 
-def colored_scatter(figure, axis, y, x, color_values, **kwargs):
+def colored_scatter(axis: pyplot.axis,
+                    figure: figure.Figure,                    
+                    y: numpy.ndarray[float], 
+                    x: numpy.ndarray[float], 
+                    color_values: numpy.ndarray[float], 
+                    **kwargs):
     """
     Make a scatter plot of the x and y data and color the scatter dots with value 
     specified in colors.
@@ -143,11 +148,13 @@ def colored_scatter(figure, axis, y, x, color_values, **kwargs):
     ----------
     axis : matplotlib.pyplot.axis
         Axis used to draw plot.
-    y : [numpy.ndarray]
+    figure: matplotlib.figure.Figure
+        Plot figure which is needed to add histogram scale.
+    y : numpy.ndarray[float]
         Data plotted in scatter plot y axis.
-    x : [numpy.ndarray]
+    x : numpy.ndarray[float]
         Data plotted in scatter plot x axis.
-    color_values : [numpy.ndarray]
+    color_values : numpy.ndarray[float]
         Data used to compute scatter point color.
     title : string, optional
         Plot title (default is None)
