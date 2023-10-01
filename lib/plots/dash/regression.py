@@ -204,9 +204,12 @@ def ecm_beta(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray[fl
     func = lambda x:  const.est + beta * x
 
     x_text = 0.1
-    y_text = 0.75
-
-    legend_loc = "lower right"
+    if beta >= 0.0:
+        y_text = 0.75
+        legend_loc = "lower right"
+    else:
+        y_text = 0.1
+        legend_loc = "upper right"
 
     labels = ["Data", results.model]
     xlabel = r"$x_t$"
