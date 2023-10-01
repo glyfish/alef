@@ -12,10 +12,11 @@ from typing import Tuple
 import statsmodels.api as sm
 import uuid
 
-from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSParamType)
+from lib.data.param_est import (ParamEst, OLSResult, OLSTransform, OLSParamType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 from lib.data.impl.stats import OLS
+from lib.stats import diff
 
 
 def compute_xt_mean(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -165,7 +166,7 @@ def compute_cov(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     return t_vals, ecm.cov(φ, σ, β, t_vals)
 
 
-def compute_beta_estimate(xt: numpy.ndarray[float], yt: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+def compute_beta_estimate(yt: numpy.ndarray[float], xt: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
     """
     Compute OLS estimate of ECM β parameter.
 
@@ -178,12 +179,40 @@ def compute_beta_estimate(xt: numpy.ndarray[float], yt: numpy.ndarray[float]) ->
 
     Returns
     -------
-    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+    Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
         Ols report and result model.
     """
 
     report, result = OLS.LINEAR.single_variable_estimate(yt, xt)
     __add_beta_transform(result)
+    return report, result
+
+
+def compute_gamma_lambda_estimate(yt: numpy.ndarray[float], xt: numpy.ndarray[float], est_beta: float) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
+    """
+    Compute OLS estimate of ECM β parameter.
+
+    Parameters
+    ----------
+    xt: numpy.ndarray[float]
+        ECM variable.
+    yt: numpy.ndarray[float]
+        ECM variable.
+    est_beta: float
+        Estimated beta.
+
+    Returns
+    -------
+    Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
+        Ols report and result model.
+    """
+
+    εt = yt - est_beta * xt
+    dxt = diff(xt)
+    dyt = diff(yt)
+
+    report, result = OLS.LINEAR.two_variable_estimate(dyt, dxt, εt[1:])
+    __add_gamma_lambda_transform(result)
     return report, result
 
 
@@ -230,20 +259,20 @@ def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float],
     return create_space(xmax=npts - 1, npts=npts), [xt, yt]
 
 
-def __add_beta_transform(result: OLSSingleVarResult):
+def __add_beta_transform(result: OLSResult):
     """
     Add transformation OLS beta parameter estimate.
 
     Parameters
     ----------
-    result: OLSSingleVarResult
+    result: OLSResult
         OLS analysis results.
     """
 
     model = r"$\hat{\alpha} + \hat{\beta} x_t$"
 
-    param = ParamEst(est=result.param.est,
-                     err=result.param.err,
+    param = ParamEst(est=result.params[0].est,
+                     err=result.params[0].err,
                      est_label=r"$\hat{\beta}$",
                      err_label=r"$\sigma_{\hat{\beta}}$",
                      est_id=result.est_id,
@@ -256,5 +285,40 @@ def __add_beta_transform(result: OLSSingleVarResult):
                      est_id=result.est_id,
                      param_type=OLSParamType.TRANS_CONST.value)
     
-    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+    result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
 
+
+def __add_gamma_lambda_transform(result: OLSResult):
+    """
+    Add transformation OLS beta parameter estimate.
+
+    Parameters
+    ----------
+    result: OLSResult
+        OLS analysis results.
+    """
+
+    model = r"$\hat{\alpha} + \hat{\beta} x_t$"
+
+    param1 = ParamEst(est=result.params[0].est,
+                      err=result.params[0].err,
+                     est_label=r"$\hat{\gamma}$",
+                     err_label=r"$\sigma_{\hat{\gamma}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_PARAM.value)
+
+    param2 = ParamEst(est=result.params[0].est,
+                      err=result.params[0].err,
+                      est_label=r"$\hat{\lambda}$",
+                      err_label=r"$\sigma_{\hat{\lambda}}$",
+                      est_id=result.est_id,
+                      param_type=OLSParamType.TRANS_PARAM.value)
+
+    const = ParamEst(est=result.const.est,
+                     err=result.const.err,
+                     est_label=r"$\hat{\lambda}$",
+                     err_label=r"$\sigma_{\hat{\lambda}}$",
+                     est_id=result.est_id,
+                     param_type=OLSParamType.TRANS_CONST.value)
+    
+    result.set_transforms(model, [OLSTransform(param1), OLSTransform(param2)], OLSTransform(const))

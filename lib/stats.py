@@ -126,11 +126,7 @@ def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
         Differenced data
     """
 
-    n = len(samples)
-    d = numpy.zeros(n-1)
-    for i in range(n-1):
-        d[i] = samples[i+1] - samples[i]
-    return d
+    return samples[1:] - samples[:-1]
 
 
 def ensemble_mean(samples: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:

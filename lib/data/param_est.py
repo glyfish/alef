@@ -10,14 +10,14 @@ class EstModel(str, Enum):
     ------
     ARMA
         Assume an ARMA(p,q) model when performing estimate.
-    OLS_SING_VAR
+    OLS
         Assume a single variable OLS model when performing regression.
     VAR
         ASSUME a VAR(p) model when performing estimate.
     """
 
     ARMA = "ARMA"
-    OLS_SING_VAR = "OLS_SING_VAR"
+    OLS = "OLS"
     VAR = "VAR"
 
 
@@ -99,7 +99,7 @@ class ParamEst:
         return ParamEst(est, err, est_label, err_label, order, row, column, est_id, param_type)
     
 
-class OLSSinlgeVarTransform:
+class OLSTransform:
     """
     OLS result transformation.
 
@@ -107,16 +107,10 @@ class OLSSinlgeVarTransform:
     ----------
     model: str
         Transformation model.
-    const: ParamEst
-        Constant estimate.
-    param: ParamEst
-        Parameter estimate.
     """
 
-    def __init__(self, model: str, const: ParamEst, param: ParamEst):
-        self.model = model
+    def __init__(self, param: ParamEst):
         self.param = param
-        self.const = const
 
     def to_json(self, pretty: bool=False):
         indent = 4 if pretty else None
@@ -129,9 +123,7 @@ class OLSSinlgeVarTransform:
         return self._props()
 
     def _props(self):
-        return f"model=({self.model}), " \
-               f"param=({self.param}), " \
-               f"const=({self.const})"
+        return f"param=({self.param})"
 
 
 class OLSParamType(str, Enum):
@@ -159,9 +151,9 @@ class OLSParamType(str, Enum):
     TRANS_PARAM = "TRANS_PARAM"
 
 
-class OLSSingleVarResult:
+class OLSResult:
     """
-    Single variable OLS estimate result.
+    OLS estimate result.
 
     Properties
     ----------
@@ -169,21 +161,23 @@ class OLSSingleVarResult:
         Estimation model.
     const: ParamEst
         Constant estimate.
-    param: ParamEst
+    params: list[ParamEst]
         Parameter estimate.
     r2: ParamEst
         Estimate r^2.
-    transform: OLSSinlgeVarTransform
+    transforms: list[OLSTransform]
         Estimated parameter transformation.
     """
 
-    def __init__(self, const: ParamEst, param: ParamEst, r2: float, est_id: str=None):
-        self.est_model = EstModel.OLS_SING_VAR
+    def __init__(self, const: ParamEst, params: list[ParamEst], r2: float, est_id: str=None):
+        self.est_model = EstModel.OLS
         self.const = const
-        self.param = param
+        self.params = params
         self.r2 = r2
-        self.transform = None
+        self.param_transforms = None
+        self.const_transform = None
         self.est_id = est_id
+        self.model = None
 
     def __repr__(self):
         return f"OLSEst({self._props()})"
@@ -195,9 +189,9 @@ class OLSSingleVarResult:
         return f"est_id={self.est_id}, " \
                f"est_model=({self.est_model}), " \
                f"const=({self.const}), " \
-               f"params=({self.param}, "\
+               f"params=({self.params}, "\
                f"r2=({self.r2}), " \
-               f"transform=({self.transform})"
+               f"transforms=({self.transforms})"
     
     def to_json(self, pretty: bool=False):
         if pretty:
@@ -205,8 +199,10 @@ class OLSSingleVarResult:
         else:
             return dumps(self, default=lambda o: o.__dict__)
     
-    def set_transform(self, transform: OLSSinlgeVarTransform):
-        self.transform = transform
+    def set_transforms(self, model: str, param_transforms: list[OLSTransform], const_transform: OLSTransform):
+        self.param_transforms = param_transforms
+        self.const_transform = const_transform
+        self.model = model
 
 
 class ARMAEstType(str, Enum):

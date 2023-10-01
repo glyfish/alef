@@ -20,6 +20,7 @@
         "nonposy",
         "smax",
         "statsmodels",
+        "XYLOG",
         "ylimit",
         "yscale",
         "yticks",

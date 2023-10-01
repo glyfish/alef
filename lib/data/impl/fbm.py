@@ -5,7 +5,7 @@ import uuid
 
 from lib.models import fbm
 
-from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSSinlgeVarTransform, OLSParamType)
+from lib.data.param_est import (ParamEst, OLSResult, OLSTransform, OLSParamType)
 from lib.data.impl.stats import OLS
 from lib.data.hyp_test import (StatisticalTestParam, StatisticalTestData, StatisticalTestReport, HypothesisTestType, HypothesisType,
                                HypothesisTestStatus)
@@ -405,7 +405,7 @@ def create_fft_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[flo
     return Δt * create_space(xmin=0, npts=npts), fbm.generate_fft(H, npts, dB)
     
 
-def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
     """
     Estimate Hurst parameter using OLS on the periodogram assuming a power law.
 
@@ -418,7 +418,7 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
 
     Returns
     -------
-    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+    Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
         Ols report and result model.
     """
 
@@ -427,20 +427,19 @@ def compute_H_estimate_periodogram(freq: numpy.ndarray[float], pspec: numpy.ndar
     return report, result
 
 
-def __add_pergram_transform(result: OLSSingleVarResult):
+def __add_pergram_transform(result: OLSResult):
     """
     Add transformation used for periodogram OLS analysis.
 
     Parameters
     ----------
-    result: OLSSingleVarResult
+    result: OLSResult
         OLS analysis results.
     """
 
     model = r"$C\omega^{1 - 2H}$"
-
-    param = ParamEst(est=(1.0 - result.param.est)/2.0,
-                     err=result.param.err/2.0,
+    param = ParamEst(est=(1.0 - result.params[0].est)/2.0,
+                     err=result.params[0].err/2.0,
                      est_label=r"$\hat{Η}$",
                      err_label=r"$\sigma_{\hat{Η}}$",
                      est_id=result.est_id,
@@ -452,12 +451,12 @@ def __add_pergram_transform(result: OLSSingleVarResult):
                      est_label=r"$\hat{C}$",
                      err_label=r"$\sigma_{\hat{C}}$",
                      est_id=result.est_id,
-                     param_type=OLSParamType.TRANS_CONST.value)
+                     param_type=OLSParamType.TRANS_CONST.value)    
     
-    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+    result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
 
 
-def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_var: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_var: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
     """
     Estimate Hurst parameter using OLS on the aggregated variance.
 
@@ -470,7 +469,7 @@ def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_va
 
     Returns
     -------
-    Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+    Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
         Ols report and result model.
     """
 
@@ -479,19 +478,19 @@ def compute_H_estimate_variance_aggregation(m_vals: numpy.ndarray[float], agg_va
     return report, result
 
 
-def __add_agg_var_transform(result: OLSSingleVarResult):
+def __add_agg_var_transform(result: OLSResult):
     """
     Add transformation used for variance aggregation OLS analysis.
 
     Parameters
     ----------
-    result: OLSSingleVarResult
+    result: OLSResult
         OLS analysis results.
     """
 
     model = r"$\sigma^2 m^{2\left(H-1\right)}$"
-    param = ParamEst(est=1.0 + result.param.est/2.0,
-                     err=result.param.err/2.0,
+    param = ParamEst(est=1.0 + result.params[0].est/2.0,
+                     err=result.params[0].err/2.0,
                      est_label=r"$\hat{Η}$",
                      err_label=r"$\sigma_{\hat{Η}}$",
                      est_id=result.est_id,
@@ -505,7 +504,7 @@ def __add_agg_var_transform(result: OLSSingleVarResult):
                      est_id=result.est_id,
                      param_type=OLSParamType.TRANS_CONST.value)
     
-    result.set_transform(OLSSinlgeVarTransform(model, const, param))
+    result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
 
 
 def compute_vr_test(samples: numpy.ndarray[float], hyp_test_type: HypothesisTestType, **kwargs) -> Tuple[VarianceRatioTestReport, StatisticalTestReport]:

@@ -5,7 +5,7 @@ import matplotlib.units as munits
 from matplotlib import pyplot
 from datetime import datetime, date
 
-from lib.plots.comp.line import (plot_curve, twinx_ticks)
+from lib.plots.comp.line import (__plot_curve, __twinx_ticks)
 
 from lib.utils import get_param_default_if_missing
 from lib import config
@@ -178,7 +178,7 @@ def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_le
     if xlim is not None:
         axis.set_xlim(xlim)
 
-    twinx_ticks(axis, axis2)
+    __twinx_ticks(axis, axis2)
     axis2.grid(False)
 
     if labels is not None:
@@ -279,7 +279,7 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarra
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if line_ylabel is not None:
         axis2.set_ylabel(line_ylabel, rotation=-90, labelpad=15)
-    list2 = plot_curve(axis2, x_line, y_line, len(x_line), 1, 2, **kwargs)
+    list2 = __plot_curve(axis2, x_line, y_line, len(x_line), 1, 2, **kwargs)
     
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -293,7 +293,7 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarra
     if xlim is not None:
         axis.set_xlim(xlim)
 
-    twinx_ticks(axis, axis2)
+    __twinx_ticks(axis, axis2)
     axis2.grid(False)
 
     if labels is not None:
@@ -406,7 +406,7 @@ def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: li
     if xlim is not None:
         axis.set_xlim(xlim)
 
-    twinx_ticks(axis, axis2)
+    __twinx_ticks(axis, axis2)
     axis2.grid(False)
 
     if labels is not None:

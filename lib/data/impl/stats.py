@@ -12,7 +12,7 @@ import statsmodels.api as sm
 import uuid
 
 from lib import stats
-from lib.data.param_est import (ParamEst, OLSSingleVarResult, OLSParamType)
+from lib.data.param_est import (ParamEst, OLSResult, OLSParamType)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
@@ -193,7 +193,7 @@ def compute_agg_var(data: numpy.ndarray, **kwargs) -> Tuple[numpy.ndarray[float]
     m_max = get_param_throw_if_missing("m_max", **kwargs)
     m_min = get_param_default_if_missing("m_min", 1, **kwargs)
 
-    m_vals = create_logspace(npts=npts, xmax=m_max, xmin=m_min)
+    m_vals = create_space(npts=npts, xmax=m_max, xmin=m_min)
     return m_vals, stats.agg_var(data, m_vals)
 
 def compute_agg(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -552,7 +552,7 @@ class OLS(Enum):
     XLOG = "XLOG"
     YLOG = "YLOG"
 
-    def single_variable_estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+    def single_variable_estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
         """
         Perform single variable OLS regression on the provided data.
 
@@ -565,14 +565,14 @@ class OLS(Enum):
  
         Return
         ------
-        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+        Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
             OLS report and result model.
         """
 
         result = self.___OLS_fit(y, x)
         return result, self.__ols_estimate_from_result(result)
 
-    def two_variable_estimate(self, y: numpy.ndarray[float], x1: numpy.ndarray[float], x2: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]:
+    def two_variable_estimate(self, y: numpy.ndarray[float], x1: numpy.ndarray[float], x2: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
         """
         Perform single variable OLS regression on the provided data.
 
@@ -587,12 +587,12 @@ class OLS(Enum):
  
         Return
         ------
-        Tuple[sm.regression.linear_model.RegressionResults, OLSSingleVarResult]
+        Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
             OLS report and result model.
         """
 
         result = self.___OLS_fit(y, numpy.transpose(numpy.array([x1, x2])))
-        return result, self.__ols_single_estimate_from_result(result)
+        return result, self.__ols_estimate_from_result(result)
 
     def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
         """ 
@@ -610,7 +610,6 @@ class OLS(Enum):
         sm.OLS
             OLS object
         """
-
         if self.value == OLS.LOG.value:
             x = numpy.log10(x)
             y = numpy.log10(y)
@@ -618,7 +617,7 @@ class OLS(Enum):
         x = sm.add_constant(x)
         return sm.OLS(y, x, missing='drop').fit()
 
-    def __ols_estimate_from_result(self, result: sm.regression.linear_model.RegressionResults) -> OLSSingleVarResult:
+    def __ols_estimate_from_result(self, result: sm.regression.linear_model.RegressionResults) -> OLSResult:
         """
         Create an OLS result model from the ols single variable returned report.
 
@@ -629,7 +628,7 @@ class OLS(Enum):
  
         Return
         ------
-        OLSSingleVarResult
+        OLSResult
             OLS result model.
         """
         
@@ -638,11 +637,15 @@ class OLS(Enum):
                                     "err": result.bse[0],
                                     "est_id": est_id,
                                     "param_type": OLSParamType.OLS_CONST.value})
-        param = ParamEst.from_dict({"est": result.params[1], 
-                                    "err": result.bse[1],
-                                    "est_id": est_id,
-                                    "param_type": OLSParamType.OLS_PARAM.value})
+
+        nparams = len(result.params)
+        params = []
+        for i in range(1, nparams):
+            params.append(ParamEst.from_dict({"est": result.params[i], 
+                                              "err": result.bse[i],
+                                              "est_id": est_id,
+                                              "param_type": OLSParamType.OLS_PARAM.value}))
 
         r2 = result.rsquared
-        return OLSSingleVarResult(const, param, r2, est_id)
+        return OLSResult(const, params, r2, est_id)
     

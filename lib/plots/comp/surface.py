@@ -1,6 +1,7 @@
 import numpy
-from matplotlib import pyplot, figure
+from matplotlib import pyplot, figure, colors
 
+from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import get_param_default_if_missing
 from lib import config
 
@@ -132,3 +133,90 @@ def contour_hist(axis: pyplot.axis,
 
     contour = axis.contour(x, y, f, values, cmap=config.contour_color_map)
     axis.clabel(contour, contour.levels, fmt="%.3f", inline=True, fontsize=contour_font_size)
+
+def colored_scatter(figure, axis, y, x, color_values, **kwargs):
+    """
+    Make a scatter plot of the x and y data and color the scatter dots with value 
+    specified in colors.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : [numpy.ndarray]
+        Data plotted in scatter plot y axis.
+    x : [numpy.ndarray]
+        Data plotted in scatter plot x axis.
+    color_values : [numpy.ndarray]
+        Data used to compute scatter point color.
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is None)
+    ylabel : string, optional
+        Plot y-axis label (default is None)
+    color_bar_label : str
+        Label shown to right of color bar (default None)
+    npts : int, optional
+        Number of points plotted (default is length of y)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    """
+
+    title             = get_param_default_if_missing("title", None, **kwargs)
+    title_offset      = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel            = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel            = get_param_default_if_missing("ylabel", None, **kwargs)
+    npts              = get_param_default_if_missing("npts", None, **kwargs)
+    ylim              = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim              = get_param_default_if_missing("xlim", None, **kwargs)
+    xscilimits        = get_param_default_if_missing("xscilimits", (-3, 3), **kwargs)
+    yscilimits        = get_param_default_if_missing("yscilimits", (-3, 3), **kwargs)
+    color_bar_label   = get_param_default_if_missing("color_bar_label", None, **kwargs)
+    plot_axis_type    = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+
+    if title is not None:
+        offset = 1.0 + title_offset
+        axis.set_title(title, y=offset)
+
+    axis.set_xlabel(xlabel)
+    axis.set_ylabel(ylabel)
+
+    axis.ticklabel_format(style='sci', axis='y', scilimits=yscilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='x', scilimits=xscilimits, useMathText=True)
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
+
+    if npts is None or npts > len(y):
+        npts = len(y)
+    
+    if plot_axis_type.value == PlotType.LINEAR.value:
+        plt = axis.scatter(x, y, marker="o", c=color_values, cmap=config.contour_color_map, zorder=5)
+    elif plot_axis_type.value == PlotType.YLOG.value:
+        logYStyle(axis, x, y)
+        plt = axis.scatter(x, y, marker="o", c=color_values, cmap=config.contour_color_map, zorder=5)
+        axis.set_yscale('log')
+    elif plot_axis_type.value == PlotType.XLOG.value:
+        logXStyle(axis, x, y)
+        plt = axis.scatter(x, y, marker="o", c=color_values, cmap=config.contour_color_map, zorder=5)
+        axis.set_xscale('log')
+    elif plot_axis_type.value == PlotType.XYLOG.value:
+        logStyle(axis, x, y)
+        plt = axis.scatter(x, y, marker="o", c=color_values, cmap="magma", zorder=5, norm=colors.LogNorm())
+        axis.set_yscale('log')
+        axis.set_xscale('log')
+    else:
+        raise Exception("Invalid PlotAxisType")
+    
+    color_bar = figure.colorbar(plt, ax=axis)
+    color_bar.set_label(color_bar_label, rotation = -90, labelpad=20)
