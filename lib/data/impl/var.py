@@ -1,6 +1,7 @@
 from enum import Enum
 import numpy
 import uuid
+from typing import Tuple
 
 from lib.models import var
 from pandas import DataFrame
@@ -262,7 +263,7 @@ def compute_unvec(m: numpy.matrix[float]) -> numpy.matrix[float]:
 
     return var.unvec(m)
 
-def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float]:
+def create_source(Φ: list[numpy.ndarray[float, float]], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
     """
     Simulate a VAR(n) process using the provided parameters.
     
@@ -281,7 +282,7 @@ def create_source(Φ: list[numpy.matrix[float]], **kwargs) -> numpy.matrix[float
 
     Returns
     -------
-    numpy.matrix[float]
+    Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]
         Simulation results.
     """
 

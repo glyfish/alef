@@ -1,9 +1,11 @@
 import numpy
+from typing import Tuple
 from lib.models import vecm
+from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
+                       verify_type, create_space)
 
 
-def create_second_order_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], 
-         Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float, float]:
+def create_vecm2_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
     """
     Simulate a second order Vector Error Correction Model (VECM) process with the specified parameters.
 
@@ -16,9 +18,9 @@ def create_second_order_source(λ: numpy.ndarray[float, float], β: numpy.ndarra
     a: numpy.ndarray[float, float]
         Coefficient matrix.
     Ω: numpy.ndarray[float, float]
-        Noise covariance matrix.
-    n: int
-        Number of samples generated.
+        Noise covariance matrix. (default identity matrix)
+    npts: int
+        Number of samples generated (default 1000).
 
     Returns
     -------
@@ -26,4 +28,9 @@ def create_second_order_source(λ: numpy.ndarray[float, float], β: numpy.ndarra
         Simulation results.
     """
 
-    return xt
+    n, _ = a.shape
+    Ω_default = numpy.matrix(numpy.eye(n))
+    Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
+    npts = get_param_default_if_missing("npts", 1000, **kwargs)
+
+    return create_space(npts=npts), numpy.array(vecm.vecm2(λ, β, a, Ω, npts))

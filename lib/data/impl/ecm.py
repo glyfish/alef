@@ -216,7 +216,7 @@ def compute_gamma_lambda_estimate(yt: numpy.ndarray[float], xt: numpy.ndarray[fl
     return report, result
 
 
-def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float], numpy.ndarray[float]]:
+def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
     """
     Generate an ECM time series from an AR(1) process using the specified parameters.
 
@@ -256,7 +256,7 @@ def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float],
 
     xt, yt = ecm.ecm(φ, δ, α, β, γ, λ, npts, σ)
 
-    return create_space(xmax=npts - 1, npts=npts), [xt, yt]
+    return create_space(xmax=npts - 1, npts=npts), numpy.array([xt, yt])
 
 
 def __add_beta_transform(result: OLSResult):

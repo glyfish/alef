@@ -80,6 +80,7 @@ def curve(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     if npts is None or npts > len(y):
         npts = len(y)
 
+    print(npts)
     if x is None:
         x = numpy.linspace(0.0, float(npts-1), npts)
 
