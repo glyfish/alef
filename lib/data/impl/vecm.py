@@ -1,13 +1,36 @@
 import numpy
 from typing import Tuple
+from statsmodels.tsa.vector_ar.var_model import LagOrderResults
+
 from lib.models import vecm
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
 
-def create_vecm2_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
+def compute_aic_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
     """
-    Simulate a second order Vector Error Correction Model (VECM) process with the specified parameters.
+    Determine the order of a VAR process using the AIC criterion.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.
+    
+    maxlags: int
+        Maximum number of lags.
+
+    Returns
+    -------
+    LagOrderResults
+        Order results.
+    """
+
+    return vecm.aic_order(samples, maxlags)
+
+
+def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
+    """
+    Simulate a first order Vector Error Correction Model (VECM) process with the specified parameters.
 
     Parameters
     ----------
@@ -33,4 +56,5 @@ def create_vecm2_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float
     Ω = get_param_default_if_missing("Ω", Ω_default, **kwargs)
     npts = get_param_default_if_missing("npts", 1000, **kwargs)
 
-    return create_space(npts=npts), numpy.array(vecm.vecm2(λ, β, a, Ω, npts))
+    return create_space(npts=npts), numpy.array(vecm.vecm1(λ, β, a, Ω, npts))
+
