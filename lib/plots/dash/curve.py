@@ -92,7 +92,7 @@ def comparison(y: list[numpy.ndarray], x=None, **kwargs):
 
 def stack(y: list[numpy.ndarray], x=None, **kwargs):
     """
-    Plot a horizontal stack of multiple curves on the same x-scale.
+    Plot a horizontal stack of curves on the same x-scale.
 
     Parameters
     ----------
@@ -116,6 +116,45 @@ def stack(y: list[numpy.ndarray], x=None, **kwargs):
         Line width. (default 1)
     npts : int
         Number of points to plot. (default len(y))
+    figsize : (int, int)
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    nplot = len(y)
+    _, axis = pyplot.subplots(nplot, sharex=True, figsize=figsize)
+    comp.stack(axis, y=y, x=x, **kwargs)
+
+
+def comparison_stack(y: list[numpy.ndarray], x=None, **kwargs):
+    """
+    Plot a horizontal stack of multiple curves on the same x-scale.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : list[numpy.ndarray]
+        data y-axis values.
+    x : list[numpy.ndarray] or numpy.ndarray
+        data x-axis values (default None).
+    plot_type : PlotType
+        Axis type.
+    title : str
+        Plot title. (default None)
+    title_offset : str
+        Title offset. (default 0)
+    xlabel : str
+        X-axis label. (default None)
+    ylabels : str or list[str]
+        Y-axis label. (default None)
+    xlim : (float, float)
+        X-axis limits. (default None)
+    ylim : (float, float)
+        Y-axis limits. (default None)
+    lw : int
+        Line width. (default 1)
     figsize : (int, int)
         Figure size.
     """

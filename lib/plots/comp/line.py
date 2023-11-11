@@ -29,6 +29,7 @@ from matplotlib import pyplot
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import get_param_default_if_missing
 
+
 def curve(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
     Plot a curve.
@@ -67,28 +68,15 @@ def curve(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
 
     title           = get_param_default_if_missing("title", None, **kwargs)
     title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    npts            = get_param_default_if_missing("npts", None, **kwargs)
     xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
-    lw              = get_param_default_if_missing("lw", 2, **kwargs)
-    npts            = get_param_default_if_missing("npts", None, **kwargs)
-    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
-    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    yscilimits      = get_param_default_if_missing("yscilimits", (-4, 4), **kwargs)
-    xscilimits      = get_param_default_if_missing("xscilimits", (-4, 4), **kwargs)
-    plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
 
     if npts is None or npts > len(y):
         npts = len(y)
 
-    print(npts)
     if x is None:
         x = numpy.linspace(0.0, float(npts-1), npts)
-
-    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
 
     if not isinstance(x, (numpy.ndarray, numpy.generic)):
         raise Exception("x must be a numpy.array")
@@ -96,39 +84,11 @@ def curve(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     if not isinstance(y, (numpy.ndarray, numpy.generic)):
         raise Exception("y must be a numpy.array")
 
-    x = x[:npts]
-    y = y[:npts]
-
     if title is not None:
         offset = 1.0 + title_offset
         axis.set_title(title, y=offset)
 
-    axis.set_xlabel(xlabel)
-    axis.set_ylabel(ylabel)
-
-    if xlim is not None:
-        axis.set_xlim(xlim)
-
-    if ylim is not None:
-        axis.set_ylim(ylim)
-
-    axis.ticklabel_format(style='sci', axis='y', scilimits=yscilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=xscilimits, useMathText=True)
-
-    if plot_axis_type.value == PlotType.LINEAR.value:
-        axis.plot(x, y, lw=lw)
-    elif plot_axis_type.value == PlotType.YLOG.value:
-        logYStyle(axis, x, y)
-        axis.semilogy(x, y, lw=lw)
-    elif plot_axis_type.value == PlotType.XLOG.value:
-        logYStyle(axis, x, y)
-        axis.semilogx(x, y, lw=lw)
-    elif plot_axis_type.value == PlotType.LOG.value:
-        logStyle(axis, x, y)
-        axis.loglog(x, y, lw=lw)
-    else:
-        raise Exception("Invalid PlotAxisType")
-
+    __plot_curve(axis, x, y, 0, **kwargs)
 
 def comparison(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
@@ -175,18 +135,7 @@ def comparison(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwa
     
     title           = get_param_default_if_missing("title", None, **kwargs)
     title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
-    ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
     labels          = get_param_default_if_missing("labels", None, **kwargs)
-    lw              = get_param_default_if_missing("lw", 2, **kwargs)
-    npts            = get_param_default_if_missing("npts", None, **kwargs)
-    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
-    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
-    scilimits       = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
-    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
-    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
-    plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
-    colors          = get_param_default_if_missing("colors", None, **kwargs)
 
     ncurve = len(y)
     
@@ -211,62 +160,95 @@ def comparison(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwa
             ypts = len(y[i])
             x.append(numpy.linspace(0.0, float(ypts-1), ypts))
 
-    if isinstance(x[0][0], pandas.Timestamp) or isinstance(x[0][0], datetime):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
-
     if title is not None:
         offset = 1.0 + title_offset
         axis.set_title(title, y=offset)
 
-    if xlabel is not None:
-        axis.set_xlabel(xlabel)
+    __plot_curves(axis, x, y, **kwargs)
 
-    if ylabel is not None:
-        axis.set_ylabel(ylabel)
-
-    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-
-    if xlim is not None:
-        axis.set_xlim(xlim)
-
-    if ylim is not None:
-        axis.set_ylim(ylim)
-
-    for i in range(ncurve):
-        xplot = x[i]
-        yplot = y[i]
-
-        if npts is None or npts > len(yplot):
-            npts = len(yplot)
-        
-        if not isinstance(xplot, (numpy.ndarray, numpy.generic)):
-            raise Exception("x must be a numpy.array")
-
-        if not isinstance(yplot, (numpy.ndarray, numpy.generic)):
-            raise Exception("y must be a numpy.array")
-
-        label = labels[i] if labels is not None else None
-
-        color = colors[i] if colors is not None else None
-
-        if plot_axis_type.value == PlotType.LINEAR.value:
-            axis.plot(xplot[:npts], yplot[:npts], lw=lw, label=label, color=color)
-        elif plot_axis_type.value == PlotType.YLOG.value:
-            logYStyle(axis, xplot[:npts], yplot[:npts])
-            axis.semilogy(xplot[:npts], yplot[:npts], lw=lw, label=label, color=color)
-        elif plot_axis_type.value == PlotType.LOG.value:
-            axis.loglog(xplot[:npts], yplot[:npts], lw=lw, label=label, color=color)
-        else:
-            raise Exception("Invalid PlotAxisType")
-
-    if labels is not None:
-        ncol = math.ceil(ncurve / 6 )
-        axis.legend(loc=legend_loc, ncol=ncol, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)
 
 def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
+    """
+    Plot a horizontal stack of curves on the same x-scale.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : list[numpy.ndarray]
+        data y-axis values.
+    x : list[numpy.ndarray] or numpy.ndarray
+        data x-axis values (default None).
+    plot_type : PlotType
+        Axis type.
+    title : str
+        Plot title. (default None)
+    title_offset : str
+        Title offset. (default 0)
+    xlabel : str
+        X-axis label. (default None)
+    ylabels : str or list[str]
+        Y-axis label. (default None)
+    xlim : (float, float)
+        X-axis limits. (default None)
+    ylim : (float, float)
+        Y-axis limits. (default None)
+    lw : int
+        Line width. (default 1)
+    npts : int
+        Number of points to plot. (default len(y))
+    """
+
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    npts           = get_param_default_if_missing("npts", None, **kwargs)
+
+    nplot = len(y)
+
+    if xlabel is not None:
+        axis[nplot-1].set_xlabel(xlabel)
+
+    if title is not None:
+        axis[0].set_title(title, y=1.0 + title_offset)
+
+    if x is None:
+        x = []
+        for i in range(nplot):
+            ypts = len(y[i])
+            x.append(numpy.linspace(0.0, float(ypts-1), ypts))
+    elif isinstance(x, numpy.ndarray):
+        x = numpy.tile(x, (nplot, 1))
+
+    plot_xlabel = xlabel
+    kwargs.pop("xlabel", None)
+
+    for i in range(nplot):
+        y_plot = y[i]
+        x_plot = x[i]
+
+        if isinstance(ylabels, list):
+            ylabel = ylabels[i]
+        elif isinstance(ylabels, str):
+            ylabel = ylabels
+        else:
+            ylabel=None
+
+        if labels is not None:
+            ypos = 0.8*(ylim[1] - ylim[0]) + ylim[0]
+            xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
+            text = axis[i].text(xpos, ypos, labels[i])
+            text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
+
+        xlabel = plot_xlabel if i == nplot - 1 else None
+        __plot_curve(axis[i], x_plot, y_plot, i, xlabel=xlabel, ylabel=ylabel, **kwargs)
+
+
+def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.ndarray]=None, **kwargs):
     """
     Plot a horizontal stack of multiple curves on the same x-scale.
 
@@ -298,7 +280,6 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
         Number of points to plot. (default len(y))
     """
 
-    plot_type      = get_param_default_if_missing("plot_type", PlotType.LINEAR, **kwargs)
     title          = get_param_default_if_missing("title", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
@@ -306,7 +287,6 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
     ylim           = get_param_default_if_missing("ylim", None, **kwargs)
     xlim           = get_param_default_if_missing("xlim", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
-    lw             = get_param_default_if_missing("lw", 1, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
     nplot = len(y)
@@ -324,12 +304,6 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             x.append(numpy.linspace(0.0, float(ypts-1), ypts))
     elif isinstance(x, numpy.ndarray):
         x = numpy.tile(x, (nplot, 1))
-
-    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
 
     for i in range(nplot):
         y_plot = y[i]
@@ -361,14 +335,8 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             text = axis[i].text(xpos, ypos, labels[i])
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
-        if plot_type.value == PlotType.LOG.value:
-            axis[i].loglog(x_plot, y_plot, lw=lw)
-        elif plot_type.value == PlotType.XLOG.value:
-            axis[i].semilogx(x_plot, y_plot, lw=lw)
-        elif plot_type.value == PlotType.YLOG.value:
-            axis[i].semilogy(x_plot, y_plot, lw=1)
-        else:
-            axis[i].plot(x_plot, y_plot, lw=1)
+        __plot_curves(axis[i], x_plot, y_plot, i, **kwargs)
+
 
 def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
     """
@@ -426,7 +394,6 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
     right_ylim      = get_param_default_if_missing("right_ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
     legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
-    scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
     npts            = get_param_default_if_missing("npts", None, **kwargs)
 
     if npts is not None and (npts > len(left) or npts > len(right)):
@@ -439,27 +406,18 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
     if not isinstance(x, list):
         x = numpy.tile(x, (2, 1))
 
-    if x is not None and (isinstance(x[0][0], pandas.Timestamp) or isinstance(x[0][0], datetime)):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
-
     axis.set_title(title, y=title_offset + 1.0)
     axis.set_ylabel(left_ylabel)
     axis.set_xlabel(xlabel)
 
-    list1 = __plot_curve(axis, x[0], left, npts, 0, **kwargs)
+    list1 = __plot_curve(axis, x[0], left, 0, **kwargs)
 
     axis2 = axis.twinx()
     axis2.grid(False)
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
-    list2 = __plot_curve(axis2, x[1], right, npts, 1, **kwargs)
-
-    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-    axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+    list2 = __plot_curve(axis2, x[1], right, 1, **kwargs)
 
     if left_ylim is not None:
         axis.set_ylim(left_ylim)
@@ -476,6 +434,7 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
         labels_list = list1 + list2
         labs = [l.get_label() for l in labels_list]
         axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
+
 
 def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x=None, **kwargs):
     """
@@ -553,13 +512,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
     if isinstance(x, numpy.ndarray):
         x = numpy.tile(x, (nplots, 1))
 
-    if x is not None and (isinstance(x[0][0], pandas.Timestamp) or isinstance(x[0][0], datetime)):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
-
-    list1 = [__plot_curve(axis, x[i], left[i], npts, i, **kwargs) for i in range(len(left))]
+    list1 = [__plot_curve(axis, x[i], left[i], i, **kwargs) for i in range(len(left))]
 
     axis2 = axis.twinx()
     axis2.grid(False)
@@ -567,7 +520,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
     if right_ylabel is not None:
         axis2.set_ylabel(right_ylabel, rotation=-90, labelpad=15)
 
-    list2 = [__plot_curve(axis2, x[i], right[i], npts, len(left) + i, **kwargs)  for i in range(len(right))]
+    list2 = [__plot_curve(axis2, x[i], right[i], len(left) + i, **kwargs)  for i in range(len(right))]
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
@@ -677,21 +630,44 @@ def __twinx_ticks(axis1, axis2):
     ticks = f(axis1.get_yticks())
     axis2.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(ticks))
 
-# Plot twinx curve
-def __plot_curve(axis, x, y, npts, n, **kwargs):
-    lw             = get_param_default_if_missing("lw", 2, **kwargs)
-    labels         = get_param_default_if_missing("labels", None, **kwargs)
-    colors         = get_param_default_if_missing("colors", None, **kwargs)
-    plot_axis_type = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+
+# Plot curve
+def __plot_curve(axis, x, y, n, **kwargs):
+    lw              = get_param_default_if_missing("lw", 2, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    colors          = get_param_default_if_missing("colors", None, **kwargs)
+    plot_axis_type  = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+    scilimits       = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
+    ylim            = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim            = get_param_default_if_missing("xlim", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    xlabel          = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
+    npts            = get_param_default_if_missing("npts", min(len(y), len(x)), **kwargs)
+
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
+        converter = mdates.ConciseDateConverter()
+        munits.registry[numpy.datetime64] = converter
+        munits.registry[date] = converter
+        munits.registry[datetime] = converter    
+
+    axis.set_xlabel(xlabel)
+    axis.set_ylabel(ylabel)
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
 
     cycler = axis._get_lines.prop_cycler
     color = colors[n] if colors is not None else next(cycler)['color']
 
-    npts = min(len(y), len(x))    
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
-    if npts is not None:
-        x = x[:npts]
-        y = y[:npts]
+    x = x[:npts]
+    y = y[:npts]
 
     label = labels[n] if labels is not None and n < len(labels) else None
 
@@ -701,10 +677,40 @@ def __plot_curve(axis, x, y, npts, n, **kwargs):
         logYStyle(axis, x, y)
         return axis.semilogy(x, y, lw=lw, label=label, color=color, zorder=10)
     elif plot_axis_type.value == PlotType.XLOG.value:
-        logYStyle(axis, x, y)
+        logXStyle(axis, x, y)
         return axis.semilogx(x, y, lw=lw, label=label, color=color, zorder=10)
     elif plot_axis_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
         return axis.loglog(x, y, lw=lw, label=label, color=color, zorder=10)
     else:
         raise Exception("Invalid PlotAxisType")
+
+
+# Plot curves
+def __plot_curves(axis, x, y, **kwargs):
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    legend_loc     = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title   = get_param_default_if_missing("legend_title", None, **kwargs)
+    npts           = get_param_default_if_missing("npts", None, **kwargs)
+
+
+    ncurve = len(y)
+
+    for i in range(ncurve):
+        xplot = x[i]
+        yplot = y[i]
+
+        if npts is None or npts > len(yplot):
+            npts = len(yplot)
+        
+        if not isinstance(xplot, (numpy.ndarray, numpy.generic)):
+            raise Exception("x must be a numpy.array")
+
+        if not isinstance(yplot, (numpy.ndarray, numpy.generic)):
+            raise Exception("y must be a numpy.array")
+
+        __plot_curve(axis, xplot, yplot, i, **kwargs)
+
+    if labels is not None:
+        ncol = math.ceil(ncurve / 6 )
+        axis.legend(loc=legend_loc, ncol=ncol, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)

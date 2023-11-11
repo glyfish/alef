@@ -103,12 +103,7 @@ def ndiff(samples: numpy.ndarray[float], ndiff: int) -> numpy.ndarray[float]:
         Samples differenced n times.
     """
 
-    result = deepcopy(samples)
-    i = 0
-    while i < ndiff:
-        result = diff(result)
-        i += 1
-    return result
+    return numpy.diff(samples, ndiff)
 
 
 def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
@@ -126,7 +121,7 @@ def diff(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
         Differenced data
     """
 
-    return samples[1:] - samples[:-1]
+    return numpy.diff(samples)
 
 
 def ensemble_mean(samples: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
