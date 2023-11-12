@@ -163,7 +163,7 @@ def comparison_stack(y: list[numpy.ndarray], x=None, **kwargs):
 
     nplot = len(y)
     _, axis = pyplot.subplots(nplot, sharex=True, figsize=figsize)
-    comp.stack(axis, y=y, x=x, **kwargs)
+    comp.comparison_stack(axis, y=y, x=x, **kwargs)
 
 
 def twinx(left: numpy.ndarray[float], right: numpy.ndarray[float], x=None, **kwargs):

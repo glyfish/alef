@@ -210,11 +210,11 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
 
     nplot = len(y)
 
-    if xlabel is not None:
-        axis[nplot-1].set_xlabel(xlabel)
-
     if title is not None:
         axis[0].set_title(title, y=1.0 + title_offset)
+
+    plot_xlabel = xlabel
+    kwargs.pop("xlabel", None)
 
     if x is None:
         x = []
@@ -223,9 +223,6 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             x.append(numpy.linspace(0.0, float(ypts-1), ypts))
     elif isinstance(x, numpy.ndarray):
         x = numpy.tile(x, (nplot, 1))
-
-    plot_xlabel = xlabel
-    kwargs.pop("xlabel", None)
 
     for i in range(nplot):
         y_plot = y[i]
@@ -239,6 +236,7 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             ylabel=None
 
         if labels is not None:
+            npts = len(y_plot) if npts is None else npts
             ypos = 0.8*(ylim[1] - ylim[0]) + ylim[0]
             xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
             text = axis[i].text(xpos, ypos, labels[i])
@@ -284,15 +282,10 @@ def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.nd
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
-    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
-    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
-    labels         = get_param_default_if_missing("labels", None, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
     nplot = len(y)
-
-    if xlabel is not None:
-        axis[nplot-1].set_xlabel(xlabel)
+    ncurve = len(y[0])
 
     if title is not None:
         axis[0].set_title(title, y=1.0 + title_offset)
@@ -300,42 +293,26 @@ def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.nd
     if x is None:
         x = []
         for i in range(nplot):
-            ypts = len(y[i])
-            x.append(numpy.linspace(0.0, float(ypts-1), ypts))
+            x_curve = []
+            for j in range(ncurve):
+                ypts = len(y[i][0])
+                x_curve.append(numpy.linspace(0.0, float(ypts-1), ypts))
+            x.append(x_curve)
     elif isinstance(x, numpy.ndarray):
-        x = numpy.tile(x, (nplot, 1))
+        x = []
+        for _ in range(nplot):
+            x.append(numpy.tile(x, (ncurve, 1)))
 
     for i in range(nplot):
         y_plot = y[i]
         x_plot = x[i]
-
-        if npts is None or npts > len(y_plot):
-            npts = len(y_plot)
-
-        x_plot = x_plot[:npts]
-        y_plot = y_plot[:npts]
 
         if isinstance(ylabels, list):
             axis[i].set_ylabel(ylabels[i])
         elif isinstance(ylabels, str):
             axis[i].set_ylabel(ylabels)
 
-        if ylim is None:
-            ylim = [1.1*numpy.amin(y_plot), 1.1*numpy.amax(y_plot)]
-
-        if xlim is None:
-            xlim = [x_plot[0], x_plot[-1]]
-
-        axis[i].set_ylim(ylim)
-        axis[i].set_xlim(xlim)
-
-        if labels is not None:
-            ypos = 0.8*(ylim[1] - ylim[0]) + ylim[0]
-            xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
-            text = axis[i].text(xpos, ypos, labels[i])
-            text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
-
-        __plot_curves(axis[i], x_plot, y_plot, i, **kwargs)
+        __plot_curves(axis[i], x_plot, y_plot, **kwargs)
 
 
 def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
@@ -693,9 +670,8 @@ def __plot_curves(axis, x, y, **kwargs):
     legend_title   = get_param_default_if_missing("legend_title", None, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
-
     ncurve = len(y)
-
+    
     for i in range(ncurve):
         xplot = x[i]
         yplot = y[i]
