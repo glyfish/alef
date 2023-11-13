@@ -2,7 +2,8 @@
 import numpy
 from pandas import DataFrame
 from statsmodels.tsa.api import VAR
-from statsmodels.tsa.vector_ar.var_model import VARResults
+from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
+
 from lib.stats import multivariate_normal_samples
 
 def mean(φ: list[numpy.ndarray[float, float]], μ: numpy.ndarray[float]) -> numpy.ndarray[float, float]:
@@ -318,7 +319,7 @@ def var(x0: numpy.ndarray[float, float], μ: numpy.ndarray[float], φ: list[nump
             xt[i] += numpy.squeeze(numpy.array(t1), axis=1)
     return numpy.transpose(xt)
     
-def fit(endog: DataFrame, maxlags: int=12, trend: str="c") -> VARResults:
+def fit(endog: numpy.ndarray[float, float], maxlags: int=12, trend: str="c") -> VARResults:
     """
     Estimate the parameters for and assumed VAR(n) model.
 
@@ -340,8 +341,26 @@ def fit(endog: DataFrame, maxlags: int=12, trend: str="c") -> VARResults:
 
     return __var_model(endog).fit(maxlags=maxlags, trend=trend)
     
+def estimate_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+    """
+    Estimate.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.    
+    maxlags: int
+        Maximum number of lags.
+
+    Returns
+    -------
+    LagOrderResults
+        Order results.
+    """
+
+    return __var_model(samples).select_order(maxlags=maxlags)
         
-def __var_model(endog: DataFrame) -> VAR:
+def __var_model(endog: numpy.ndarray[float, float]) -> VAR:
     """
     Estimate the parameters for and assumed VAR(n) model.
 

@@ -7,27 +7,6 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 
 
-def compute_aic_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
-    """
-    Determine the order of a VAR process using the AIC criterion.
-
-    Parameters
-    ----------
-    samples: numpy.ndarray[float, float]
-        Samples analyzed.
-    
-    maxlags: int
-        Maximum number of lags.
-
-    Returns
-    -------
-    LagOrderResults
-        Order results.
-    """
-
-    return vecm.aic_order(samples, maxlags)
-
-
 def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
     """
     Simulate a first order Vector Error Correction Model (VECM) process with the specified parameters.

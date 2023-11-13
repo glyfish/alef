@@ -5,7 +5,7 @@ from typing import Tuple
 
 from lib.models import var
 from pandas import DataFrame
-from statsmodels.tsa.vector_ar.var_model import VARResults
+from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
@@ -312,7 +312,28 @@ def create_source(Φ: list[numpy.ndarray[float, float]], **kwargs) -> Tuple[nump
 
     return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
 
-def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
+def compute_estimate_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+    """
+    Determine the order of a VAR process using the AIC criterion.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.
+    
+    maxlags: int
+        Maximum number of lags.
+
+    Returns
+    -------
+    LagOrderResults
+        Order results.
+    """
+
+    return var.estimate_order(samples, maxlags)
+
+
+def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):
     """
     Estimate the parameters for and assumed VAR(n) model.
 
@@ -320,8 +341,6 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
     ----------
     samples: list[numpy.ndarray[float]]
         VAR(n) process endogenous variable samples.
-    names: list[str]
-        Names of sample variables. (default None)
     maxlags: int
         Maximum number of time lags tried. (default is 12)
     trend: str
@@ -334,39 +353,26 @@ def compute_estimate(samples: list[numpy.ndarray[float]], **kwargs):
         Analysis results.
     """
     
-    nvar = len(samples)
-    default_names = [f"S{i}" for i in range(nvar)]
-
     maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
-    names = get_param_default_if_missing("names", default_names, **kwargs)
-    verify_condition("samples", nvar == len(names), f"and names should have the same length of {nvar}")
 
-    endog = {}
-    for i in range(nvar):
-        endog[names[i]] = samples[i]
-    endog=DataFrame(endog)
-
-    result = var.fit(endog, maxlags=maxlags, trend=trend)
+    result = var.fit(numpy.transpose(samples), maxlags=maxlags, trend=trend)
     return result, __var_estimate_from_result(result)
 
 def __var_estimate_from_result(result: VARResults) -> VAREst:
     est_params = result.coefs
     n, m, _ = est_params.shape
 
-    est_stderr = result.stderr.iloc[1:].to_numpy()
-    est_stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(est_stderr, n)])
-
-    est_const = result.params.loc['const'].to_numpy()
-    est_const_stderr = result.stderr.loc['const'].to_numpy()
-
+    est_stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(result.stderr[1:], n)])
+    est_const = result.params[0]
+    est_const_stderr = result.stderr[0]
     est_omega = result.resid_corr
 
     est_id = str(uuid.uuid4())
     const = []
     params = []
     omega = []
- 
+     
     for i in range(m):
         const.append(ParamEst(est=est_const[i], 
                               err=est_const_stderr[i], 
@@ -397,7 +403,7 @@ def __var_estimate_from_result(result: VARResults) -> VAREst:
                                   est_id=est_id,
                                   param_type=VARParamType.VAR_OMEGA.value))
 
-    return VAREst(const=const, params=params, omega=omega)
+    return VAREst(order=n, const=const, params=params, omega=omega)
 
 
 def __verify_phi(φ):

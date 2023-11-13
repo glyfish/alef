@@ -204,7 +204,6 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
     xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
     ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
     ylim           = get_param_default_if_missing("ylim", None, **kwargs)
-    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
@@ -213,7 +212,7 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
     if title is not None:
         axis[0].set_title(title, y=1.0 + title_offset)
 
-    plot_xlabel = xlabel
+    axis[nplot-1].set_xlabel(xlabel)
     kwargs.pop("xlabel", None)
 
     if x is None:
@@ -242,8 +241,7 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             text = axis[i].text(xpos, ypos, labels[i])
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 
-        xlabel = plot_xlabel if i == nplot - 1 else None
-        __plot_curve(axis[i], x_plot, y_plot, i, xlabel=xlabel, ylabel=ylabel, **kwargs)
+        __plot_curve(axis[i], x_plot, y_plot, i, ylabel=ylabel, **kwargs)
 
 
 def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.ndarray]=None, **kwargs):
@@ -268,6 +266,8 @@ def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.nd
         X-axis label. (default None)
     ylabels : str or list[str]
         Y-axis label. (default None)
+    labels : [string], optional
+        Curve labels shown in legend.
     xlim : (float, float)
         X-axis limits. (default None)
     ylim : (float, float)
@@ -276,16 +276,24 @@ def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.nd
         Line width. (default 1)
     npts : int
         Number of points to plot. (default len(y))
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None)
     """
 
-    title          = get_param_default_if_missing("title", None, **kwargs)
-    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
-    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
-    ylabels        = get_param_default_if_missing("ylabels", None, **kwargs)
-    npts           = get_param_default_if_missing("npts", None, **kwargs)
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    title_offset     = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel           = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabels          = get_param_default_if_missing("ylabels", None, **kwargs)
+    curve_labels     = get_param_default_if_missing("labels", [], **kwargs)
 
     nplot = len(y)
     ncurve = len(y[0])
+
+    axis[nplot-1].set_xlabel(xlabel)
+    kwargs.pop("xlabel", None)
+    kwargs.pop("labels", None)
 
     if title is not None:
         axis[0].set_title(title, y=1.0 + title_offset)
@@ -312,7 +320,12 @@ def comparison_stack(axis: pyplot.axis, y: list[numpy.ndarray], x: list[numpy.nd
         elif isinstance(ylabels, str):
             axis[i].set_ylabel(ylabels)
 
-        __plot_curves(axis[i], x_plot, y_plot, **kwargs)
+        if len(curve_labels) > i:
+            labels = curve_labels[i]  
+        else:
+            labels = None
+
+        __plot_curves(axis[i], x_plot, y_plot, labels=labels, **kwargs)
 
 
 def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, **kwargs):
@@ -357,6 +370,8 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
         Specify the order where axis is labeled using scientific notation. (default (-3, 3))
     legend_loc : string
         Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None)
     plot_axis_type : PlotAxisType
         Axis type. (default PlotAxisType.LINEAR)
     """
@@ -371,6 +386,7 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
     right_ylim      = get_param_default_if_missing("right_ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
     legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
     npts            = get_param_default_if_missing("npts", None, **kwargs)
 
     if npts is not None and (npts > len(left) or npts > len(right)):
@@ -410,7 +426,7 @@ def twinx(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x=None, 
     if labels is not None:
         labels_list = list1 + list2
         labs = [l.get_label() for l in labels_list]
-        axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
+        axis.legend(labels_list, labs, loc=legend_loc, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
 
 def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[numpy.ndarray], x=None, **kwargs):
@@ -455,6 +471,8 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
         Specify the order where axis is labeled using scientific notation. (default (-3, 3))
     legend_loc : string
         Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None)
     plot_axis_type : PlotAxisType
         Axis type. (default PlotAxisType.LINEAR)
     """
@@ -469,6 +487,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
     right_ylim      = get_param_default_if_missing("right_ylim", None, **kwargs)
     xlim            = get_param_default_if_missing("xlim", None, **kwargs)
     legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title    = get_param_default_if_missing("legend_title", None, **kwargs)
     npts            = get_param_default_if_missing("npts", None, **kwargs)
     scilimits       = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
 
@@ -516,7 +535,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
     if labels is not None:
         labels_list = [item for sublist in list1 + list2 for item in sublist]
         labs = [l.get_label() for l in labels_list]
-        axis.legend(labels_list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
+        axis.legend(labels_list, labs, title=legend_title, loc=legend_loc, bbox_to_anchor=(0.15, 0.15, 0.85, 0.85))
 
 
 def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
@@ -628,8 +647,11 @@ def __plot_curve(axis, x, y, n, **kwargs):
         munits.registry[date] = converter
         munits.registry[datetime] = converter    
 
-    axis.set_xlabel(xlabel)
-    axis.set_ylabel(ylabel)
+    if xlabel is not None:
+        axis.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        axis.set_ylabel(ylabel)
 
     if xlim is not None:
         axis.set_xlim(xlim)
@@ -671,7 +693,7 @@ def __plot_curves(axis, x, y, **kwargs):
     npts           = get_param_default_if_missing("npts", None, **kwargs)
 
     ncurve = len(y)
-    
+
     for i in range(ncurve):
         xplot = x[i]
         yplot = y[i]
@@ -689,4 +711,4 @@ def __plot_curves(axis, x, y, **kwargs):
 
     if labels is not None:
         ncol = math.ceil(ncurve / 6 )
-        axis.legend(loc=legend_loc, ncol=ncol, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9), title=legend_title).set_zorder(10)
+        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)

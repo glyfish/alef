@@ -364,10 +364,10 @@ class VAREst:
         ARMA model estimate type.
     """
 
-    def __init__(self, const: list[ParamEst], params: list[list[list[ParamEst]]], omega: list[list[ParamEst]]):
+    def __init__(self, order: int, const: list[ParamEst], params: list[list[list[ParamEst]]], omega: list[list[ParamEst]]):
         self.__est_model = EstModel.VAR
         self.__const = const
-        self.__order = len(params)
+        self.__order = order
         self.__params = params
         self.__omega = omega
 
