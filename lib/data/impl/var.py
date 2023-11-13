@@ -312,7 +312,7 @@ def create_source(Φ: list[numpy.ndarray[float, float]], **kwargs) -> Tuple[nump
 
     return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
 
-def compute_estimate_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+def compute_order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
     """
     Determine the order of a VAR process using the AIC criterion.
 
@@ -330,7 +330,7 @@ def compute_estimate_order(samples: numpy.ndarray[float, float], maxlags: int=12
         Order results.
     """
 
-    return var.estimate_order(samples, maxlags)
+    return var.order_estimate(samples, maxlags)
 
 
 def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):

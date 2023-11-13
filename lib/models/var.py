@@ -341,9 +341,9 @@ def fit(endog: numpy.ndarray[float, float], maxlags: int=12, trend: str="c") -> 
 
     return __var_model(endog).fit(maxlags=maxlags, trend=trend)
     
-def estimate_order(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
     """
-    Estimate.
+    Estimate order of VAR samples.
 
     Parameters
     ----------
