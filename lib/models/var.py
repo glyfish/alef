@@ -1,8 +1,6 @@
 
 import numpy
-from pandas import DataFrame
-from statsmodels.tsa.api import VAR
-from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
+from statsmodels.tsa.vector_ar.var_model import VAR, VARResults, LagOrderResults
 
 from lib.stats import multivariate_normal_samples
 
@@ -341,7 +339,7 @@ def fit(endog: numpy.ndarray[float, float], maxlags: int=12, trend: str="c") -> 
 
     return __var_model(endog).fit(maxlags=maxlags, trend=trend)
     
-def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12, trend: str="c") -> LagOrderResults:
     """
     Estimate order of VAR samples.
 
@@ -351,6 +349,9 @@ def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12) -> Lag
         Samples analyzed.    
     maxlags: int
         Maximum number of lags.
+    trend: str
+        Assumed trend (default 'c'). 
+        Values 'n'=no trend, 'c'=constant offset, 'ct'=linear trend, 'ctt'=quadratic and linear trend.
 
     Returns
     -------

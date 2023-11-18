@@ -9,7 +9,7 @@ from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
-from lib.data.param_est import (ParamEst, VAREst, VARParamType)
+from lib.data.param_est import (ParamEst, VAREst, VARParamType, VAROrderEst, __var_order_estimate_from_result)
 
 
 def compute_mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float] = None) -> numpy.matrix[float]:
@@ -312,17 +312,19 @@ def create_source(Φ: list[numpy.ndarray[float, float]], **kwargs) -> Tuple[nump
 
     return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
 
-def compute_order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12) -> LagOrderResults:
+def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderEst]:
     """
     Determine the order of a VAR process using the AIC criterion.
 
     Parameters
     ----------
     samples: numpy.ndarray[float, float]
-        Samples analyzed.
-    
+        Samples analyzed.    
     maxlags: int
         Maximum number of lags.
+    trend: str
+        Assumed trend (default 'c'). 
+        Values 'n'=no trend, 'c'=constant offset, 'ct'=linear trend, 'ctt'=quadratic and linear trend.
 
     Returns
     -------
@@ -330,7 +332,11 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12
         Order results.
     """
 
-    return var.order_estimate(samples, maxlags)
+    maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
+    trend = get_param_default_if_missing("trend", 'c', **kwargs)
+
+    result = var.order_estimate(numpy.transpose(samples), maxlags, trend)
+    return result, __var_order_estimate_from_result(result)
 
 
 def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):
@@ -353,7 +359,7 @@ def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):
         Analysis results.
     """
     
-    maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
+    maxlags = get_param_default_if_missing("maxlags", '12', **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
     result = var.fit(numpy.transpose(samples), maxlags=maxlags, trend=trend)

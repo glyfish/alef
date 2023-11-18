@@ -1,11 +1,34 @@
 import numpy
-from statsmodels.tsa.vector_ar import vecm
+from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.tsa.stattools import grangercausalitytests
-from statsmodels.tsa.vector_ar.vecm import VECM
+from statsmodels.tsa.vector_ar.vecm import VECM, coint_johansen, select_order
 
 from lib import stats
+
+def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12, deterministic='n') -> LagOrderResults:
+    """
+    Estimate order of VECM samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.    
+    maxlags: int
+        Maximum number of lags.
+    deterministic: str
+        Assumed trend (default 'n'). 
+        Values 'n' -no deterministic terms, 'co' -constant outside the cointegration relation, 'ci' -constant within the cointegration relation, 
+        'lo' -linear trend outside the cointegration relation, 'li' -linear trend within the cointegration relation.
+
+    Returns
+    -------
+    LagOrderResults
+        Order results.
+    """
+
+    return select_order(samples, maxlags=maxlags, deterministic=deterministic)
 
 
 def vecm1(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], 
@@ -41,5 +64,22 @@ def vecm1(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: n
         xt[:,i] = Δxt + xt[:,i-1]
     return xt
 
+
+def __vecm_model(endog: numpy.ndarray[float, float]) -> VECM:
+    """
+    Estimate the parameters for and assumed VAR(n) model.
+
+    Parameters
+    ----------
+    endog: DataFrame
+        VAR(n) process endogenous variable samples.
+
+    Returns
+    -------
+    VAR
+        Analysis results.
+    """
+
+    return VECM(endog)
 
 

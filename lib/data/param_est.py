@@ -1,6 +1,10 @@
 import numpy
 from enum import Enum
 from json import dumps
+import uuid
+
+from statsmodels.tsa.vector_ar.var_model import LagOrderResults
+
 
 class EstModel(str, Enum):
     """
@@ -248,6 +252,7 @@ class ARMAEstType(str, Enum):
         else:
             raise Exception(f"Estimate type is invalid: {self}")
 
+
 class ARMAParamType(str, Enum):
     """
     ARAM estimate parameter type.
@@ -390,4 +395,124 @@ class VAREst:
             return dumps(self, indent=3, default=lambda o: o.__dict__)
         else:
             return dumps(self, default=lambda o: o.__dict__)
+        
+
+
+class ErrorMetric(str, Enum):
+    """
+    Error metric.
+
+    Values
+    ------
+    AIC
+        Akaike information criterion.
+    BIC
+        Bayesian information criterion.
+    FPE
+        Final prediction error.
+    HQIC
+        Hannan-Quinn information criterion.
+    """
+
+    AIC = "AIC"
+    BIC = "BIC"
+    FPE = "FPE"
+    HQIC = "HQIC"
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"ErrorMetric({self.value})"
+
+
+class LagOrderEst:
+    """
+    Lag order estimate result.
+
+    Parameters
+    ----------
+    order: int
+        Order estimate.
+    error_metric: ErrorMetric
+        Error metric used to estimate order.
+    value: float
+        Error metric value.
+    """
+
+    def __init__(self, est_id: str, order: int, error_metric: ErrorMetric, value: float):
+        self.__order = order
+        self.__error_metric = error_metric
+        self.__value = value
+        self.__est_id = est_id
+
+    def __repr__(self):
+        return f"LagOrderEstimate({self._props()})"
+    
+    def __str__(self):
+        return self._props()
+    
+    def _props(self):     
+        return f"est_id={self.__est_id}, " \
+               f"order=({self.__order}), " \
+               f"error_metric=({self.__error_metric}), " \
+               f"value=({self.__value})"
+
+class VAROrderEst:
+    """
+    VAR order estimate result.
+
+    Parameters
+    ----------
+    aic: list[float]
+        AIC values.
+    bic: list[float]
+        BIC values.
+    fpe: list[float]
+        FPE values.
+    hqic: list[float]
+        HQIC values.
+    """
+
+    def __init__(self, est_id: str, order: int, aic: LagOrderEst, bic: LagOrderEst, fpe: LagOrderEst, hqic: LagOrderEst):
+        self.__est_id = est_id
+        self.__order = order
+        self.__aic = aic
+        self.__bic = bic
+        self.__fpe = fpe
+        self.__hqic = hqic
+
+
+    def __repr__(self):
+        return f"VAROrderEstimate({self._props()})"
+
+    def __str__(self):
+        return self._props()
+
+    def _props(self):
+        return f"est_id={self.__est_id}, " \
+               f"order=({self.__order}), " \
+               f"aic=({self.__aic}), " \
+               f"bic=({self.__bic}), " \
+               f"fpe=({self.__fpe}), " \
+               f"hqic=({self.__hqic})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
+
+
+def __var_order_estimate_from_result(result: LagOrderResults) -> VAROrderEst:
+    est_id = str(uuid.uuid4())
+    order = int(min(result.aic, result.bic, result.fpe, result.hqic))
+
+    aic_est = LagOrderEst(est_id, int(result.aic), ErrorMetric.AIC, result.ics['aic'][result.aic])
+    bic_est = LagOrderEst(est_id, int(result.bic), ErrorMetric.BIC, result.ics['bic'][result.bic])
+    fpe_est = LagOrderEst(est_id, int(result.fpe), ErrorMetric.FPE, result.ics['fpe'][result.fpe])
+    hqic_est = LagOrderEst(est_id, int(result.hqic), ErrorMetric.HQIC, result.ics['hqic'][result.hqic])
+
+    return VAROrderEst(est_id=est_id, order=order, aic=aic_est, bic=bic_est, fpe=fpe_est, hqic=hqic_est)
+    
 
