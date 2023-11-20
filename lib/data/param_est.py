@@ -121,12 +121,12 @@ class OLSTransform:
         return dumps(self, indent=indent, default=lambda o: o.__dict__)
 
     def __repr__(self):
-        return f"OLSEst({self._props()})"
+        return f"OLSEst({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
-    def _props(self):
+    def __props(self):
         return f"param=({self.param})"
 
 
@@ -184,12 +184,12 @@ class OLSResult:
         self.model = None
 
     def __repr__(self):
-        return f"OLSEst({self._props()})"
+        return f"OLSEst({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
     
-    def _props(self):
+    def __props(self):
         return f"est_id={self.est_id}, " \
                f"est_model=({self.est_model}), " \
                f"const=({self.const}), " \
@@ -276,7 +276,7 @@ class ARMAEst:
     """
     ARMA parameter estimate result.
 
-    Parameters
+    Properties
     ----------
     const: ParamEst
         Estimate of model constant parameter.
@@ -307,12 +307,12 @@ class ARMAEst:
             return dumps(self, default=lambda o: o.__dict__)
 
     def __repr__(self):
-        return f"ARMAEst({self._props()})"
+        return f"ARMAEst({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
-    def _props(self):
+    def __props(self):
         return f"est_model=({self.__est_model}), " \
                f"arma_est_type=({self.__arma_est_type}), " \
                f"est_id={self.__est_id}, " \
@@ -357,7 +357,7 @@ class VAREst:
     """
     VAR parameter estimate result.
 
-    Parameters
+    Properties
     ----------
     const: list[ParamEst]
         Estimate of model constant parameter.
@@ -377,12 +377,12 @@ class VAREst:
         self.__omega = omega
 
     def __repr__(self):
-        return f"VAREst({self._props()})"
+        return f"VAREst({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
-    def _props(self):
+    def __props(self):
         return f"est_model=({self.__est_model}), " \
                f"arma_est_type=({self.__arma_est_type}), " \
                f"const=({self.__const}), " \
@@ -430,7 +430,7 @@ class LagOrderEst:
     """
     Lag order estimate result.
 
-    Parameters
+    Properties
     ----------
     order: int
         Order estimate.
@@ -447,22 +447,23 @@ class LagOrderEst:
         self.__est_id = est_id
 
     def __repr__(self):
-        return f"LagOrderEstimate({self._props()})"
+        return f"LagOrderEstimate({self.__props()})"
     
     def __str__(self):
-        return self._props()
+        return self.__props()
     
-    def _props(self):     
+    def __props(self):     
         return f"est_id={self.__est_id}, " \
                f"order=({self.__order}), " \
                f"error_metric=({self.__error_metric}), " \
                f"value=({self.__value})"
 
+
 class VAROrderEst:
     """
     VAR order estimate result.
 
-    Parameters
+    Properties
     ----------
     aic: list[float]
         AIC values.
@@ -484,12 +485,12 @@ class VAROrderEst:
 
 
     def __repr__(self):
-        return f"VAROrderEstimate({self._props()})"
+        return f"VAROrderEstimate({self.__props()})"
 
     def __str__(self):
-        return self._props()
+        return self.__props()
 
-    def _props(self):
+    def __props(self):
         return f"est_id={self.__est_id}, " \
                f"order=({self.__order}), " \
                f"aic=({self.__aic}), " \
@@ -516,3 +517,83 @@ def __var_order_estimate_from_result(result: LagOrderResults) -> VAROrderEst:
     return VAROrderEst(est_id=est_id, order=order, aic=aic_est, bic=bic_est, fpe=fpe_est, hqic=hqic_est)
     
 
+class GrangerCausalityResult:
+    """
+    Result of Granger causality test for two time series.
+
+    Properties
+    ----------
+    pvalue: float
+        P-value.
+    critical_value: float
+        Critical value.
+    result: bool
+        Granger causality result the right variable causal of the left variable.
+    dependent_var: int
+        Tested dependent variable index.
+    causal_var: int
+        Tested causal variable index.
+    """
+
+    def __init__(self, est_id: str, dependent_var: int, causal_var: int, pvalue: float, critical_value: float, result: bool):
+        self.__est_id = est_id
+        self.__dependent_var = dependent_var
+        self.__causal_var = causal_var
+        self.__pvalue = pvalue
+        self.__critical_value = critical_value
+        self.__result = result
+
+    def __repr__(self):
+        return f"GrangerCausalityResult({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"causal_var=({self.__causal_var}), " \
+               f"dependent_var=({self.__dependent_var}), " \
+               f"pvalue=({self.__pvalue}), " \
+               f"est_id=({self.__est_id}), " \
+               f"critical_value=({self.__critical_value}), " \
+               f"result=({self.__result}), " \
+               
+    
+    @staticmethod
+    def from_dict(data, est_id):
+        dependent_var = data["dependent_var"] if "dependent_var" in data else None
+        causal_var = data["causal_var"] if "causal_var" in data else None
+        pvalue = data["pvalue"] if "pvalue" in data else None
+        critical_value = data["critical_value"] if "critical_value" in data else None
+        result = data["result"] if "result" in data else None
+        return GrangerCausalityResult(est_id, dependent_var, causal_var, pvalue, critical_value, result)
+
+
+class GrangerCausalityResults:
+    """
+    Result of Granger causality test for multivariate time series.
+
+    Properties
+    ----------
+    results: list[GrangerCausalityResult]
+        Granger causality results.
+    """
+
+    def __init__(self, rank: int, results: list[GrangerCausalityResult]):
+        self.__rank = rank
+        self.__results = results
+
+    def __repr__(self):
+        return f"GrangerCausalityResults({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"rank = ({self.__rank}), " \
+               f"results=({self.__results})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)

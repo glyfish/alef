@@ -31,7 +31,7 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tu
     maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
-    result = vecm.order_estimate(numpy.transpose(samples), maxlags, trend)
+    result = vecm.order_estimate(samples.T, maxlags, trend)
     return result, __var_order_estimate_from_result(result)
 
 

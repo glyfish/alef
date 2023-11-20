@@ -10,9 +10,10 @@ from typing import Tuple
 from enum import Enum
 import statsmodels.api as sm
 import uuid
+from pandas import DataFrame
 
 from lib import stats
-from lib.data.param_est import (ParamEst, OLSResult, OLSParamType)
+from lib.data.param_est import (ParamEst, OLSResult, OLSParamType, GrangerCausalityResult, GrangerCausalityResults)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
@@ -540,6 +541,35 @@ def compute_multivariate_normal_pdf(μ: numpy.ndarray[float], Ω: numpy.ndarray[
     return vals, stats.multivariate_normal_pdf(coords, μ, Ω)
 
 
+def compute_causality_matrix(samples: numpy.ndarray[float, float], **kwargs):
+    """
+    Compute Granger causality matrix for the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples used in calculation.
+    nlags: int
+        Maximum number of lags.
+    add_const: bool
+        Add constant term to model (default False).
+    critical_value: float
+        Critical value for causality test (default 0.05)
+        
+    Returns
+    -------
+    numpy.ndarray[float, float]
+        Causality matrix.
+    """
+
+    nlags = get_param_default_if_missing("nlags", 12, **kwargs)
+    add_const = get_param_default_if_missing("add_const", False, **kwargs)
+    critical_value = get_param_default_if_missing("critical_value", 0.05, **kwargs)
+
+    result = stats.causality_matrix(samples, nlags, add_const, critical_value)
+    return result, __granger_causality_model_from_result(result)
+
+
 def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
     """
     Return multivariate normal samples with the specified parameters.
@@ -688,3 +718,13 @@ class OLS(Enum):
         r2 = result.rsquared
         return OLSResult(const, params, r2, est_id)
     
+
+def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausalityResults:
+    results = result.to_dict(orient='records')
+    est_id = str(uuid.uuid4())
+
+    causality_result = result['result'].to_numpy()
+    dep_var = result['dependent_var'].to_numpy()
+    rank = len(numpy.unique(dep_var[causality_result]))
+
+    return GrangerCausalityResults(rank, [GrangerCausalityResult.from_dict(r, est_id) for r in results])

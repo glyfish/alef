@@ -335,7 +335,7 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tu
     maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
-    result = var.order_estimate(numpy.transpose(samples), maxlags, trend)
+    result = var.order_estimate(samples.T, maxlags, trend)
     return result, __var_order_estimate_from_result(result)
 
 
@@ -362,14 +362,14 @@ def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):
     maxlags = get_param_default_if_missing("maxlags", '12', **kwargs)
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
-    result = var.fit(numpy.transpose(samples), maxlags=maxlags, trend=trend)
+    result = var.fit(samples.T, maxlags=maxlags, trend=trend)
     return result, __var_estimate_from_result(result)
 
 def __var_estimate_from_result(result: VARResults) -> VAREst:
     est_params = result.coefs
     n, m, _ = est_params.shape
 
-    est_stderr = numpy.array([numpy.transpose(a) for a in numpy.array_split(result.stderr[1:], n)])
+    est_stderr = numpy.array([a.T for a in numpy.array_split(result.stderr[1:], n)])
     est_const = result.params[0]
     est_const_stderr = result.stderr[0]
     est_omega = result.resid_corr

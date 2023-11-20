@@ -6,10 +6,13 @@ Useful statistical functions.
 """
 
 import numpy
-from copy import deepcopy
+from pandas import DataFrame
+
 import statsmodels.api as sm
 from scipy.stats import multivariate_normal
 from typing import Tuple
+from statsmodels.tsa.stattools import grangercausalitytests
+
 
 def to_noise(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -259,6 +262,7 @@ def ensemble_acf(samples: numpy.ndarray[Tuple[int, int], float], nlags: int=None
             ac_avg[i] += ac[i]
     return ac_avg / float(nsim)
 
+
 def ensemble_cov(x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
     """
     Compute the ensemble averaged covariance of the sampled ensemble.
@@ -289,6 +293,7 @@ def ensemble_cov(x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tupl
             cov[i] += (x[j,i] - mean_x[i])*(y[j,i] - mean_y[i])
     return cov / float(nsim)
 
+
 def ensemble_correlation_coefficient(x: numpy.ndarray[Tuple[int, int], float], y: numpy.ndarray[Tuple[int, int], float]) -> numpy.ndarray[float]:
     """
     Compute the ensemble averaged correlation coefficient of the sampled ensemble.
@@ -317,6 +322,7 @@ def ensemble_correlation_coefficient(x: numpy.ndarray[Tuple[int, int], float], y
     for i in range(1,len(cov)):
         cov[i] = cov[i] / (std_x[i]*std_y[i])
     return cov
+
 
 def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
@@ -748,3 +754,39 @@ def multivariate_normal_samples(μ: numpy.ndarray[float], Ω: numpy.ndarray[floa
 
     return numpy.random.multivariate_normal(μ, Ω, n)
 
+
+def causality_matrix(samples: numpy.ndarray[float, float], nlags: int, add_const: bool=False, critical_value: float=0.05) -> DataFrame:
+    """
+    Compute Granger causality matrix for the given samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples used in calculation.
+    nlags: int
+        Maximum number of lags.
+    add_const: bool
+        Add constant term to model (default False).
+    critical_value: float
+        Critical value for causality F-test (default 0.05)
+
+    Returns
+    -------
+    numpy.ndarray[float, float]
+        Causality matrix.
+    """
+
+    n, _ = samples.shape
+    results = []
+
+    for i in range(n):
+        for j in range(n):
+            test_result = grangercausalitytests(numpy.array([samples[i], samples[j]]).T, nlags)
+            pval = min([round(test_result[k][0]['ssr_ftest'][1], 4) for k in range(1, nlags+1)])
+            results.append({'pvalue': pval, 
+                            'critical_value': critical_value,
+                            'result': pval <= critical_value,
+                            'dependent_var': i + 1,
+                            'causal_var': j + 1})
+           
+    return DataFrame.from_records(numpy.array(results), index=range(1, len(results) + 1))

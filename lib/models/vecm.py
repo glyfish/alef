@@ -3,7 +3,7 @@ from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.tsa.stattools import grangercausalitytests
-from statsmodels.tsa.vector_ar.vecm import VECM, coint_johansen, select_order
+from statsmodels.tsa.vector_ar.vecm import VECM, coint_johansen, select_order, JohansenTestResult
 
 from lib import stats
 
@@ -63,6 +63,31 @@ def vecm1(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: n
         Δxt = λ*β*xt[:,i-1] + a*Δxt1 + εt[i].T
         xt[:,i] = Δxt + xt[:,i-1]
     return xt
+
+
+def johansen_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
+    """
+    Perform Johansen's cointegration test.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.
+    max_lags: int
+        maximum number of lags.
+    trend: int
+        Trend to include in cointegration test.
+            -1 - no trend
+            0 - constant
+            1 - linear trend,.
+
+    Returns
+    -------
+    JohansenTestResult
+        Johansen cointegration test result.
+    """
+
+    return coint_johansen(samples, trend, max_lags)
 
 
 def __vecm_model(endog: numpy.ndarray[float, float]) -> VECM:
