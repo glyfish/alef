@@ -235,9 +235,9 @@ def stack(axis: pyplot.axis, y: list[numpy.ndarray], x=None, **kwargs):
             ylabel=None
 
         if labels is not None:
-            npts = len(y_plot) if npts is None else npts
+            npts_plot = len(y_plot) if npts is None else npts
             ypos = 0.8*(ylim[1] - ylim[0]) + ylim[0]
-            xpos = 0.8*(x_plot[npts-1] - x_plot[0]) + x_plot[0]
+            xpos = 0.8*(x_plot[npts_plot-1] - x_plot[0]) + x_plot[0]
             text = axis[i].text(xpos, ypos, labels[i])
             text.set_bbox(dict(facecolor='white', alpha=0.75, edgecolor='white'))
 

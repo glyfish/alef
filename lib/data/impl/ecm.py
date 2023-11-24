@@ -271,18 +271,24 @@ def __add_beta_transform(result: OLSResult):
 
     model = r"$\hat{\alpha} + \hat{\beta} x_t$"
 
-    param = ParamEst(est=result.params[0].est,
+    param = ParamEst(est_id=result.est_id,
+                     est=result.params[0].est,
                      err=result.params[0].err,
                      est_label=r"$\hat{\beta}$",
                      err_label=r"$\sigma_{\hat{\beta}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_PARAM.value)
 
-    const = ParamEst(est=result.const.est,
+    const = ParamEst(est_id=result.est_id,
+                     est=result.const.est,
                      err=result.const.err,
                      est_label=r"$\hat{\alpha}$",
                      err_label=r"$\sigma_{\hat{\alpha}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_CONST.value)
     
     result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
@@ -300,25 +306,34 @@ def __add_gamma_lambda_transform(result: OLSResult):
 
     model = r"$\hat{\alpha} + \hat{\beta} x_t$"
 
-    param1 = ParamEst(est=result.params[0].est,
+    param1 = ParamEst(est_id=result.est_id,
+                      est=result.params[0].est,
                       err=result.params[0].err,
-                     est_label=r"$\hat{\gamma}$",
-                     err_label=r"$\sigma_{\hat{\gamma}}$",
-                     est_id=result.est_id,
-                     param_type=OLSParamType.TRANS_PARAM.value)
+                      est_label=r"$\hat{\gamma}$",
+                      err_label=r"$\sigma_{\hat{\gamma}}$",
+                      order=1,
+                      row=0,
+                      column=0,
+                      param_type=OLSParamType.TRANS_PARAM.value)
 
-    param2 = ParamEst(est=result.params[0].est,
+    param2 = ParamEst(est_id=result.est_id,
+                      est=result.params[0].est,
                       err=result.params[0].err,
                       est_label=r"$\hat{\lambda}$",
                       err_label=r"$\sigma_{\hat{\lambda}}$",
-                      est_id=result.est_id,
+                      order=1,
+                      row=0,
+                      column=0,
                       param_type=OLSParamType.TRANS_PARAM.value)
 
-    const = ParamEst(est=result.const.est,
+    const = ParamEst(est_id=result.est_id,
+                     est=result.const.est,
                      err=result.const.err,
                      est_label=r"$\hat{\lambda}$",
                      err_label=r"$\sigma_{\hat{\lambda}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_CONST.value)
     
     result.set_transforms(model, [OLSTransform(param1), OLSTransform(param2)], OLSTransform(const))

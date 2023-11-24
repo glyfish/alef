@@ -97,26 +97,26 @@ def __adf_report_from_result(result: ADFTestReport, hyp_test_type: HypothesisTes
         ADF result report and test result model.
     """
     
-    hyp_test_id = str(uuid.uuid4())
+    test_id = str(uuid.uuid4())
 
-    sigs = [StatisticalTestParam(label=result.sig_str[i], value=result.sig[i], hyp_test_id=hyp_test_id) for i in range(3)]
-    stat = StatisticalTestParam(label=r"$t$", value=result.stat, hyp_test_id=hyp_test_id)
-    pval = StatisticalTestParam(label=r"$p-value$", value = result.pval, hyp_test_id=hyp_test_id)
-    lower_vals = [StatisticalTestParam(label=r"$t_L$", value=val, hyp_test_id=hyp_test_id) for val in result.critical_vals]
+    sigs = [StatisticalTestParam(test_id=test_id, label=result.sig_str[i], value=result.sig[i]) for i in range(3)]
+    stat = StatisticalTestParam(test_id=test_id, label=r"$t$", value=result.stat)
+    pval = StatisticalTestParam(test_id=test_id, label=r"$p-value$", value = result.pval)
+    lower_vals = [StatisticalTestParam(test_id=test_id, label=r"$t_L$", value=val) for val in result.critical_vals]
     test_data = []
     for i in range(3):
         status = HypothesisTestStatus.from_bool(result.status_vals[i])
-        data = StatisticalTestData(status=status,
+        data = StatisticalTestData(test_id=test_id,
+                                   status=status,
                                    stat=stat,
                                    pval=pval,
                                    params=[],
                                    sig=sigs[i],
                                    lower=lower_vals[i],
-                                   upper=None,
-                                   hyp_test_id=hyp_test_id)
+                                   upper=None)
         test_data.append(data)
-    return StatisticalTestReport(status=hyp_test_type.status(result.status_vals),
+    return StatisticalTestReport(test_id=test_id,
+                                 status=hyp_test_type.status(result.status_vals),
                                  hyp_type=HypothesisType.LOWER_TAIL,
                                  hyp_test_type=hyp_test_type,
-                                 test_data=test_data,
-                                 hyp_test_id=hyp_test_id)
+                                 test_data=test_data)

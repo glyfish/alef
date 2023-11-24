@@ -9,7 +9,8 @@ from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
-from lib.data.param_est import (ParamEst, VAREst, VARParamType, VAROrderEst, __var_order_estimate_from_result)
+from lib.data.param_est import (ParamEst, VAREst, VARParamType)
+from lib.data.hyp_test import VAROrderTestReport, __var_order_test_report_from_result
 
 
 def compute_mean(φ: list[numpy.matrix[float]], μ: numpy.ndarray[float] = None) -> numpy.matrix[float]:
@@ -312,7 +313,7 @@ def create_source(Φ: list[numpy.ndarray[float, float]], **kwargs) -> Tuple[nump
 
     return create_space(npts=npts), var.var(x0, μ, Φ, Ω, npts)
 
-def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderEst]:
+def compute_order(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderTestReport]:
     """
     Determine the order of a VAR process using the AIC criterion.
 
@@ -336,7 +337,7 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tu
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
     result = var.order_estimate(samples.T, maxlags, trend)
-    return result, __var_order_estimate_from_result(result)
+    return result, __var_order_test_report_from_result(result)
 
 
 def compute_estimate(samples: numpy.ndarray[float, float], **kwargs):
@@ -380,33 +381,38 @@ def __var_estimate_from_result(result: VARResults) -> VAREst:
     omega = []
      
     for i in range(m):
-        const.append(ParamEst(est=est_const[i], 
+        const.append(ParamEst(est_id=est_id, 
+                              est=est_const[i], 
                               err=est_const_stderr[i], 
                               est_label=f"$\hat{{M}}_{{i}}$", 
                               err_label=f"$\sigma^M_{{i}}$", 
-                              column=i, 
-                              est_id=est_id, 
+                              order=i + 1,
+                              row=0,
+                              column=0,                     
                               param_type=VARParamType.VAR_CONST.value))
 
     for i in range(n):
         for j in range(m):
             for k in range(m):
-                params.append(ParamEst(est=est_params[i,j,k], 
+                params.append(ParamEst(est_id=est_id, 
+                                       est=est_params[i,j,k], 
                                        err=est_stderr[i,j,k],
                                        est_label=f"$\\hat{{Phi}}_{{i}}$", 
                                        err_label=f"$\sigma^\Phi_{{i}}$", 
                                        order=i + 1,
                                        row=j,
                                        column=k, 
-                                       est_id=est_id,
                                        param_type=VARParamType.VAR_PARAM.value))
     for i in range(m):
         for j in range(m):
-            omega.append(ParamEst(est=est_omega[i,j], 
+            omega.append(ParamEst(est_id=est_id, 
+                                  est=est_omega[i,j],
+                                  err=0.0,
                                   est_label=f"$\\hat{{Omega}}_{{i}}$", 
+                                  err_label=f"$\\sigma{{Omega}}_{{i}}$", 
+                                  order=0,
                                   row=i,
                                   column=j,
-                                  est_id=est_id,
                                   param_type=VARParamType.VAR_OMEGA.value))
 
     return VAREst(order=n, const=const, params=params, omega=omega)

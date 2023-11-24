@@ -13,7 +13,8 @@ import uuid
 from pandas import DataFrame
 
 from lib import stats
-from lib.data.param_est import (ParamEst, OLSResult, OLSParamType, GrangerCausalityResult, GrangerCausalityResults)
+from lib.data.param_est import (ParamEst, OLSResult, OLSParamType)
+from lib.data.hyp_test import (GrangerCausalityTestResult, GrangerCausalityTestReport)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing, get_s_vals, 
                        create_logspace, create_space)
 
@@ -716,10 +717,10 @@ class OLS(Enum):
                                               "param_type": OLSParamType.OLS_PARAM.value}))
 
         r2 = result.rsquared
-        return OLSResult(const, params, r2, est_id)
+        return OLSResult(est_id, const, params, r2)
     
 
-def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausalityResults:
+def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausalityTestReport:
     results = result.to_dict(orient='records')
     est_id = str(uuid.uuid4())
 
@@ -727,4 +728,4 @@ def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausality
     dep_var = result['dependent_var'].to_numpy()
     rank = len(numpy.unique(dep_var[causality_result]))
 
-    return GrangerCausalityResults(est_id, rank, [GrangerCausalityResult.from_dict(r, est_id) for r in results])
+    return GrangerCausalityTestReport(est_id, rank, [GrangerCausalityTestResult.from_dict(r, est_id) for r in results])

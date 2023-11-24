@@ -438,19 +438,25 @@ def __add_pergram_transform(result: OLSResult):
     """
 
     model = r"$C\omega^{1 - 2H}$"
-    param = ParamEst(est=(1.0 - result.params[0].est)/2.0,
+    param = ParamEst(est_id=result.est_id,
+                     est=(1.0 - result.params[0].est)/2.0,
                      err=result.params[0].err/2.0,
                      est_label=r"$\hat{Η}$",
                      err_label=r"$\sigma_{\hat{Η}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_PARAM.value)
 
     c = 10.0**result.const.est
-    const = ParamEst(est=c,
+    const = ParamEst(est_id=result.est_id,
+                     est=c,
                      err=c*result.const.err,
                      est_label=r"$\hat{C}$",
                      err_label=r"$\sigma_{\hat{C}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_CONST.value)    
     
     result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
@@ -489,19 +495,25 @@ def __add_agg_var_transform(result: OLSResult):
     """
 
     model = r"$\sigma^2 m^{2\left(H-1\right)}$"
-    param = ParamEst(est=1.0 + result.params[0].est/2.0,
+    param = ParamEst(est_id=result.est_id,
+                     est=1.0 + result.params[0].est/2.0,
                      err=result.params[0].err/2.0,
                      est_label=r"$\hat{Η}$",
                      err_label=r"$\sigma_{\hat{Η}}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_PARAM.value)
 
     c = 10.0**result.const.est
-    const = ParamEst(est=c,
+    const = ParamEst(est_id=result.est_id,
+                     est=c,
                      err= c*result.const.err,
                      est_label=r"$\hat{\sigma}^2$",
                      err_label=r"$\sigma^2_{\hat{\sigma}^2}$",
-                     est_id=result.est_id,
+                     order=1,
+                     row=0,
+                     column=0,
                      param_type=OLSParamType.TRANS_CONST.value)
     
     result.set_transforms(model, [OLSTransform(param)], OLSTransform(const))
@@ -642,34 +654,34 @@ def __vr_report_from_result(result: VarianceRatioTestReport) -> StatisticalTestR
         Output statistical test report model.
     """
 
-    hyp_test_id = str(uuid.uuid4())
+    test_id = str(uuid.uuid4())
 
-    sig = StatisticalTestParam(label=f"{int(100.0*result.sig_level)}%", value=result.sig_level, hyp_test_id=hyp_test_id)
-    s_vals = [StatisticalTestParam(label=r"$s$", value=s, hyp_test_id=hyp_test_id) for s in result.s_vals]
-    stats = [StatisticalTestParam(label=r"$Z(s)$", value=stat, hyp_test_id=hyp_test_id) for stat in result.stats]
-    pvals = [StatisticalTestParam(label=r"$p-value$", value=pval, hyp_test_id=hyp_test_id) for pval in result.p_vals]
+    sig = StatisticalTestParam(test_id=test_id, label=f"{int(100.0*result.sig_level)}%", value=result.sig_level)
+    s_vals = [StatisticalTestParam(test_id=test_id, label=r"$s$", value=s) for s in result.s_vals]
+    stats = [StatisticalTestParam(test_id=test_id, label=r"$Z(s)$", value=stat) for stat in result.stats]
+    pvals = [StatisticalTestParam(test_id=test_id, label=r"$p-value$", value=pval) for pval in result.p_vals]
     lower = result.critical_values[0]
 
     if lower is not None:
-        lower = StatisticalTestParam(label=r"$Z_L(s)$", value=lower, hyp_test_id=hyp_test_id)
+        lower = StatisticalTestParam(label=r"$Z_L(s)$", value=lower, test_id=test_id)
     upper = result.critical_values[1]
     if upper is not None:
-        upper = StatisticalTestParam(label=r"$Z_U(s)$", value=upper, hyp_test_id=hyp_test_id)
+        upper = StatisticalTestParam(label=r"$Z_U(s)$", value=upper, test_id=test_id)
     test_data = []
 
     for i in range(len(s_vals)):
         status = HypothesisTestStatus.from_bool(result.status_vals[i])
-        data = StatisticalTestData(status=status,
+        data = StatisticalTestData(test_id=test_id, 
+                                   status=status,
                                    stat=stats[i],
                                    pval=pvals[i],
                                    params=[s_vals[i]],
                                    sig=sig,
                                    lower=lower,
-                                   upper=upper,
-                                   hyp_test_id=hyp_test_id)
+                                   upper=upper)
         test_data.append(data)
-    return StatisticalTestReport(status=result.hyp_test_type.status(result.status_vals),
+    return StatisticalTestReport(test_id=test_id, 
+                                 status=result.hyp_test_type.status(result.status_vals),
                                  hyp_type=result.hyp_type,
                                  hyp_test_type=result.hyp_test_type,
-                                 test_data=test_data,
-                                 hyp_test_id=hyp_test_id)
+                                 test_data=test_data)

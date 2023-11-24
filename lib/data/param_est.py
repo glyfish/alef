@@ -31,6 +31,8 @@ class ParamEst:
 
     Properties
     ----------
+    est_id: str
+        Estimate ID.
     est: float
         Estimate value.
     err: float
@@ -45,14 +47,12 @@ class ParamEst:
         Parameter row index.
     column: int
         Parameter column index. 
-    est_id: str
-        Estimate ID..
     param_type: str
         Parameter type.
     """
 
-    def __init__(self, est: float, err: float=None, est_label: str=None, err_label: str=None, 
-                 order: int=1, row: int=0, column: int=0, est_id: str=None, param_type: str=None):
+    def __init__(self, est_id: str, est: float, err: float, est_label: str, err_label: str, 
+                 order: int, row: int, column: int, param_type: str):
             self.est = est
             self.err = err
             self.est_label = est_label
@@ -100,7 +100,7 @@ class ParamEst:
         err_label = data["err_label"] if "err_label" in data else None
         est_id = data["est_id"] if "est_id" in data else None
         param_type = data["param_type"] if "param_type" in data else None
-        return ParamEst(est, err, est_label, err_label, order, row, column, est_id, param_type)
+        return ParamEst(est_id, est, err, est_label, err_label, order, row, column, param_type)
     
 
 class OLSTransform:
@@ -161,8 +161,8 @@ class OLSResult:
 
     Properties
     ----------
-    est_model: EstModel
-        Estimation model.
+    est_id: EstModel
+        Estimation identifier.
     const: ParamEst
         Constant estimate.
     params: list[ParamEst]
@@ -173,7 +173,7 @@ class OLSResult:
         Estimated parameter transformation.
     """
 
-    def __init__(self, const: ParamEst, params: list[ParamEst], r2: float, est_id: str=None):
+    def __init__(self, est_id: str, const: ParamEst, params: list[ParamEst], r2: float):
         self.est_model = EstModel.OLS
         self.const = const
         self.params = params
@@ -278,6 +278,8 @@ class ARMAEst:
 
     Properties
     ----------
+    est_id : str
+        Estimate identifier
     const: ParamEst
         Estimate of model constant parameter.
     params: list[ParamEst]
@@ -288,7 +290,7 @@ class ARMAEst:
         ARMA model estimate type.
     """
 
-    def __init__(self, const: ParamEst, params: list[ParamEst], sigma2: ParamEst, arma_est_type: ARMAEstType=ARMAEstType.AR, est_id: str=None):
+    def __init__(self, est_id: str, const: ParamEst, params: list[ParamEst], sigma2: ParamEst, arma_est_type: ARMAEstType=ARMAEstType.AR):
         self.est_model = EstModel.ARMA
         self.arma_est_type = arma_est_type
         self.const = const
@@ -396,209 +398,3 @@ class VAREst:
         else:
             return dumps(self, default=lambda o: o.__dict__)
         
-
-
-class ErrorMetric(str, Enum):
-    """
-    Error metric.
-
-    Values
-    ------
-    AIC
-        Akaike information criterion.
-    BIC
-        Bayesian information criterion.
-    FPE
-        Final prediction error.
-    HQIC
-        Hannan-Quinn information criterion.
-    """
-
-    AIC = "AIC"
-    BIC = "BIC"
-    FPE = "FPE"
-    HQIC = "HQIC"
-
-    def __str__(self):
-        return self.value
-
-    def __repr__(self):
-        return f"ErrorMetric({self.value})"
-
-
-class LagOrderEst:
-    """
-    Lag order estimate result.
-
-    Properties
-    ----------
-    order: int
-        Order estimate.
-    error_metric: ErrorMetric
-        Error metric used to estimate order.
-    value: float
-        Error metric value.
-    """
-
-    def __init__(self, est_id: str, order: int, error_metric: ErrorMetric, value: float):
-        self.__order = order
-        self.__error_metric = error_metric
-        self.__value = value
-        self.__est_id = est_id
-
-    def __repr__(self):
-        return f"LagOrderEstimate({self.__props()})"
-    
-    def __str__(self):
-        return self.__props()
-    
-    def __props(self):     
-        return f"est_id={self.__est_id}, " \
-               f"order=({self.__order}), " \
-               f"error_metric=({self.__error_metric}), " \
-               f"value=({self.__value})"
-
-
-class VAROrderEst:
-    """
-    VAR order estimate result.
-
-    Properties
-    ----------
-    aic: list[float]
-        AIC values.
-    bic: list[float]
-        BIC values.
-    fpe: list[float]
-        FPE values.
-    hqic: list[float]
-        HQIC values.
-    """
-
-    def __init__(self, est_id: str, order: int, aic: LagOrderEst, bic: LagOrderEst, fpe: LagOrderEst, hqic: LagOrderEst):
-        self.__est_id = est_id
-        self.__order = order
-        self.__aic = aic
-        self.__bic = bic
-        self.__fpe = fpe
-        self.__hqic = hqic
-
-
-    def __repr__(self):
-        return f"VAROrderEstimate({self.__props()})"
-
-    def __str__(self):
-        return self.__props()
-
-    def __props(self):
-        return f"est_id={self.__est_id}, " \
-               f"order=({self.__order}), " \
-               f"aic=({self.__aic}), " \
-               f"bic=({self.__bic}), " \
-               f"fpe=({self.__fpe}), " \
-               f"hqic=({self.__hqic})"
-
-    def to_json(self, pretty: bool=False):
-        if pretty:
-            return dumps(self, indent=3, default=lambda o: o.__dict__)
-        else:
-            return dumps(self, default=lambda o: o.__dict__)
-
-
-def __var_order_estimate_from_result(result: LagOrderResults) -> VAROrderEst:
-    est_id = str(uuid.uuid4())
-    order = int(min(result.aic, result.bic, result.fpe, result.hqic))
-
-    aic_est = LagOrderEst(est_id, int(result.aic), ErrorMetric.AIC, result.ics['aic'][result.aic])
-    bic_est = LagOrderEst(est_id, int(result.bic), ErrorMetric.BIC, result.ics['bic'][result.bic])
-    fpe_est = LagOrderEst(est_id, int(result.fpe), ErrorMetric.FPE, result.ics['fpe'][result.fpe])
-    hqic_est = LagOrderEst(est_id, int(result.hqic), ErrorMetric.HQIC, result.ics['hqic'][result.hqic])
-
-    return VAROrderEst(est_id=est_id, order=order, aic=aic_est, bic=bic_est, fpe=fpe_est, hqic=hqic_est)
-    
-
-class GrangerCausalityResult:
-    """
-    Result of Granger causality test for two time series.
-
-    Properties
-    ----------
-    pvalue: float
-        P-value.
-    critical_value: float
-        Critical value.
-    result: bool
-        Granger causality result the right variable causal of the left variable.
-    dependent_var: int
-        Tested dependent variable index.
-    causal_var: int
-        Tested causal variable index.
-    """
-
-    def __init__(self, est_id: str, dependent_var: int, causal_var: int, pvalue: float, critical_value: float, result: bool):
-        self.__est_id = est_id
-        self.__dependent_var = dependent_var
-        self.__causal_var = causal_var
-        self.__pvalue = pvalue
-        self.__critical_value = critical_value
-        self.__result = result
-
-    def __repr__(self):
-        return f"GrangerCausalityResult({self.__props()})"
-
-    def __str__(self):
-        return self.__props()
-
-    def __props(self):
-        return f"causal_var=({self.__causal_var}), " \
-               f"dependent_var=({self.__dependent_var}), " \
-               f"pvalue=({self.__pvalue}), " \
-               f"est_id=({self.__est_id}), " \
-               f"critical_value=({self.__critical_value}), " \
-               f"result=({self.__result}), " \
-               
-    
-    @staticmethod
-    def from_dict(data, est_id):
-        dependent_var = data["dependent_var"] if "dependent_var" in data else None
-        causal_var = data["causal_var"] if "causal_var" in data else None
-        pvalue = data["pvalue"] if "pvalue" in data else None
-        critical_value = data["critical_value"] if "critical_value" in data else None
-        result = data["result"] if "result" in data else None
-        return GrangerCausalityResult(est_id, dependent_var, causal_var, pvalue, critical_value, result)
-
-
-class GrangerCausalityResults:
-    """
-    Result of Granger causality test for multivariate time series.
-
-    Properties
-    ----------
-    results: list[GrangerCausalityResult]
-        Granger causality results.
-    """
-
-    def __init__(self, est_id: str, rank: int, results: list[GrangerCausalityResult]):
-        self.__est_id = est_id
-        self.__rank = rank
-        self.__results = results
-
-    def __repr__(self):
-        return f"GrangerCausalityResults({self.__props()})"
-
-    def __str__(self):
-        return self.__props()
-
-    def __props(self):
-        return f"est_id=({self.__est_id}), " \
-               f"rank = ({self.__rank}), " \
-               f"results=({self.__results})"
-
-    def to_json(self, pretty: bool=False):
-        if pretty:
-            return dumps(self, indent=3, default=lambda o: o.__dict__)
-        else:
-            return dumps(self, default=lambda o: o.__dict__)
-        
-
-    

@@ -516,4 +516,4 @@ def __arma_estimate_from_result(result: tsa.arima.model.ARIMAResults, arma_est_t
                                  "est_id": est_id,
                                  "param_type": ARMAParamType.ARMA_SIG2.value})
     
-    return ARMAEst(const, params, sigma2, arma_est_type, est_id)
+    return ARMAEst( est_id, const, params, sigma2, arma_est_type)

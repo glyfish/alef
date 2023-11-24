@@ -1,5 +1,7 @@
 from enum import Enum
 import json
+from json import dumps
+import uuid
 import numpy
 
 class HypothesisTestStatus(str, Enum):
@@ -131,14 +133,14 @@ class StatisticalTestParam:
         Test parameter label.
     value: float
         Test parameter value.
-    hyp_test_id: str
+    test_id: str
         Hypothesis test identifier.   
     """
 
-    def __init__(self, label: str, value: float, hyp_test_id: str):
+    def __init__(self, test_id: str, label: str, value: float):
+        self.test_id = test_id
         self.label = label
         self.value = value
-        self.hyp_test_id = hyp_test_id
 
     def __repr__(self):
         return f"TestParam({self._props()})"
@@ -149,7 +151,7 @@ class StatisticalTestParam:
     def _props(self):
         return f"label=({self.label}), " \
                f"value=({self.value}), " \
-               f"hyp_test_id=({self.hyp_test_id})"
+               f"test_id=({self.test_id})"
 
     def to_json(self, pretty: bool=False):
         indent = 4 if pretty else None
@@ -159,7 +161,7 @@ class StatisticalTestParam:
     def from_dict(data):
         return StatisticalTestParam(label=data["label"],
                                     value=data["value"],
-                                    hyp_test_id=data["hyp_test_id"])
+                                    test_id=data["test_id"])
 
 class StatisticalTestData:
     """
@@ -167,6 +169,8 @@ class StatisticalTestData:
 
     Properties
     ----------
+    test_id: str
+        Hypothesis test identifier.   
     status: HypothesisTestStatus
         Test status.
     stat: StatisticalTestParam
@@ -181,19 +185,17 @@ class StatisticalTestData:
         Value of test statistic used for lower tail test.
     upper: StatisticalTestParam
         Value of test statistic used for upper tail test.
-    hyp_test_id: str
-        Hypothesis test identifier.   
     """
 
     def __init__(self, 
+                 test_id: str,
                  status: HypothesisTestStatus, 
                  stat: StatisticalTestParam, 
                  pval: StatisticalTestParam, 
                  params: list[StatisticalTestParam], 
                  sig: StatisticalTestParam, 
                  lower: StatisticalTestParam, 
-                 upper: StatisticalTestParam,
-                 hyp_test_id: str):
+                 upper: StatisticalTestParam):
         self.status = status
         self.stat = stat
         self.pval = pval
@@ -201,7 +203,7 @@ class StatisticalTestData:
         self.sig = sig
         self.lower = lower
         self.upper = upper
-        self.hyp_test_id = hyp_test_id
+        self.test_id = test_id
 
     def __repr__(self):
         return f"StatisticalTestData({self.__props()})"
@@ -210,14 +212,14 @@ class StatisticalTestData:
         return self.__props()
 
     def __props(self):
-        return f"status=({self.status}), " \
+        return f"test_id=({self.test_id}), " \
+               f"status=({self.status}), " \
                f"stat=({self.stat}), " \
                f"pval=({self.pval}, " \
                f"params=({self.params}), " \
                f"sig=({self.sig}), " \
                f"lower=({self.lower}), " \
-               f"upper=({self.upper}), " \
-               f"hyp_test_id=({self.hyp_test_id})"
+               f"upper=({self.upper})"
                
 
     def to_json(self, pretty: bool=False):
@@ -233,10 +235,10 @@ class StatisticalTestData:
         sig = StatisticalTestParam.from_dict(data["sig"]) if "sig" in data else None
         lower = StatisticalTestParam.from_dict(data["lower"]) if "lower" in data else None
         upper = StatisticalTestParam.from_dict(data["upper"]) if "upper" in data else None
-        hyp_test_id = data["hyp_test_id"] if "hyp_test_id" in data else None
+        test_id = data["test_id"] if "test_id" in data else None
 
         return StatisticalTestData(status=status, stat=stat, pval=pval, params=params, sig=sig,
-                                   lower=lower,upper=upper, hyp_test_id=hyp_test_id)
+                                   lower=lower,upper=upper, test_id=test_id)
 
 class StatisticalTestReport:
     """
@@ -244,6 +246,8 @@ class StatisticalTestReport:
 
     Parameters
     ----------
+    test_id: str
+        Hypothesis test identifier.   
     status: HypothesisTestStatus
         Test status. This status may be the negation from the status of the performed test if the 
         desired result is the alternative hypothesis not the null hypothesis.
@@ -253,22 +257,20 @@ class StatisticalTestReport:
         Type of hypothesis test performed.
     test_data: list[StatisticalTestData]
         Results from test.
-    hyp_test_id: str
-        Hypothesis test identifier.   
     """
 
-    def __init__(self, 
+    def __init__(self,
+                 test_id: str,
                  status: HypothesisTestStatus, 
                  hyp_type: HypothesisType, 
                  hyp_test_type: HypothesisTestType, 
-                 test_data: list[StatisticalTestData],
-                 hyp_test_id: str=None):
+                 test_data: list[StatisticalTestData]):
         self.status = status
         self.hyp_type = hyp_type
         self.hyp_test_type = hyp_test_type
         self.test_data = test_data
         self.desc = hyp_test_type.desc()
-        self.hyp_test_id = hyp_test_id
+        self.test_id = test_id
 
     def __repr__(self):
         return f"TestReport({self.__props()})"
@@ -277,12 +279,12 @@ class StatisticalTestReport:
         return self.__props()
 
     def __props(self):
-        return f"status=({self.status}), " \
+        return f"test_id=({self.test_id}), " \
+               f"status=({self.status}), " \
                f"hyp_type=({self.hyp_type}), " \
                f"hyp_test_type=({self.hyp_test_type}), " \
                f"desc=({self.desc}, " \
-               f"test_data=({self.test_data}), " \
-               f"hyp_test_id=({self.hyp_test_id})"
+               f"test_data=({self.test_data})"
 
     def to_json(self, pretty: bool=False):
         indent = 4 if pretty else None
@@ -294,7 +296,265 @@ class StatisticalTestReport:
         hyp_type = data["hyp_type"] if "hyp_type" in data else None
         hyp_test_type = data["hyp_test_type"] if "hyp_test_type" in data else None
         test_data = [StatisticalTestData.from_dict(test_data) for test_data in data["test_data"]]
-        hyp_test_id = data["hyp_test_id"] if "hyp_test_id" in data else None
+        test_id = data["test_id"] if "test_id" in data else None
 
         return StatisticalTestReport(status=status, hyp_type=hyp_type, hyp_test_type=hyp_test_type, test_data=test_data,
-                                     hyp_test_id=hyp_test_id)
+                                     test_id=test_id)
+
+class ErrorMetric(str, Enum):
+    """
+    Error metric.
+
+    Values
+    ------
+    AIC
+        Akaike information criterion.
+    BIC
+        Bayesian information criterion.
+    FPE
+        Final prediction error.
+    HQIC
+        Hannan-Quinn information criterion.
+    """
+
+    AIC = "AIC"
+    BIC = "BIC"
+    FPE = "FPE"
+    HQIC = "HQIC"
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"ErrorMetric({self.value})"
+
+
+class LagOrderTestResult:
+    """
+    Lag order estimate result.
+
+    Properties
+    ----------
+    test_id: str
+        Test identifier.
+    order: int
+        Order estimate.
+    error_metric: ErrorMetric
+        Error metric used to estimate order.
+    value: float
+        Error metric value.
+    """
+
+    def __init__(self, test_id: str, order: StatisticalTestParam, error_metric: ErrorMetric, value: StatisticalTestParam):
+        self.__test_id = test_id
+        self.__order = order
+        self.__error_metric = error_metric
+        self.__value = value
+
+    def __repr__(self):
+        return f"LagOrderTestResult({self.__props()})"
+    
+    def __str__(self):
+        return self.__props()
+    
+    def __props(self):     
+        return f"test_id={self.__test_id}, " \
+               f"order=({self.__order}), " \
+               f"error_metric=({self.__error_metric}), " \
+               f"value=({self.__value})"
+
+
+class VAROrderTestReport:
+    """
+    VAR order test report.
+
+    Properties
+    ----------
+    order: StatisticalTestParam
+        Order estimate.
+    test_id: str
+        Test identifier.
+    aic: LagOrderTestResult
+        AIC values.
+    bic: LagOrderTestResult
+        BIC values.
+    fpe: LagOrderTestResult
+        FPE values.
+    hqic: LagOrderTestResult
+        HQIC values.
+    """
+
+    def __init__(self, test_id: str, order: StatisticalTestParam, aic: LagOrderTestResult, bic: LagOrderTestResult, fpe: LagOrderTestResult, hqic: LagOrderTestResult):
+        self.__test_id = test_id
+        self.__order = order
+        self.__aic = aic
+        self.__bic = bic
+        self.__fpe = fpe
+        self.__hqic = hqic
+
+
+    def __repr__(self):
+        return f"VAROrderTestReport({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"test_id={self.__test_id}, " \
+               f"order=({self.__order}), " \
+               f"aic=({self.__aic}), " \
+               f"bic=({self.__bic}), " \
+               f"fpe=({self.__fpe}), " \
+               f"hqic=({self.__hqic})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
+
+
+def __var_order_test_report_from_result(result: LagOrderTestResult) -> VAROrderTestReport:
+    test_id = str(uuid.uuid4())
+
+    order = StatisticalTestParam(test_id, r"$\tau_{AIC}$", int(result.aic))
+    metric_value = StatisticalTestParam(test_id, r"$\varepsilon_{AIC}$", result.ics['aic'][result.aic])
+    aic_test = LagOrderTestResult(test_id, order, ErrorMetric.AIC, metric_value)
+
+    order = StatisticalTestParam(test_id, r"$\tau_{BIC}$", int(result.aic))
+    metric_value = StatisticalTestParam(test_id, r"$\varepsilon_{BIC}$", result.ics['bic'][result.aic])
+    bic_test = LagOrderTestResult(test_id, order, ErrorMetric.AIC, metric_value)
+
+    order = StatisticalTestParam(test_id, r"$\tau_{FPE}$", int(result.aic))
+    metric_value = StatisticalTestParam(test_id, r"$\varepsilon_{FPE}$", result.ics['fpe'][result.aic])
+    fpe_test = LagOrderTestResult(test_id, order, ErrorMetric.AIC, metric_value)
+
+    order = StatisticalTestParam(test_id, r"$\tau_{HQIC}$", int(result.aic))
+    metric_value = StatisticalTestParam(test_id, r"$\varepsilon_{HQIC}$", result.ics['hqic'][result.aic])
+    hqic_test = LagOrderTestResult(test_id, order, ErrorMetric.AIC, metric_value)
+
+    order = StatisticalTestParam(test_id, r"$\tau_{min}$", int(min(result.aic, result.bic, result.fpe, result.hqic)))
+    return VAROrderTestReport(test_id=test_id, order=order, aic=aic_test, bic=bic_test, fpe=fpe_test, hqic=hqic_test)
+    
+
+class GrangerCausalityTestResult:
+    """
+    Result of Granger causality test for two time series.
+
+    Properties
+    ----------
+    pvalue: float
+        P-value.
+    critical_value: float
+        Critical value.
+    result: bool
+        Granger causality result the right variable causal of the left variable.
+    dependent_var: int
+        Tested dependent variable index.
+    causal_var: int
+        Tested causal variable index.
+    """
+
+    def __init__(self, est_id: str, dependent_var: int, causal_var: int, pvalue: float, critical_value: float, result: bool):
+        self.__est_id = est_id
+        self.__dependent_var = dependent_var
+        self.__causal_var = causal_var
+        self.__pvalue = pvalue
+        self.__critical_value = critical_value
+        self.__result = result
+
+    def __repr__(self):
+        return f"GrangerCausalityTestResult({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"causal_var=({self.__causal_var}), " \
+               f"dependent_var=({self.__dependent_var}), " \
+               f"pvalue=({self.__pvalue}), " \
+               f"est_id=({self.__est_id}), " \
+               f"critical_value=({self.__critical_value}), " \
+               f"result=({self.__result}), " \
+               
+    
+    @staticmethod
+    def from_dict(data, est_id):
+        dependent_var = data["dependent_var"] if "dependent_var" in data else None
+        causal_var = data["causal_var"] if "causal_var" in data else None
+        pvalue = data["pvalue"] if "pvalue" in data else None
+        critical_value = data["critical_value"] if "critical_value" in data else None
+        result = data["result"] if "result" in data else None
+        return GrangerCausalityTestResult(est_id, dependent_var, causal_var, pvalue, critical_value, result)
+
+
+class GrangerCausalityTestReport:
+    """
+    Result of Granger causality test for multivariate time series.
+
+    Properties
+    ----------
+    results: list[GrangerCausalityTestResult]
+        Granger causality results.
+    """
+
+    def __init__(self, est_id: str, rank: int, results: list[GrangerCausalityTestResult]):
+        self.__est_id = est_id
+        self.__rank = rank
+        self.__results = results
+
+    def __repr__(self):
+        return f"GrangerCausalityTestReport({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"est_id=({self.__est_id}), " \
+               f"rank = ({self.__rank}), " \
+               f"results=({self.__results})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
+     
+
+class JohansenTestResult:
+    """
+    Johansen cointegration test result.
+
+    Properties
+    ----------
+    eig: numpy.ndarray[float, float]
+        Eigenvalues.
+    eig_vec: numpy.ndarray[float, float]
+        Eigenvectors.
+    trace_stat: numpy.ndarray[float, float]
+        Trace statistic.
+    """
+
+    def __init__(self, est_id: str, eig: numpy.ndarray[float, float], eig_vec: numpy.ndarray[float, float], trace_stat: numpy.ndarray[float, float]):
+        self.__est_id = est_id
+        self.__eig = eig
+        self.__eig_vec = eig_vec
+        self.__trace_stat = trace_stat
+
+    def __repr__(self):
+        return f"JohansenTestResult({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"est_id=({self.__est_id}), " \
+               f"eig=({self.__eig}), " \
+               f"eig_vec=({self.__eig_vec}), " \
+               f"trace_stat=({self.__trace_stat})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)    

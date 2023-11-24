@@ -225,7 +225,6 @@ class JohansenTestReport:
 
 
     def summary(self, tablefmt="fancy_grid"):
-        print(self.compute_rank())
         n = len(self.trace_statistic)
         test_headers = ["Null Hypothesis", "Test Statistic", "Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
         rank_headers = ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]

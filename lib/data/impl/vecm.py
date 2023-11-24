@@ -6,11 +6,11 @@ from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 from lib.models import vecm
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
-from lib.data.param_est import (VAROrderEst, __var_order_estimate_from_result)
+from lib.data.hyp_test import VAROrderTestReport, __var_order_test_report_from_result
 from lib.data.reports import JohansenTestReport
 
 
-def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderEst]:
+def compute_order(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderTestReport]:
     """
     Determine the order of a VAR process using the AIC criterion.
 
@@ -34,7 +34,7 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tu
     trend = get_param_default_if_missing("trend", 'c', **kwargs)
 
     result = vecm.order_estimate(samples.T, maxlags, trend)
-    return result, __var_order_estimate_from_result(result)
+    return result, __var_order_test_report_from_result(result)
 
 
 def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: int, **kwargs) -> Tuple[JohansenTestResult]:
