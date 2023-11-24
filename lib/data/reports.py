@@ -215,16 +215,20 @@ class JohansenTestReport:
         self.eigen_value_critical_values = numpy.array(result.cvm)
         self.eigen_value_statistic = result.lr2
 
-    def rank(self):
-        for i in range(len(self.trace_statistic)):
-            if self.trace_statistic[i] > self.trace_critical_vals[i][0]:
-                return i
-        return None
+    def compute_rank(self):
+        test_result = []
+        n = len(self.trace_statistic)
+        for i in range(n):
+            test_result.append(self.trace_statistic[i] > self.trace_critical_vals[i])
+        test_result = numpy.array(test_result)               
+        return [len(test_result[:,i][test_result[:,i]]) for i in range(n)]
 
 
     def summary(self, tablefmt="fancy_grid"):
+        print(self.compute_rank())
         n = len(self.trace_statistic)
         test_headers = ["Null Hypothesis", "Test Statistic", "Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+        rank_headers = ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
         eigen_headers = ["Eigen Value", "Eigen Vector"]
         null_hypothesis = [f"r <= {i}" for i in range(n)]
         trace_results = [[null_hypothesis[i], self.trace_statistic[i], self.trace_critical_vals[i][0], self.trace_critical_vals[i][1], self.trace_critical_vals[i][2]] for i in range(n)]
@@ -232,6 +236,8 @@ class JohansenTestReport:
         eigen_values_vectors = [[self.eigen_values[i], self.eigen_vectors[:,i].T] for i in range(n)]
         print("Trace Statistic")
         print(tabulate(trace_results, tablefmt=tablefmt, headers=test_headers, floatfmt=".3f"))
+        print("\nRank")
+        print(tabulate([self.compute_rank()], tablefmt=tablefmt, headers=rank_headers))
         print("\nEigenvalue Statistic")
         print(tabulate(eigen_value_results, tablefmt=tablefmt, headers=test_headers, floatfmt=".3f"))
         print("\nEigenvalues and Eigenvectors")
