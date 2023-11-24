@@ -1,11 +1,13 @@
 import numpy
 from typing import Tuple
 from statsmodels.tsa.vector_ar.var_model import LagOrderResults
+from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 
 from lib.models import vecm
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 from lib.data.param_est import (VAROrderEst, __var_order_estimate_from_result)
+from lib.data.reports import JohansenTestReport
 
 
 def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderEst]:
@@ -33,6 +35,39 @@ def compute_order_estimate(samples: numpy.ndarray[float, float], **kwargs) -> Tu
 
     result = vecm.order_estimate(samples.T, maxlags, trend)
     return result, __var_order_estimate_from_result(result)
+
+
+def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: int, **kwargs) -> Tuple[JohansenTestResult]:
+    """
+    Compute the Johansen cointegration test.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float, float]
+        Samples analyzed.
+    max_lags: int
+        maximum number of lags.
+    trend: int
+        Trend to include in cointegration test.
+            -1 - no trend
+             0 - constant
+             1 - linear trend.
+        default is no trend.
+
+    Returns
+    -------
+    numpy.ndarray[float, float]
+        Eigenvalues.
+    numpy.ndarray[float, float]
+        Eigenvectors.
+    numpy.ndarray[float, float]
+        Trace statistic.
+    """
+
+    trend = get_param_default_if_missing("trend", 0, **kwargs)
+    result = vecm.coint_johansen(samples.T, max_lags, trend)
+
+    return JohansenTestReport(result), result
 
 
 def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:

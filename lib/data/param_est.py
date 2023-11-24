@@ -578,7 +578,8 @@ class GrangerCausalityResults:
         Granger causality results.
     """
 
-    def __init__(self, rank: int, results: list[GrangerCausalityResult]):
+    def __init__(self, est_id: str, rank: int, results: list[GrangerCausalityResult]):
+        self.__est_id = est_id
         self.__rank = rank
         self.__results = results
 
@@ -589,7 +590,8 @@ class GrangerCausalityResults:
         return self.__props()
 
     def __props(self):
-        return f"rank = ({self.__rank}), " \
+        return f"est_id=({self.__est_id}), " \
+               f"rank = ({self.__rank}), " \
                f"results=({self.__results})"
 
     def to_json(self, pretty: bool=False):
@@ -597,3 +599,6 @@ class GrangerCausalityResults:
             return dumps(self, indent=3, default=lambda o: o.__dict__)
         else:
             return dumps(self, default=lambda o: o.__dict__)
+        
+
+    

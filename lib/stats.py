@@ -789,4 +789,4 @@ def causality_matrix(samples: numpy.ndarray[float, float], nlags: int, add_const
                             'dependent_var': i + 1,
                             'causal_var': j + 1})
            
-    return DataFrame.from_records(numpy.array(results), index=range(1, len(results) + 1))
+    return DataFrame.from_records(numpy.array(results), index=range(1, len(results) + 1)).sort_values(by=['dependent_var'])

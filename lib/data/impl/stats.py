@@ -727,4 +727,4 @@ def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausality
     dep_var = result['dependent_var'].to_numpy()
     rank = len(numpy.unique(dep_var[causality_result]))
 
-    return GrangerCausalityResults(rank, [GrangerCausalityResult.from_dict(r, est_id) for r in results])
+    return GrangerCausalityResults(est_id, rank, [GrangerCausalityResult.from_dict(r, est_id) for r in results])

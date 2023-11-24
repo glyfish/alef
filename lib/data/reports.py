@@ -1,5 +1,6 @@
 from tabulate import tabulate
 import numpy
+from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 
 from lib.data.hyp_test import HypothesisTestType, HypothesisType
 
@@ -90,6 +91,7 @@ class VarianceRatioTestReport:
         print(table[0])
         print(table[1])
 
+
 class ADFTestReport:
     """
     Formatted text report of ADF test results.
@@ -137,6 +139,7 @@ class ADFTestReport:
         print(tabulate(header, tablefmt=tablefmt))
         print(tabulate(results, tablefmt=tablefmt, headers=headers))
 
+
 class OUEstReport:
     """
     Formatted text report of Ornstein-Uhlenbeck process parameter estimation.
@@ -146,32 +149,32 @@ class OUEstReport:
         self.ar_result = result
         self.delta_t = Δt
         self.x0 = x0
-        self._offset_est = result.params.iloc[0]
-        self._offset_error = result.bse.iloc[0]
-        self._coeff_est = result.params.iloc[1]
-        self._coeff_error = result.bse.iloc[1]
-        self._sigma2_est = result.params.iloc[2]
-        self._sigma2_error = result.bse.iloc[2]
+        self.offset_est = result.params.iloc[0]
+        self.offset_error = result.bse.iloc[0]
+        self.coeff_est = result.params.iloc[1]
+        self.coeff_error = result.bse.iloc[1]
+        self.sigma2_est = result.params.iloc[2]
+        self.sigma2_error = result.bse.iloc[2]
 
     def mu_est(self):
-        return self._offset_est/(1.0 - self._coeff_est)
+        return self.offset_est/(1.0 - self.coeff_est)
 
     def mu_error(self):
-        return (self._offset_est*self._coeff_error + self._offset_error)/(1.0 - self._coeff_est)
+        return (self.offset_est*self.coeff_error + self.offset_error)/(1.0 - self.coeff_est)
 
     def lambda_est(self):
-        return -numpy.log(self._coeff_est)/self.delta_t
+        return -numpy.log(self.coeff_est)/self.delta_t
 
     def lambda_error(self):
-        return -self._coeff_error/(self._coeff_est*self.delta_t)
+        return -self.coeff_error/(self.coeff_est*self.delta_t)
 
     def sigma2_est(self):
-        return 2.0*self.lambda_est()*self._sigma2_est/(1.0 - self._coeff_est**2)
+        return 2.0*self.lambda_est()*self.sigma2_est/(1.0 - self.coeff_est**2)
 
     def sigma2_error(self):
-        return 4.0*self.lambda_est()*self._coeff_est*self._sigma2_est*self._coeff_error/(1.0 - self._coeff_est**2)**2 + \
-               2.0*self._sigma2_est*self.lambda_error()/(1.0 - self._coeff_est**2) + \
-               2.0*self.lambda_est()*self._sigma2_error/(1.0 - self._coeff_est**2)
+        return 4.0*self.lambda_est()*self.coeff_est*self.sigma2_est*self.coeff_error/(1.0 - self.coeff_est**2)**2 + \
+               2.0*self.sigma2_est*self.lambda_error()/(1.0 - self.coeff_est**2) + \
+               2.0*self.lambda_est()*self.sigma2_error/(1.0 - self.coeff_est**2)
 
     def summary(self, tablefmt="fancy_grid"):
         header = [["Δt", self.delta_t],
@@ -182,3 +185,54 @@ class OUEstReport:
                    ["σ2", self.sigma2_est(), self.sigma2_error()]]
         print(tabulate(header, tablefmt=tablefmt))
         print(tabulate(results, tablefmt=tablefmt, headers=headers))
+
+
+class JohansenTestReport:
+    """
+    Formatted text report of Johansen cointegration test results.
+
+    Properties
+    ----------
+    eigen_values: list[float]
+        Eigenvalues.
+    eigen_vectors: list[float]
+        Eigenvectors.
+    trace_critical_vals: list[float]
+        Critical values used in test.
+    trace_statistic: list[bool]
+        Test result status values.
+    eigen_value_critical_values: list[str]
+        Test result status as strings.
+    eigen_value_statistic: list[str]
+        Test result status as strings.
+    """
+
+    def __init__(self, result: JohansenTestResult):
+        self.eigen_values = result.eig
+        self.eigen_vectors = numpy.array(result.evec)
+        self.trace_critical_vals = numpy.array(result.cvt)
+        self.trace_statistic = result.lr1
+        self.eigen_value_critical_values = numpy.array(result.cvm)
+        self.eigen_value_statistic = result.lr2
+
+    def rank(self):
+        for i in range(len(self.trace_statistic)):
+            if self.trace_statistic[i] > self.trace_critical_vals[i][0]:
+                return i
+        return None
+
+
+    def summary(self, tablefmt="fancy_grid"):
+        n = len(self.trace_statistic)
+        test_headers = ["Null Hypothesis", "Test Statistic", "Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+        eigen_headers = ["Eigen Value", "Eigen Vector"]
+        null_hypothesis = [f"r <= {i}" for i in range(n)]
+        trace_results = [[null_hypothesis[i], self.trace_statistic[i], self.trace_critical_vals[i][0], self.trace_critical_vals[i][1], self.trace_critical_vals[i][2]] for i in range(n)]
+        eigen_value_results = [[null_hypothesis[i], self.eigen_value_statistic[i], self.eigen_value_critical_values[i][0], self.eigen_value_critical_values[i][1], self.eigen_value_critical_values[i][2]] for i in range(n)]
+        eigen_values_vectors = [[self.eigen_values[i], self.eigen_vectors[:,i].T] for i in range(n)]
+        print("Trace Statistic")
+        print(tabulate(trace_results, tablefmt=tablefmt, headers=test_headers, floatfmt=".3f"))
+        print("\nEigenvalue Statistic")
+        print(tabulate(eigen_value_results, tablefmt=tablefmt, headers=test_headers, floatfmt=".3f"))
+        print("\nEigenvalues and Eigenvectors")
+        print(tabulate(eigen_values_vectors, tablefmt=tablefmt, headers=eigen_headers, floatfmt=".2e"))
