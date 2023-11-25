@@ -232,7 +232,8 @@ class JohansenTestReport:
         null_hypothesis = [f"r <= {i}" for i in range(n)]
         trace_results = [[null_hypothesis[i], self.trace_statistic[i], self.trace_critical_vals[i][0], self.trace_critical_vals[i][1], self.trace_critical_vals[i][2]] for i in range(n)]
         eigen_value_results = [[null_hypothesis[i], self.eigen_value_statistic[i], self.eigen_value_critical_values[i][0], self.eigen_value_critical_values[i][1], self.eigen_value_critical_values[i][2]] for i in range(n)]
-        eigen_values_vectors = [[self.eigen_values[i], self.eigen_vectors[:,i].T] for i in range(n)]
+        eigen_values_vectors = [[self.eigen_values[i], str(self.eigen_vectors[:,i].T)] for i in range(n)]
+
         print("Trace Statistic")
         print(tabulate(trace_results, tablefmt=tablefmt, headers=test_headers, floatfmt=".3f"))
         print("\nRank")

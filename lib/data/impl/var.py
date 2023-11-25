@@ -3,10 +3,10 @@ import numpy
 import uuid
 from typing import Tuple
 
-from lib.models import var
 from pandas import DataFrame
 from statsmodels.tsa.vector_ar.var_model import VARResults, LagOrderResults
 
+from lib.models import var
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, verify_condition, create_space, create_logspace)
 from lib.data.param_est import (ParamEst, VAREst, VARParamType)

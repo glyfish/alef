@@ -1,5 +1,7 @@
 import numpy
 from typing import Tuple
+import uuid
+
 from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 
@@ -8,6 +10,7 @@ from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space)
 from lib.data.hyp_test import VAROrderTestReport, __var_order_test_report_from_result
 from lib.data.reports import JohansenTestReport
+from lib.data.hyp_test import JohansenCointTestReport, JohansenCointTestStatistic, JohansenCointTestRank, JohansenCointTestEigenVector
 
 
 def compute_order(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOrderResults, VAROrderTestReport]:
@@ -37,7 +40,7 @@ def compute_order(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOr
     return result, __var_order_test_report_from_result(result)
 
 
-def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: int, **kwargs) -> Tuple[JohansenTestResult]:
+def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: int, **kwargs) -> Tuple[JohansenTestReport, JohansenCointTestReport, JohansenTestResult]:
     """
     Compute the Johansen cointegration test.
 
@@ -67,7 +70,7 @@ def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: 
     trend = get_param_default_if_missing("trend", 0, **kwargs)
     result = vecm.coint_johansen(samples.T, max_lags, trend)
 
-    return JohansenTestReport(result), result
+    return JohansenTestReport(result), __vecm_johansen_coint_test_report_from_result(result), result
 
 
 def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
@@ -100,3 +103,44 @@ def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float
 
     return create_space(npts=npts), numpy.array(vecm.vecm1(λ, β, a, Ω, npts))
 
+
+def __vecm_johansen_coint_test_report_from_result(result: JohansenTestResult) -> JohansenCointTestReport:
+    """
+    Create a Johansen test report from a Johansen test result.
+
+    Parameters
+    ----------
+    result: JohansenTestResult
+        Johansen test result.
+
+    Returns
+    -------
+    JohansenTestReport
+        Johansen test report.
+    """
+
+    eigen_values = result.eig
+    eigen_vectors = result.evec
+    trace_critical_vals = result.cvt
+    trace_statistic = result.lr1
+    eigen_value_critical_values = result.cvm
+    eigen_value_statistic = result.lr2
+
+    def compute_rank():
+        test_result = []
+        n = len(trace_statistic)
+        for i in range(n):
+            test_result.append(trace_statistic[i] > trace_critical_vals[i])
+        test_result = numpy.array(test_result)               
+        return [len(test_result[:,i][test_result[:,i]]) for i in range(n)]
+
+    ranks = compute_rank()
+    n = len(eigen_values)
+    test_id = str(uuid.uuid4())
+
+    trace_statistic_report = [JohansenCointTestStatistic(test_id, i, trace_statistic[i], trace_critical_vals[i]) for i in range(n)]
+    eigen_value_statistic_report = [JohansenCointTestStatistic(test_id, i, eigen_value_statistic[i], eigen_value_critical_values[i]) for i in range(n)]
+    rank_report = JohansenCointTestRank(test_id, ranks)
+    eigen_value_report = [JohansenCointTestEigenVector(test_id, eigen_values[i], eigen_vectors[i]) for i in range(n)]
+
+    return JohansenCointTestReport(test_id, trace_statistic_report, eigen_value_statistic_report, rank_report, eigen_value_report)

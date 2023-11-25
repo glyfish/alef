@@ -1,8 +1,8 @@
 from enum import Enum
 import json
-from json import dumps
 import uuid
 import numpy
+from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 
 class HypothesisTestStatus(str, Enum):
     """
@@ -26,6 +26,10 @@ class HypothesisTestStatus(str, Enum):
     @staticmethod
     def from_bool(status: bool):
         return HypothesisTestStatus.PASSED if status else HypothesisTestStatus.FAILED
+
+# ##############################################################
+# Hypothesis test models
+# ##############################################################
 
 class HypothesisTestType(str, Enum):
     """
@@ -122,6 +126,7 @@ class HypothesisType(str, Enum):
     TWO_TAIL = "TWO_TAIL"
     LOWER_TAIL = "LOWER_TAIL"
     UPPER_TAIL = "UPPER_TAIL"
+
 
 class StatisticalTestParam:
     """
@@ -301,6 +306,10 @@ class StatisticalTestReport:
         return StatisticalTestReport(status=status, hyp_type=hyp_type, hyp_test_type=hyp_test_type, test_data=test_data,
                                      test_id=test_id)
 
+# ##############################################################
+# VAR lag order tests models
+# ##############################################################
+
 class ErrorMetric(str, Enum):
     """
     Error metric.
@@ -346,10 +355,10 @@ class LagOrderTestResult:
     """
 
     def __init__(self, test_id: str, order: StatisticalTestParam, error_metric: ErrorMetric, value: StatisticalTestParam):
-        self.__test_id = test_id
-        self.__order = order
-        self.__error_metric = error_metric
-        self.__value = value
+        self.test_id = test_id
+        self.order = order
+        self.error_metric = error_metric
+        self.value = value
 
     def __repr__(self):
         return f"LagOrderTestResult({self.__props()})"
@@ -358,10 +367,10 @@ class LagOrderTestResult:
         return self.__props()
     
     def __props(self):     
-        return f"test_id={self.__test_id}, " \
-               f"order=({self.__order}), " \
-               f"error_metric=({self.__error_metric}), " \
-               f"value=({self.__value})"
+        return f"test_id={self.test_id}, " \
+               f"order=({self.order}), " \
+               f"error_metric=({self.error_metric}), " \
+               f"value=({self.value})"
 
 
 class VAROrderTestReport:
@@ -409,9 +418,9 @@ class VAROrderTestReport:
 
     def to_json(self, pretty: bool=False):
         if pretty:
-            return dumps(self, indent=3, default=lambda o: o.__dict__)
+            return json.dumps(self, indent=3, default=lambda o: o.__dict__)
         else:
-            return dumps(self, default=lambda o: o.__dict__)
+            return json.dumps(self, default=lambda o: o.__dict__)
 
 
 def __var_order_test_report_from_result(result: LagOrderTestResult) -> VAROrderTestReport:
@@ -436,6 +445,9 @@ def __var_order_test_report_from_result(result: LagOrderTestResult) -> VAROrderT
     order = StatisticalTestParam(test_id, r"$\tau_{min}$", int(min(result.aic, result.bic, result.fpe, result.hqic)))
     return VAROrderTestReport(test_id=test_id, order=order, aic=aic_test, bic=bic_test, fpe=fpe_test, hqic=hqic_test)
     
+# ##############################################################
+#  Granger causality test models
+# ##############################################################
 
 class GrangerCausalityTestResult:
     """
@@ -494,14 +506,18 @@ class GrangerCausalityTestReport:
 
     Properties
     ----------
+    test_id: str
+        Test identifier.
+    rank: int
+        Rank of VECM process.
     results: list[GrangerCausalityTestResult]
-        Granger causality results.
+        Results of Granger causality test for each pair of time series.
     """
 
-    def __init__(self, est_id: str, rank: int, results: list[GrangerCausalityTestResult]):
-        self.__est_id = est_id
-        self.__rank = rank
-        self.__results = results
+    def __init__(self, test_id: str, rank: int, results: list[GrangerCausalityTestResult]):
+        self.test_id = test_id
+        self.rank = rank
+        self.results = results
 
     def __repr__(self):
         return f"GrangerCausalityTestReport({self.__props()})"
@@ -510,36 +526,148 @@ class GrangerCausalityTestReport:
         return self.__props()
 
     def __props(self):
-        return f"est_id=({self.__est_id}), " \
-               f"rank = ({self.__rank}), " \
-               f"results=({self.__results})"
+        return f"test_id=({self.test_id}), " \
+               f"rank = ({self.rank}), " \
+               f"results=({self.results})"
 
     def to_json(self, pretty: bool=False):
         if pretty:
-            return dumps(self, indent=3, default=lambda o: o.__dict__)
+            return json.dumps(self, indent=3, default=lambda o: o.__dict__)
         else:
-            return dumps(self, default=lambda o: o.__dict__)
+            return json.dumps(self, default=lambda o: o.__dict__)
      
 
-class JohansenTestResult:
+# ##############################################################
+#  Johansen cointegration test models
+# ##############################################################
+
+
+class JohansenCointTestStatistic:
     """
-    Johansen cointegration test result.
+    Johansen cointegration test statistic.
 
     Properties
     ----------
-    eig: numpy.ndarray[float, float]
-        Eigenvalues.
-    eig_vec: numpy.ndarray[float, float]
-        Eigenvectors.
-    trace_stat: numpy.ndarray[float, float]
-        Trace statistic.
+    test_id: str
+        Test identifier.
+    test_rank: int
+        Test rank.
+    test_stat: float
+        Test statistic.
+    critical_values: numpy.ndarray[float]
+        Test critical values.
+    significance_levels: list[str]
+        Test significance levels.
     """
 
-    def __init__(self, est_id: str, eig: numpy.ndarray[float, float], eig_vec: numpy.ndarray[float, float], trace_stat: numpy.ndarray[float, float]):
-        self.__est_id = est_id
-        self.__eig = eig
-        self.__eig_vec = eig_vec
-        self.__trace_stat = trace_stat
+    def __init__(self, test_id: str, test_rank: int, test_stat: float, critical_values: numpy.ndarray[float]):
+        self.test_id = test_id
+        self.test_rank = test_rank
+        self.null_hypothesis = f"r<={test_rank}"
+        self.test_stat = test_stat
+        self.critical_values = critical_values.tolist()
+        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 90%"]
+
+    def __repr__(self):
+        return f"JohansenCointTestStatistic({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"test_id=({self.test_id}), " \
+               f"test_rank=({self.test_rank}), " \
+               f"test_stat=({self.test_stat}), " \
+               f"null_hypothesis=({self.null_hypothesis}), " \
+               f"significance_levels=({self.significance_levels}), " \
+               f"critical_values=({self.critical_values})"
+
+
+class JohansenCointTestRank:
+    """
+    Johansen cointegration test rank.
+
+    Properties
+    ----------
+    test_id: str
+        Test identifier.
+    test_ranks: list[float]
+        Rank values for each significance level.
+    significance_levels: list[str]
+        Test significance levels.
+    """
+
+    def __init__(self, test_id: str, test_ranks: list[float]):
+        self.test_id = test_id
+        self.test_ranks = test_ranks
+        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 90%"]
+
+    def __repr__(self):
+        return f"JohansenCointTestRank({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"test_id=({self.test_id}), " \
+               f"test_ranks=({self.test_ranks})"
+
+
+class JohansenCointTestEigenVector:
+    """
+    Johansen cointegration test eigenvalue and eigenvector.
+
+    Properties
+    ----------
+    test_id: str
+        Test identifier.
+    eigen_value: str
+        Canonical variate eigen value.
+    eigen_vector: numpy.ndarray[float]
+        Canonical variate eigen vector.
+    """
+
+    def __init__(self, test_id: str, eigen_value: str, eigen_vector: numpy.ndarray[float]):
+        self.test_id = test_id
+        self.eigen_value = eigen_value
+        self.eigen_vector = eigen_vector.tolist()
+
+    def __repr__(self):
+        return f"JohansenCointTestEigenVector({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):   
+        return f"test_id=({self.test_id}), " \
+               f"eigen_value=({self.eigen_value}), " \
+               f"eigen_vector=({self.eigen_vector})"
+
+
+class JohansenCointTestReport:
+    """
+    Johansen cointegration test report.
+
+    Properties
+    ----------
+    test_id: str
+        Test identifier.
+    trace_test: list[JohansenCointTestStatistic]
+        Trace static test results for each significance level.
+    eigen_test: list[JohansenCointTestStatistic]
+        Eigenvectors.
+    rank: JohansenCointTestRank
+        Trace statistic.
+    eigen_vectors: list[JohansenCointTestEigenVector]
+        Eigenvectors and eigenvalues of canonical variates.
+    """
+
+    def __init__(self, test_id: str, trace_test: list[JohansenCointTestStatistic], eigen_test: list[JohansenCointTestStatistic], rank: JohansenCointTestRank, eigen_vectors: list[JohansenCointTestEigenVector]):
+        self.test_id = test_id
+        self.trace_test = trace_test
+        self.eigen_test = eigen_test
+        self.rank = rank
+        self.eigen_vectors = eigen_vectors
 
     def __repr__(self):
         return f"JohansenTestResult({self.__props()})"
@@ -548,13 +676,14 @@ class JohansenTestResult:
         return self.__props()
 
     def __props(self):
-        return f"est_id=({self.__est_id}), " \
-               f"eig=({self.__eig}), " \
-               f"eig_vec=({self.__eig_vec}), " \
-               f"trace_stat=({self.__trace_stat})"
+        return f"test_id=({self.test_id}), " \
+               f"trace_test=({self.trace_test}), " \
+               f"eigen_test=({self.eigen_test}), " \
+               f"rank=({self.rank}), " \
+               f"eigen_vectors=({self.eigen_vectors})"
 
     def to_json(self, pretty: bool=False):
         if pretty:
-            return dumps(self, indent=3, default=lambda o: o.__dict__)
+            return json.dumps(self, indent=3, default=lambda o: o.__dict__)
         else:
-            return dumps(self, default=lambda o: o.__dict__)    
+            return json.dumps(self, default=lambda o: o.__dict__)    
