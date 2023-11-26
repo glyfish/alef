@@ -97,7 +97,7 @@ class ParamEst:
         est_label = data["est_label"] if "est_label" in data else None
         err = data["err"] if "err" in data else None
         err_label = data["err_label"] if "err_label" in data else None
-        order = data["order"] if "order" in data else 1
+        order = data["order"] if "order" in data else 0
         row = data["row"] if "row" in data else 0
         column = data["column"] if "column" in data else 0
         err_label = data["err_label"] if "err_label" in data else None
@@ -198,7 +198,9 @@ class OLSResult:
                f"const=({self.const}), " \
                f"params=({self.params}, "\
                f"r2=({self.r2}), " \
-               f"transforms=({self.transforms})"
+               f"model=({self.model}), " \
+               f"const_transform=({self.const_transform}), " \
+               f"param_transforms=({self.param_transforms})"
     
     def to_json(self, pretty: bool=False):
         if pretty:

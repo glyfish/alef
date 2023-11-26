@@ -223,15 +223,17 @@ def __vecm_estimate_from_result(result: VECMResults) -> VECMResults:
                                row=i,
                                column=j,                     
                                param_type=VECMParamType.VECM_BETA.value))
-            const_result.append(ParamEst(est_id=est_id, 
-                                est=const_est[i,j], 
-                                err=const_err[i,j], 
-                                est_label=f"$\\hat{{\\beta}}$", 
-                                err_label=f"$\\sigma_{{\\beta}}$", 
-                                order=0,
-                                row=i,
-                                column=j,                     
-                                param_type=VECMParamType.VECM_CONST.value))
+            
+    for i in range(neq):
+        const_result.append(ParamEst(est_id=est_id, 
+                            est=const_est[i,j], 
+                            err=const_err[i,j], 
+                            est_label=f"$\\hat{{M}}$", 
+                            err_label=f"$\\sigma_{{M}}$", 
+                            order=0,
+                            row=i,
+                            column=0,                     
+                            param_type=VECMParamType.VECM_CONST.value))
             
     
             
@@ -241,20 +243,20 @@ def __vecm_estimate_from_result(result: VECMResults) -> VECMResults:
                                 est=omega_est[i,j],
                                 err=0.0,
                                 est_label=f"$\\hat{{\\Omega}}$", 
-                                err_label=f"$\\sigma{{\\Omega}}$", 
+                                err_label=f"$\\sigma_{{\\Omega}}$", 
                                 order=0,
                                 row=i,
                                 column=j,
                                 param_type=VECMParamType.VECM_OMEGA.value))
 
     for k in range(order):
-        for j in range(rank):
+        for j in range(neq):
             for i in range(neq):
                 a_result.append(ParamEst(est_id=est_id, 
                                          est=a_est[i,j], 
-                                         err=a_est[i,j],
-                                         est_label=f"$\\hat{{Phi}}_{{i}}$", 
-                                         err_label=f"$\sigma^\Phi_{{i}}$", 
+                                         err=a_err[i,j],
+                                         est_label=f"$\\hat{{A}}$", 
+                                         err_label=f"$\\sigma_A$", 
                                          order=k + 1,
                                          row=i,
                                          column=j,

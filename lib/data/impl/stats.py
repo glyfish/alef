@@ -11,6 +11,7 @@ from enum import Enum
 import statsmodels.api as sm
 import uuid
 from pandas import DataFrame
+import statsmodels.formula.api as smf
 
 from lib import stats
 from lib.data.param_est import (ParamEst, OLSResult, OLSParamType)
@@ -622,6 +623,7 @@ class OLS(Enum):
     XLOG = "XLOG"
     YLOG = "YLOG"
 
+
     def single_variable_estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
         """
         Perform single variable OLS regression on the provided data.
@@ -639,8 +641,9 @@ class OLS(Enum):
             OLS report and result model.
         """
 
-        result = self.___OLS_fit(y, x)
+        result = self.__OLS_fit(y, x)
         return result, self.__ols_estimate_from_result(result)
+
 
     def two_variable_estimate(self, y: numpy.ndarray[float], x1: numpy.ndarray[float], x2: numpy.ndarray[float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
         """
@@ -661,10 +664,36 @@ class OLS(Enum):
             OLS report and result model.
         """
 
-        result = self.___OLS_fit(y, numpy.transpose(numpy.array([x1, x2])))
+        result = self.__OLS_fit(y, numpy.transpose(numpy.array([x1, x2])))
+        return result, self.__ols_estimate_from_result(result)
+    
+
+    def multi_variable_estimate(self, y: numpy.ndarray[float], x: numpy.ndarray[float, float]) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
+        """
+        Perform multi variable OLS regression on the provided data.
+
+        Parameters
+        ----------
+        y: numpy.ndarray[float]
+            Dependent variable
+        x: numpy.ndarray[float, float]
+            Independent variables
+ 
+        Return
+        ------
+        Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
+            OLS report and result model.
+        """
+
+        x_cols = [f"x{i+1}" for i in range(len(x))]
+        cols = ['y'] + x_cols
+        data = numpy.concatenate((numpy.reshape(y, (1,len(y))), x), axis=0)
+        formula = "y ~ " + " + ".join(x_cols)
+        result = self.__OLS_formula_fit(DataFrame(data.T, columns=cols), formula)
         return result, self.__ols_estimate_from_result(result)
 
-    def ___OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.OLS:
+
+    def __OLS_fit(self, y: numpy.ndarray[float], x: numpy.ndarray[float]) -> sm.regression.linear_model.RegressionResults:
         """ 
         Create statsmodels OLS object using specified samples assuming a single dependent variable.
 
@@ -680,12 +709,34 @@ class OLS(Enum):
         sm.OLS
             OLS object
         """
+
         if self.value == OLS.LOG.value:
             x = numpy.log10(x)
             y = numpy.log10(y)
 
         x = sm.add_constant(x)
         return sm.OLS(y, x, missing='drop').fit()
+    
+
+    def __OLS_formula_fit(self, data: DataFrame, formula: str) -> sm.regression.linear_model.RegressionResults:
+        """ 
+        Create statsmodels OLS object using specified samples assuming a single dependent variable.
+
+        Parameters
+        ----------
+        data: DataFrame
+            Sample data.
+        formula: str
+            OLS formula.
+
+        Returns
+        -------
+        sm.regression.linear_model.RegressionResults
+            OLS regression results.
+        """
+
+        return smf.ols(formula=formula, data=data).fit()
+
 
     def __ols_estimate_from_result(self, result: sm.regression.linear_model.RegressionResults) -> OLSResult:
         """
@@ -705,6 +756,8 @@ class OLS(Enum):
         est_id = str(uuid.uuid4())
         const = ParamEst.from_dict({"est": result.params[0], 
                                     "err": result.bse[0],
+                                    "est_label": f"$\\beta$",
+                                    "err_label": f"$\\sigma_{{\\beta}}$",
                                     "est_id": est_id,
                                     "param_type": OLSParamType.OLS_CONST.value})
 
@@ -713,6 +766,9 @@ class OLS(Enum):
         for i in range(1, nparams):
             params.append(ParamEst.from_dict({"est": result.params[i], 
                                               "err": result.bse[i],
+                                              "est_label": f"$\\alpha_{i}$",
+                                              "err_label": f"$\\sigma_{{\\alpha_{i}}}$",
+                                              "column": i,
                                               "est_id": est_id,
                                               "param_type": OLSParamType.OLS_PARAM.value}))
 
