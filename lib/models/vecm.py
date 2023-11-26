@@ -3,9 +3,36 @@ from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from statsmodels.tsa.stattools import grangercausalitytests
-from statsmodels.tsa.vector_ar.vecm import VECM, coint_johansen, select_order, JohansenTestResult
+from statsmodels.tsa.vector_ar.vecm import VECM, coint_johansen, select_order, JohansenTestResult, VECMResults
 
 from lib import stats
+
+def fit(endog: numpy.ndarray[float, float], maxlags: int, rank: int, trend: str="co") -> VECMResults:
+    """
+    Estimate the parameters for and assumed VECM(n) model.
+
+    Parameters
+    ----------
+    endog: DataFrame
+        VAR(n) process endogenous variable samples.
+    maxlags: int
+        Maximum number of time lags tried. (default is 12)
+     rank: int
+        Cointegration rank.
+    trend: str
+        "n" - no deterministic terms
+        "co" - constant outside the cointegration relation
+        "ci" - constant within the cointegration relation
+        "lo" - linear trend outside the cointegration relation
+        "li" - linear trend within the cointegration relation
+
+    Returns
+    -------
+    VECMResults
+        Analysis results.
+    """
+
+    return __vecm_model(endog, maxlags=maxlags, rank=rank, trend=trend).fit()
 
 def order_estimate(samples: numpy.ndarray[float, float], maxlags: int=12, deterministic='n') -> LagOrderResults:
     """
@@ -90,7 +117,7 @@ def johansen_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
     return coint_johansen(samples, trend, max_lags)
 
 
-def __vecm_model(endog: numpy.ndarray[float, float]) -> VECM:
+def __vecm_model(endog: numpy.ndarray[float, float], maxlags: int, rank: int, trend: str = "n") -> VECM:
     """
     Estimate the parameters for and assumed VAR(n) model.
 
@@ -98,13 +125,23 @@ def __vecm_model(endog: numpy.ndarray[float, float]) -> VECM:
     ----------
     endog: DataFrame
         VAR(n) process endogenous variable samples.
+    lags: int
+        Maximum number of time lags tried.
+    rank: int
+        Cointegration rank.
+    trend: str
+        "n" - no deterministic terms
+        "co" - constant outside the cointegration relation
+        "ci" - constant within the cointegration relation
+        "lo" - linear trend outside the cointegration relation
+        "li" - linear trend within the cointegration relation
 
     Returns
     -------
-    VAR
-        Analysis results.
+    VECM
+        VECM model.
     """
 
-    return VECM(endog)
+    return VECM(endog, k_ar_diff=maxlags, coint_rank=rank, deterministic=trend)
 
 

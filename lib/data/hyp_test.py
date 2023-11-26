@@ -558,15 +558,18 @@ class JohansenCointTestStatistic:
         Test critical values.
     significance_levels: list[str]
         Test significance levels.
+    test_result: bool
+        test result.
     """
 
-    def __init__(self, test_id: str, test_rank: int, test_stat: float, critical_values: numpy.ndarray[float]):
+    def __init__(self, test_id: str, test_rank: int, test_stat: float, critical_values: list[float]):
         self.test_id = test_id
         self.test_rank = test_rank
         self.null_hypothesis = f"r<={test_rank}"
         self.test_stat = test_stat
         self.critical_values = critical_values.tolist()
-        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 90%"]
+        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+        self.test_result = [bool(test_stat > cv) for cv in critical_values]
 
     def __repr__(self):
         return f"JohansenCointTestStatistic({self.__props()})"
@@ -600,7 +603,7 @@ class JohansenCointTestRank:
     def __init__(self, test_id: str, test_ranks: list[float]):
         self.test_id = test_id
         self.test_ranks = test_ranks
-        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 90%"]
+        self.significance_levels = ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
 
     def __repr__(self):
         return f"JohansenCointTestRank({self.__props()})"
@@ -662,12 +665,13 @@ class JohansenCointTestReport:
         Eigenvectors and eigenvalues of canonical variates.
     """
 
-    def __init__(self, test_id: str, trace_test: list[JohansenCointTestStatistic], eigen_test: list[JohansenCointTestStatistic], rank: JohansenCointTestRank, eigen_vectors: list[JohansenCointTestEigenVector]):
+    def __init__(self, test_id: str, trace_test: list[JohansenCointTestStatistic], eigen_test: list[JohansenCointTestStatistic], ranks: JohansenCointTestRank, eigen_vectors: list[JohansenCointTestEigenVector]):
         self.test_id = test_id
         self.trace_test = trace_test
         self.eigen_test = eigen_test
-        self.rank = rank
+        self.ranks = ranks
         self.eigen_vectors = eigen_vectors
+        self.rank = min(self.ranks.test_ranks)
 
     def __repr__(self):
         return f"JohansenTestResult({self.__props()})"

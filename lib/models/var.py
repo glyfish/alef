@@ -373,7 +373,7 @@ def __var_model(endog: numpy.ndarray[float, float]) -> VAR:
     Returns
     -------
     VAR
-        Analysis results.
+        VAR model.
     """
 
     return VAR(endog)

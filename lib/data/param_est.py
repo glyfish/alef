@@ -18,11 +18,14 @@ class EstModel(str, Enum):
         Assume a single variable OLS model when performing regression.
     VAR
         ASSUME a VAR(p) model when performing estimate.
+    VECM
+        Assume a VECM(p) model when performing estimate.
     """
 
     ARMA = "ARMA"
     OLS = "OLS"
     VAR = "VAR"
+    VECM = "VECM"
 
 
 class ParamEst:
@@ -361,22 +364,24 @@ class VAREst:
 
     Properties
     ----------
+    est_model: EstModel
+        Model identifier.
+    order: int
+        Model order
     const: list[ParamEst]
         Estimate of model constant parameter.
-    params: list[ParamEst]
+    params:  list[ParamEst, ParamEst, ParamEst]
         Estimate of model Parameters.
-    omega: ParamEst
-        Estimate of variance of model random component.
-    arma_est_type: ARMAEstType
-        ARMA model estimate type.
+    omega: list[ParamEst, ParamEst]
+        Estimate of covariance matrix of model random component.
     """
 
-    def __init__(self, order: int, const: list[ParamEst], params: list[list[list[ParamEst]]], omega: list[list[ParamEst]]):
-        self.__est_model = EstModel.VAR
-        self.__const = const
-        self.__order = order
-        self.__params = params
-        self.__omega = omega
+    def __init__(self, order: int, const: list[ParamEst], params: list[ParamEst, ParamEst, ParamEst], omega: list[ParamEst, ParamEst]):
+        self.est_model = EstModel.VAR
+        self.const = const
+        self.order = order
+        self.params = params
+        self.omega = omega
 
     def __repr__(self):
         return f"VAREst({self.__props()})"
@@ -385,12 +390,89 @@ class VAREst:
         return self.__props()
 
     def __props(self):
-        return f"est_model=({self.__est_model}), " \
-               f"arma_est_type=({self.__arma_est_type}), " \
-               f"const=({self.__const}), " \
-               f"order=({self.__order}), " \
-               f"params=({self.__params}), " \
-               f"omega=({self.__omega})"
+        return f"est_model=({self.est_model}), " \
+               f"arma_est_type=({self.arma_est_type}), " \
+               f"const=({self.const}), " \
+               f"order=({self.order}), " \
+               f"params=({self.params}), " \
+               f"omega=({self.omega})"
+
+    def to_json(self, pretty: bool=False):
+        if pretty:
+            return dumps(self, indent=3, default=lambda o: o.__dict__)
+        else:
+            return dumps(self, default=lambda o: o.__dict__)
+        
+
+class VECMParamType(str, Enum):
+    """
+    VECM estimate parameter type.
+
+    Values
+    ------
+    VECM_CONST
+        Estimate of constant parameter.
+    VECM_ALPHA
+        Estimation of matrices multiplying lagged differences of endogenous variables.
+    VECM_LAMBDA
+        Estimation of α matrix in VECM model.
+    VECM_BETA
+        Estimation of β matrix in VECM model.
+    VECM_OMEGA
+        Estimate of covariance matrix of model random component.
+    """
+
+    VECM_CONST = "VECM_CONST"
+    VECM_ALPHA = "VECM_ALPHA"
+    VECM_LAMBDA = "VECM_LAMBDA"
+    VECM_BETA = "VECM_BETA"
+    VECM_OMEGA = "VAR_OMEGA"
+
+
+class VECMEst:
+    """
+    VECM parameter estimate result.
+
+    Properties
+    ----------
+    rank: int
+        Model rank.
+    order: int
+        Model order
+    lambda_est: list[ParamEst, ParamEst]
+        VECM lambda matrix estimate.
+    beta_est: list[ParamEst, ParamEst]
+        VECM beta matrix estimate.
+    a_est: list[ParamEst, ParamEst]
+        Lag term coefficient matrices.
+    omega: list[ParamEst, ParamEst]
+        Estimate of covariance matrix of model random component.
+    """
+
+    def __init__(self, rank: int, order: int, const: list[ParamEst], lambda_est: list[ParamEst, ParamEst], beta_est: list[ParamEst, ParamEst], a_est: list[ParamEst, ParamEst, ParamEst], omega: list[ParamEst, ParamEst]):
+        self.est_model = EstModel.VECM
+        self.rank = rank
+        self.const = const
+        self.order = order
+        self.lambda_est = lambda_est
+        self.beta_est = beta_est
+        self.a_est = a_est
+        self.omega = omega
+
+    def __repr__(self):
+        return f"VECMEst({self.__props()})"
+
+    def __str__(self):
+        return self.__props()
+
+    def __props(self):
+        return f"est_model=({self.est_model}), " \
+                f"const=({self.const}), " \
+                f"order=({self.order}), " \
+                f"lambda=({self.lamb}), " \
+                f"beta=({self.beta}), " \
+                f"A=({self.a_matrices}), " \
+                f"omega=({self.__omega})"
 
     def to_json(self, pretty: bool=False):
         if pretty:
