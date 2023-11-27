@@ -92,6 +92,41 @@ def vecm1(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: n
     return xt
 
 
+def vecm(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], Ω: numpy.ndarray[float, float], nsamp: int) -> numpy.ndarray[float, float]:
+    """
+    Simulate a first order Vector Error Correction Model (VECM) process with the specified parameters.
+
+    Parameters
+    ----------
+    λ: numpy.ndarray[float, float]
+        Damping matrix.
+    β: numpy.ndarray[float, float]
+        Transpose of cointegration vector.
+    a: numpy.ndarray[float, float, float]
+        Coefficient matrices.
+    Ω: numpy.ndarray[float, float]
+        Noise covariance matrix.
+    nsamp: int
+        Number of samples generated.
+
+    Returns
+    -------
+    numpy.ndarray[float, float]
+        Simulation results.
+    """
+
+    m, n, _ = a.shape
+    xt = numpy.matrix(numpy.zeros((n, nsamp)))
+    εt = numpy.matrix(stats.multivariate_normal_samples(numpy.zeros(n), Ω, nsamp))
+    for i in range(m + 1, nsamp):
+        lag_terms = 0.0
+        for j in range(m):
+            lag_terms += numpy.matrix(a[j])*(xt[:,i-j-1] - xt[:,i-j-2])
+        Δxt = λ*β*xt[:,i-1] + lag_terms + εt[i].T
+        xt[:,i] = Δxt + xt[:,i-1]
+    return xt
+
+
 def johansen_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
     """
     Perform Johansen's cointegration test.
