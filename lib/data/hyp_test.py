@@ -442,7 +442,8 @@ def __var_order_test_report_from_result(result: LagOrderTestResult) -> VAROrderT
     metric_value = StatisticalTestParam(test_id, r"$\varepsilon_{HQIC}$", result.ics['hqic'][result.aic])
     hqic_test = LagOrderTestResult(test_id, order, ErrorMetric.AIC, metric_value)
 
-    order = StatisticalTestParam(test_id, r"$\tau_{min}$", int(min(result.aic, result.bic, result.fpe, result.hqic)))
+    order_results = numpy.bincount([result.aic, result.bic, result.hqic])
+    order = StatisticalTestParam(test_id, r"$\tau_{min}$", int(numpy.argmax(order_results)))
     return VAROrderTestReport(test_id=test_id, order=order, aic=aic_test, bic=bic_test, fpe=fpe_test, hqic=hqic_test)
     
 # ##############################################################

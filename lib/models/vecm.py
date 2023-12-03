@@ -130,7 +130,7 @@ def vecm(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: nu
     return xt
 
 
-def johansen_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
+def johansen_test_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
     """
     Perform Johansen's cointegration test.
 

@@ -41,7 +41,8 @@ def training(forecast_data: numpy.ndarray[float], observed_data: numpy.ndarray[f
     x = numpy.arange(len(forecast_data)) if x is None else x
     labels = ["Observation", "Forecast"]
 
-    comp.comparison(axis, [observed_data, forecast_data], x, title=title, title_offset=title_offset, labels=labels, xlabel="$t$", ylabel=ylabel)
+    comp.comparison(axis, [observed_data, forecast_data], x, title=title, title_offset=title_offset, labels=labels, xlabel="$t$", 
+                    ylabel=ylabel, legend_loc="upper left")
     axis.fill_between(x, lower_bound_error, upper_bound_error, alpha=0.3, color="lightgrey", edgecolor="black", zorder=10)
 
 
@@ -83,7 +84,7 @@ def prediction(training_data: numpy.ndarray[float], forecast_data: numpy.ndarray
     labels = ["Observation", "Forecast"]
 
     comp.comparison(axis, [training_data, forecast_data], [x, x_forecast], title=title, title_offset=title_offset, labels=labels, xlabel="$t$", 
-                    ylabel=ylabel)
+                    ylabel=ylabel, legend_loc="upper left")
     cycle = pyplot.rcParams['axes.prop_cycle'].by_key()['color']
     axis.plot([x[-1], x_forecast[0]], [training_data[-1], forecast_data[0]], color=cycle[0])
     axis.fill_between(x_forecast, lower_bound_error, upper_bound_error, alpha=0.3, color="lightgrey", edgecolor="black", zorder=10)

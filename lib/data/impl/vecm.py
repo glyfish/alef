@@ -69,7 +69,7 @@ def compute_order(samples: numpy.ndarray[float, float], **kwargs) -> Tuple[LagOr
     """
 
     maxlags = get_param_default_if_missing("maxlags", 12, **kwargs)
-    trend = get_param_default_if_missing("trend", 'c0', **kwargs)
+    trend = get_param_default_if_missing("trend", 'co', **kwargs)
 
     result = vecm.order_estimate(samples.T, maxlags, trend)
     return result, __var_order_test_report_from_result(result)
@@ -103,18 +103,18 @@ def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: 
     """
 
     trend = get_param_default_if_missing("trend", 0, **kwargs)
-    result = vecm.coint_johansen(samples.T, max_lags, trend)
+    result = vecm.johansen_test_coint(samples.T, max_lags, trend)
 
     return JohansenTestReport(result), __vecm_johansen_coint_test_report_from_result(result), result
 
 
-def compute_prediction(vecm: VECMResults, steps: int, **kwargs) -> Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]:
+def compute_prediction(vecm_result: VECMResults, steps: int, **kwargs) -> Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]:
     """
     Predict values for the specified number of steps.
 
     Parameters
     ----------
-    vecm: VECMResults
+    vecm_result: VECMResults
         VECM model.
     steps: int
         Number of steps to predict.
@@ -128,7 +128,7 @@ def compute_prediction(vecm: VECMResults, steps: int, **kwargs) -> Tuple[numpy.n
     """
 
     alpha = get_param_default_if_missing("alpha", 0.05, **kwargs)
-    return vecm.predict(steps, alpha=alpha)
+    return vecm_result.predict(steps, alpha=alpha)
 
 
 def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
@@ -280,8 +280,8 @@ def __vecm_estimate_from_result(result: VECMResults) -> VECMResults:
             
     for i in range(neq):
         const_result.append(ParamEst(est_id=est_id, 
-                            est=const_est[i,j], 
-                            err=const_err[i,j], 
+                            est=const_est[i,0], 
+                            err=const_err[i,0], 
                             est_label=f"$\\hat{{M}}$", 
                             err_label=f"$\\sigma_{{M}}$", 
                             order=0,
