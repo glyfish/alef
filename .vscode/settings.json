@@ -18,6 +18,7 @@
         "Johansen",
         "kron",
         "ncol",
+        "nforecast",
         "nlags",
         "nonposy",
         "smax",
