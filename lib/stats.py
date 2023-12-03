@@ -790,3 +790,62 @@ def causality_matrix(samples: numpy.ndarray[float, float], nlags: int, add_const
                             'causal_var': j + 1})
            
     return DataFrame.from_records(numpy.array(results), index=range(1, len(results) + 1)).sort_values(by=['dependent_var'])
+
+
+def bias(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
+    """
+    Compute bias of prediction relative to target.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        Bias of prediction relative to target.
+    """
+
+    return numpy.mean(pred - obs)
+
+
+def mae(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
+    """
+    Compute mean absolute error of prediction relative to target.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        Mean absolute error of prediction relative to target.
+    """
+
+    return numpy.mean(numpy.abs(pred - obs))
+
+def rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
+    """
+    Compute root mean squared error of prediction relative to target.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        Root mean squared error of prediction relative to target.
+    """
+
+    return numpy.sqrt(numpy.mean((pred - obs)**2))

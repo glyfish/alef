@@ -108,6 +108,29 @@ def compute_johansen_coint_test(samples: numpy.ndarray[float, float], max_lags: 
     return JohansenTestReport(result), __vecm_johansen_coint_test_report_from_result(result), result
 
 
+def compute_prediction(vecm: VECMResults, steps: int, **kwargs) -> Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]:
+    """
+    Predict values for the specified number of steps.
+
+    Parameters
+    ----------
+    vecm: VECMResults
+        VECM model.
+    steps: int
+        Number of steps to predict.
+    alpha: float
+        Confidence interval (default 0.5).
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]
+        Predicted values.
+    """
+
+    alpha = get_param_default_if_missing("alpha", 0.05, **kwargs)
+    return vecm.predict(steps, alpha=alpha)
+
+
 def create_vecm1_source(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: numpy.ndarray[float, float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float, float]]:
     """
     Simulate a first order Vector Error Correction Model (VECM) process with the specified parameters.

@@ -572,6 +572,66 @@ def compute_causality_matrix(samples: numpy.ndarray[float, float], **kwargs):
     return result, __granger_causality_model_from_result(result)
 
 
+def compute_bias(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
+    """
+    Compute bias between predicted and observed values.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        Bias.
+    """
+
+    return stats.bias(pred, obs)
+
+
+def compute_mse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:    
+    """
+    Compute mean squared error between predicted and observed values.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        MSE.
+    """
+
+    return stats.mse(pred, obs)
+
+
+def compute_rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:    
+    """
+    Compute root mean squared error between predicted and observed values.
+
+    Parameters
+    ----------
+    pred: numpy.ndarray[float]
+        Predicted values.
+    obs: numpy.ndarray[float]
+        Observed values.
+
+    Returns
+    -------
+    float
+        RMSE.
+    """
+
+    return stats.rmse(pred, obs)
+
+
 def create_multivariate_normal_samples_source(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
     """
     Return multivariate normal samples with the specified parameters.

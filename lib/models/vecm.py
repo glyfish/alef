@@ -1,3 +1,5 @@
+
+from typing import Tuple
 import numpy
 from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 import statsmodels.api as sm
@@ -118,10 +120,11 @@ def vecm(λ: numpy.ndarray[float, float], β: numpy.ndarray[float, float], a: nu
     m, n, _ = a.shape
     xt = numpy.matrix(numpy.zeros((n, nsamp)))
     εt = numpy.matrix(stats.multivariate_normal_samples(numpy.zeros(n), Ω, nsamp))
+    a_matrix = [numpy.matrix(a[i]) for i in range(m)]
     for i in range(m + 1, nsamp):
         lag_terms = 0.0
         for j in range(m):
-            lag_terms += numpy.matrix(a[j])*(xt[:,i-j-1] - xt[:,i-j-2])
+            lag_terms += a_matrix[j]*(xt[:,i-j-1] - xt[:,i-j-2])
         Δxt = λ*β*xt[:,i-1] + lag_terms + εt[i].T
         xt[:,i] = Δxt + xt[:,i-1]
     return xt
@@ -151,6 +154,27 @@ def johansen_coint(samples, max_lags, trend: int=0) -> JohansenTestResult:
 
     return coint_johansen(samples, trend, max_lags)
 
+
+def predict(vecm: VECMResults, steps: int, alpha: float=0.05) -> Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]:
+    """
+    Predict values for the specified number of steps.
+
+    Parameters
+    ----------
+    vecm: VECMResults
+        VECM model.
+    steps: int
+        Number of steps to predict.
+    alpha: float
+        Confidence interval (default 0.5).
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float, float], numpy.ndarray[float, float], numpy.ndarray[float, float]]
+        Predicted values.
+    """
+
+    return vecm.predict(steps, alpha=alpha)
 
 def __vecm_model(endog: numpy.ndarray[float, float], maxlags: int, rank: int, trend: str = "n") -> VECM:
     """
