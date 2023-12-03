@@ -7,7 +7,7 @@ from lib.plots.comp.axis import PlotType
 from lib.data import OLSResult, stats
 
 def training(forecast_data: numpy.ndarray[float], observed_data: numpy.ndarray[float], upper_bound_error: numpy.ndarray[float], 
-             lower_bound_error: numpy.ndarray[float], x: numpy.ndarray[float]=None, title: str=None, title_offset: float=0.0,
+             lower_bound_error: numpy.ndarray[float], x: numpy.ndarray[float]=None, title: str=None, title_offset: float=0.015,
              figsize: (int, int)=(10, 6), alpha: float=0.05, ylabel=None):
     """"
     Plot the result of a training analysis.
@@ -36,7 +36,11 @@ def training(forecast_data: numpy.ndarray[float], observed_data: numpy.ndarray[f
    
     _, axis = pyplot.subplots(figsize=figsize)
 
-    title = f"Training Analysis, $\\alpha$={alpha: 2.2f}" if title is None else title
+    bias = stats.compute_bias(forecast_data, observed_data)
+    mae = stats.compute_mae(forecast_data, observed_data)
+    rmse = stats.compute_rmse(forecast_data, observed_data)
+
+    title = f"Training Analysis, $\\alpha$={alpha: 2.2f}\nBIAS={bias: 2.2f}, MAE={mae: 2.2f}, RMSE={rmse: 2.2f}" if title is None else title
     ylabel = r"$X_t$" if ylabel is None else ylabel
     x = numpy.arange(len(forecast_data)) if x is None else x
     labels = ["Observation", "Forecast"]

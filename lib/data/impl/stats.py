@@ -592,9 +592,9 @@ def compute_bias(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float
     return stats.bias(pred, obs)
 
 
-def compute_mse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:    
+def compute_mae(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:    
     """
-    Compute mean squared error between predicted and observed values.
+    Compute mean absolute error of prediction relative to target.
 
     Parameters
     ----------
@@ -609,7 +609,7 @@ def compute_mse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
         MSE.
     """
 
-    return stats.mse(pred, obs)
+    return stats.mae(pred, obs)
 
 
 def compute_rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:    
