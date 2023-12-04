@@ -220,8 +220,9 @@ class JohansenTestReport:
         n = len(self.trace_statistic)
         for i in range(n):
             test_result.append(self.trace_statistic[i] > self.trace_critical_vals[i])
-        test_result = numpy.array(test_result)               
-        return [len(test_result[:,i][test_result[:,i]]) for i in range(n)]
+        test_result = numpy.array(test_result)
+        nonzero = [numpy.asarray(test_result[:,i]).nonzero() for i in range(n)]
+        return [max(col[0] + 1) if len(col[0]) > 0 else 0 for col in nonzero] 
 
 
     def summary(self, tablefmt="fancy_grid"):

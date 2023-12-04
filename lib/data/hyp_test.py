@@ -446,6 +446,7 @@ def __var_order_test_report_from_result(result: LagOrderTestResult) -> VAROrderT
     order = StatisticalTestParam(test_id, r"$\tau_{min}$", int(numpy.argmax(order_results)))
     return VAROrderTestReport(test_id=test_id, order=order, aic=aic_test, bic=bic_test, fpe=fpe_test, hqic=hqic_test)
     
+
 # ##############################################################
 #  Granger causality test models
 # ##############################################################
@@ -541,7 +542,6 @@ class GrangerCausalityTestReport:
 # ##############################################################
 #  Johansen cointegration test models
 # ##############################################################
-
 
 class JohansenCointTestStatistic:
     """
