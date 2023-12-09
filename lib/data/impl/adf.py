@@ -28,7 +28,7 @@ def create_df_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[floa
 
     return create_space(xmax=nsim, npts=nsim + 1), adf.dist_ensemble(nstep, nsim)
 
-def compute_adf_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport, StatisticalTestReport]:
+def compute_adf_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[ADFTestReport, StatisticalTestReport]:
     """
     Perform ADF test on provided samples.
 
@@ -36,6 +36,9 @@ def compute_adf_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport, Stat
     ----------
     samples: numpy.ndarray[float]
         Samples to test.
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
@@ -43,10 +46,12 @@ def compute_adf_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport, Stat
         ADF result report and test result model.
     """
 
-    result = adf.adf_test(samples)
+    max_lag = get_param_default_if_missing("max_lag", 12, **kwargs)
+
+    result = adf.adf_test(samples, max_lag=max_lag)
     return result, __adf_report_from_result(result, HypothesisTestType.STATIONARITY)
 
-def compute_adf_offset_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport, StatisticalTestReport]:
+def compute_adf_offset_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[ADFTestReport, StatisticalTestReport]:
     """
     Perform ADF test assuming a constant offset on provided samples.
 
@@ -54,32 +59,42 @@ def compute_adf_offset_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestRepor
     ----------
     samples: numpy.ndarray[float]
         Samples to test.
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
     Tuple[ADFTestReport, StatisticalTestReport]
         ADF result report and test result model.
     """
-    
-    result = adf.adf_test_offset(samples)
+
+    max_lag = get_param_default_if_missing("max_lag", 12, **kwargs)
+
+    result = adf.adf_test_offset(samples, max_lag=max_lag)
     return result, __adf_report_from_result(result, HypothesisTestType.STATIONARITY_OFFSET)
 
-def compute_adf_drift_test(samples: numpy.ndarray[float]) -> Tuple[ADFTestReport, StatisticalTestReport]:
+def compute_adf_drift_test(samples: numpy.ndarray[float], **kwargs) -> Tuple[ADFTestReport, StatisticalTestReport]:
     """
     Perform ADF test assuming offset and drift terms on provided samples.
 
     Parameters
     ----------
     samples: numpy.ndarray[float]
-        Samples to test.
+        Samples to test.      
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
     Tuple[ADFTestReport, StatisticalTestReport]
         ADF result report and test result model.
     """
-    
-    result = adf.adf_test_drift(samples)
+
+    max_lag = get_param_default_if_missing("max_lag", 12, **kwargs)
+
+    result = adf.adf_test_drift(samples, max_lag=max_lag)
     return result, __adf_report_from_result(result, HypothesisTestType.STATIONARITY_DRIFT)
 
 def __adf_report_from_result(result: ADFTestReport, hyp_test_type: HypothesisTestType) -> StatisticalTestReport:
@@ -90,6 +105,9 @@ def __adf_report_from_result(result: ADFTestReport, hyp_test_type: HypothesisTes
     ----------
     samples: numpy.ndarray[float]
         Samples to test.
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------

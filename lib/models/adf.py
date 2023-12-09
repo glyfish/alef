@@ -255,7 +255,7 @@ def statistic(samples: numpy.ndarray[float], σ: float=1.0) -> float:
         var += samples[i-1]**2
     return delta_numerator / (numpy.sqrt(var)*σ**2)
 
-def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
+def adf_test(samples: numpy.ndarray[float], max_lag: int=12) -> ADFTestReport:
     """
     Perform the ADF test assuming no trend on the specified samples. If the ADF
     test passes the samples are brownian motion.
@@ -264,6 +264,9 @@ def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
     ----------
     samples: numpy.ndarray[float]
         AR(p) processes samples
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
@@ -271,9 +274,9 @@ def adf_test(samples: numpy.ndarray[float]) -> ADFTestReport:
         Result of the performed ADF test.
     """
 
-    return __adfuller_test(samples, 'n')
+    return __adfuller_test(samples, 'n', max_lag)
 
-def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
+def adf_test_offset(samples: numpy.ndarray[float], max_lag: int=12) -> ADFTestReport:
     """
     Perform the ADF test assuming a constant offset in the samples. If the ADF
     test passes the samples are brownian motion.
@@ -282,6 +285,9 @@ def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
     ----------
     samples: numpy.ndarray[float]
         AR(p) processes samples
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
@@ -289,9 +295,9 @@ def adf_test_offset(samples: numpy.ndarray[float]) -> ADFTestReport:
         Result of the performed ADF test.
     """
 
-    return __adfuller_test(samples, 'c')
+    return __adfuller_test(samples, 'c', max_lag)
 
-def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
+def adf_test_drift(samples: numpy.ndarray[float], max_lag: int=12) -> ADFTestReport:
     """
     Perform the ADF test assuming a linear drift terms. If the ADF
     test passes the samples are brownian motion.
@@ -300,6 +306,13 @@ def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
     ----------
     samples: numpy.ndarray[float]
         AR(p) processes samples
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        AR(p) processes samples
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
 
     Returns
     -------
@@ -307,9 +320,9 @@ def adf_test_drift(samples: numpy.ndarray[float]) -> ADFTestReport:
         Result of the performed ADF test.
     """
 
-    return __adfuller_test(samples, 'ct')
+    return __adfuller_test(samples, 'ct', max_lag)
 
-def __adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestReport:
+def __adfuller_test(samples: numpy.ndarray[float], test_type: str, max_lag: int=12) -> ADFTestReport:
     """
     Perform the ADF test assuming no trend on the specified samples. If the ADF
     test passes the samples are brownian motion.
@@ -318,6 +331,17 @@ def __adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestRep
     ----------
     samples: numpy.ndarray[float]
         AR(p) processes samples
+    test_type : {"c","ct","ctt","n"}
+        Constant and trend order to include in regression.
+
+        * "c" : constant only (default).
+        * "ct" : constant and trend.
+        * "ctt" : constant, and linear and quadratic trend.
+        * "n" : no constant, no trend.
+    max_lag : {None, int}
+        Maximum lag which is included in test, default value of
+        12*(nobs/100)^{1/4} is used when ``None``.
+
 
     Returns
     -------
@@ -325,5 +349,5 @@ def __adfuller_test(samples: numpy.ndarray[float], test_type: str) -> ADFTestRep
         Result of the performed ADF test.
     """
 
-    result = sm.tsa.stattools.adfuller(samples, regression=test_type)
+    result = sm.tsa.stattools.adfuller(samples, regression=test_type, maxlag=max_lag)
     return ADFTestReport(result)

@@ -641,11 +641,13 @@ def __plot_curve(axis, x, y, n, **kwargs):
     ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
     npts            = get_param_default_if_missing("npts", min(len(y), len(x)), **kwargs)
 
-    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64):
         converter = mdates.ConciseDateConverter()
         munits.registry[numpy.datetime64] = converter
         munits.registry[date] = converter
-        munits.registry[datetime] = converter    
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     if xlabel is not None:
         axis.set_xlabel(xlabel)
@@ -663,7 +665,6 @@ def __plot_curve(axis, x, y, n, **kwargs):
     color = colors[n] if colors is not None else next(cycler)['color']
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     x = x[:npts]
     y = y[:npts]
