@@ -7,8 +7,11 @@ Simulation and analysis of the Ornstein-Uhlenbeck process.
 from typing import Tuple
 import uuid
 import numpy
+import statsmodels.api as sm
 
 from lib.models import ou
+from lib.data.param_est import (ParamEst, OLSResult, OLSTransform, OLSParamType)
+from lib.data.impl.stats import OLS
 
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing,
                        verify_type, create_space, create_logspace)
@@ -371,6 +374,29 @@ def compute_mean_half_life(**kwargs) -> float:
 
     return ou.mean_halflife(λ)
 
+
+def compute_mean_half_life_estimate(xt: numpy.ndarray[float], dt: float=1.0) -> Tuple[sm.regression.linear_model.RegressionResults, OLSResult]:
+    """
+    Estimate Ornstein-Uhlenbeck half life to limiting mean.
+
+    Parameters
+    ----------
+    xt: numpy.ndarray[float]
+        Modeled variable.
+
+    Returns
+    -------
+    Tuple[sm.regression.linear_model.RegressionResults, OLSResult]
+        OLS analysis results.
+    """
+
+    dxt = numpy.diff(xt)
+    x_lagged = xt[:-1]
+
+    report, result = OLS.LINEAR.single_variable_estimate(dxt, x_lagged)
+    __half_life_transform(result, dt)
+    return report, result
+
 def create_xt_source(**kwargs) -> numpy.ndarray[float]:
     """
     Simulation of modeled variable at a specified time with the specified parameters.
@@ -440,3 +466,49 @@ def create_source(**kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]
     t = create_space(xmin=0, npts=npts, Δx=Δt)
 
     return t, ou.ou(μ, λ, Δt, npts, σ, x0)
+
+
+def __half_life_transform(result: OLSResult, dt: float):
+    """
+    Add transformation used for half life OLS analysis.
+
+    Parameters
+    ----------
+    result: OLSResult
+        OLS analysis results.
+    """
+
+    model = r"$\Delta X_t = \lambda X_{t-1} \Delta t + \mu \Delta t + \sqrt{\Delta t} \varepsilon_t$"
+    λ = result.params[0].est / dt
+    half_life_param = ParamEst(est_id=result.est_id,
+                               est=-numpy.log(2.0) / λ,
+                               err=(numpy.log(2.0) / λ**2) * (result.params[0].err / dt),
+                               est_label=r"$t_H$",
+                               err_label=r"$\sigma_t_H$",
+                               order=1,
+                               row=0,
+                               column=0,
+                               param_type=OLSParamType.TRANS_PARAM.value)
+
+    lambda_param = ParamEst(est_id=result.est_id,
+                            est=λ,
+                            err=result.params[0].err / dt,
+                            est_label=r"$\lambda$",
+                            err_label=r"$\sigma_\lambda$",
+                            order=1,
+                            row=0,
+                            column=0,
+                            param_type=OLSParamType.TRANS_PARAM.value)
+
+    const = ParamEst(est_id=result.est_id,
+                     est=result.const.est,
+                     err=result.const.err,
+                     est_label=r"$\mu$",
+                     err_label=r"$\sigma_{\mu}$",
+                     order=1,
+                     row=0,
+                     column=0,
+                     param_type=OLSParamType.TRANS_CONST.value)    
+    
+    result.set_transforms(model, [OLSTransform(half_life_param), OLSTransform(lambda_param)], OLSTransform(const))
+

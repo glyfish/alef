@@ -14,8 +14,6 @@ def periodogram(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray
     ----------
     data : numpy.ndarray
         Data compared to function.
-    func : Callable[[float], float]
-        Function plotted as a function of x.
     results : OLSResult
         OLS results.
     x : numpy.ndarray[float], optional
@@ -87,8 +85,6 @@ def variance_agg(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarra
     ----------
     data : numpy.ndarray
         Data compared to function.
-    func : Callable[[float], float]
-        Function plotted as a function of x.
     results : OLSResult
         OLS results.
     x : numpy.ndarray[float], optional
@@ -160,8 +156,6 @@ def ecm_beta(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray[fl
     ----------
     data : numpy.ndarray
         Data compared to function.
-    func : Callable[[float], float]
-        Function plotted as a function of x.
     results : OLSResult
         OLS results.
     x : numpy.ndarray[float], optional
@@ -227,3 +221,75 @@ def ecm_beta(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray[fl
     comp.fscatter(axis, data, func, x, legend_loc=legend_loc, labels=labels, 
                   ylabel=ylabel, xlabel=xlabel, **kwargs)
 
+
+def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kwargs):
+    """"
+    Plot the results of an FBM periodogram analysis used to estimate the Hurst parameter.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Data compared to function.
+    results : OLSResult
+        OLS results.
+    x : numpy.ndarray[float], optional
+        Value plotted on x-axis (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (10,8))
+    """
+   
+    figsize = get_param_default_if_missing("figsize", (10, 6), **kwargs)
+    title = get_param_default_if_missing("title", None, **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+
+    if title is None:
+        kwargs["title"] = f"Mean Reversion Half-Life"
+
+    transform = results.param_transforms[0].param
+    const = results.const_transform.param
+    param = results.params[0]
+
+    mean_reversion_halflife = transform.est
+    λ = param.est
+    μ = const.est
+
+    dxt = numpy.diff(data)
+    x_lagged = data[:-1]
+
+    func = lambda x:  μ + λ * x
+
+    labels = ["Data", results.model]
+    xlabel = r"$X_{t-1}$"
+    ylabel = r"$\Delta X_t$"
+
+    estimates = f"{transform.est_label}={format(transform.est, '1.2f')}\n" + \
+                f"{transform.err_label}={format(transform.err, '1.2e')}\n" + \
+                f"{const.est_label}={format(const.est, '1.2e')}\n" + \
+                f"{const.err_label}={format(const.err, '1.2e')}\n" + \
+                f"$R^2$={format(results.r2, '1.2f')}"
+
+    bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
+    # axis.text(0.2, 0.4, estimates, bbox=bbox, fontsize=12.0, zorder=7, transform=axis.transAxes)
+
+    comp.fscatter(axis, dxt, func, x_lagged, legend_loc="upper right", labels=labels, ylabel=ylabel, xlabel=xlabel, **kwargs)
