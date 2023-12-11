@@ -283,13 +283,15 @@ def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kw
     xlabel = r"$X_{t-1}$"
     ylabel = r"$\Delta X_t$"
 
-    estimates = f"{transform.est_label}={format(transform.est, '1.2f')}\n" + \
-                f"{transform.err_label}={format(transform.err, '1.2e')}\n" + \
-                f"{const.est_label}={format(const.est, '1.2e')}\n" + \
-                f"{const.err_label}={format(const.err, '1.2e')}\n" + \
-                f"$R^2$={format(results.r2, '1.2f')}"
+    estimates = f"{transform.est_label}={transform.est: 1.2f}\n" + \
+                f"{transform.err_label}={transform.err: 1.2e}\n" + \
+                f"$\lambda$={param.est: 1.2e}\n" + \
+                f"$\sigma_\lambda$={param.err: 1.2e}\n" + \
+                f"{const.est_label}={const.est: 1.2e}\n" + \
+                f"{const.err_label}={const.err: 1.2e}\n" + \
+                f"$R^2$={results.r2: 1.2f}"
 
     bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
-    # axis.text(0.2, 0.4, estimates, bbox=bbox, fontsize=12.0, zorder=7, transform=axis.transAxes)
+    axis.text(0.1, 0.1, estimates, bbox=bbox, fontsize=12.0, zorder=7, transform=axis.transAxes)
 
     comp.fscatter(axis, dxt, func, x_lagged, legend_loc="upper right", labels=labels, ylabel=ylabel, xlabel=xlabel, **kwargs)

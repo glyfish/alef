@@ -484,7 +484,7 @@ def __half_life_transform(result: OLSResult, dt: float):
                                est=-numpy.log(2.0) / λ,
                                err=(numpy.log(2.0) / λ**2) * (result.params[0].err / dt),
                                est_label=r"$t_H$",
-                               err_label=r"$\sigma_t_H$",
+                               err_label=r"$\sigma_{t_H}$",
                                order=1,
                                row=0,
                                column=0,
@@ -496,7 +496,7 @@ def __half_life_transform(result: OLSResult, dt: float):
                             est_label=r"$\lambda$",
                             err_label=r"$\sigma_\lambda$",
                             order=1,
-                            row=0,
+                            row=1,
                             column=0,
                             param_type=OLSParamType.TRANS_PARAM.value)
 
