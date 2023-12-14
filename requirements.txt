@@ -11,6 +11,7 @@ attrs==23.1.0
 autopep8==1.5.5
 Babel==2.12.1
 backcall==0.2.0
+backtrader==1.9.78.123
 beautifulsoup4==4.12.2
 bleach==6.0.0
 certifi==2023.5.7
