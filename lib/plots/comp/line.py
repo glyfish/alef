@@ -142,9 +142,6 @@ def comparison(axis: pyplot.axis, y: numpy.ndarray, x: numpy.ndarray=None, **kwa
     if ncurve == 0:
         raise Exception("Length of y must be greater than zero.")
 
-    if labels is not None and ncurve != len(labels):
-        raise Exception("Length of labels must equal length of y.")
-
     if x is None:
         x = []
         for i in range(ncurve):

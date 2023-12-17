@@ -845,3 +845,52 @@ def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausality
     rank = len(numpy.unique(dep_var[causality_result]))
 
     return GrangerCausalityTestReport(est_id, rank, [GrangerCausalityTestResult.from_dict(r, est_id) for r in results])
+
+
+def compute_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute z-score of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and cumulative variance of samples as a function of time.
+    """
+
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    return time, stats.zscore(data, Δt)
+
+
+def compute_cumu_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute cumulative z-score of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    data: numpy.ndarray[float]
+        Sampled data.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and cumulative variance of samples as a function of time.
+    """
+
+    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
+
+    zscore = stats.zscore(data, Δt)
+    return time, zscore

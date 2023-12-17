@@ -483,7 +483,7 @@ def __half_life_transform(result: OLSResult, dt: float):
     half_life_param = ParamEst(est_id=result.est_id,
                                est=-numpy.log(2.0) / λ,
                                err=(numpy.log(2.0) / λ**2) * (result.params[0].err / dt),
-                               est_label=r"$t_H$",
+                               est_label=r"$t_{1/2}$",
                                err_label=r"$\sigma_{t_H}$",
                                order=1,
                                row=0,

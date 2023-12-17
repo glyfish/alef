@@ -339,12 +339,10 @@ def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
         Cumulative mean of samples as a function of time.
     """
 
-    ny = len(samples)
-    mean = numpy.zeros(ny)
-    mean[0] = samples[0]
-    for i in range(1, ny):
-        mean[i] = (float(i) * mean[i-1] + samples[i]) / float(i+1)
-    return mean
+    npts = numpy.arange(len(samples)) + 1
+    csum = numpy.cumsum(samples)
+
+    return csum / npts
 
 
 def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
@@ -364,13 +362,12 @@ def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[flo
         Cumulative variance of samples as a function of time.
     """
 
-    mean = cumu_mean(samples)
-    ny = len(samples)
-    var = numpy.zeros(ny)
-    var[0] = samples[0]**2
-    for i in range(1, ny):
-        var[i] = (float(i) * var[i-1] + samples[i]**2) / float(i + 1)
-    return (var - mean**2) / Δt
+    npts = numpy.arange(len(samples)) + 1
+    csum = numpy.cumsum(samples)
+    mean = csum / npts
+    csum2 = numpy.cumsum(samples**2)
+
+    return (csum2 / npts - mean**2) / Δt
 
 
 def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[float]:
@@ -411,14 +408,12 @@ def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[
     """
 
     nsample = min(len(x), len(y))
-    cov = numpy.zeros(nsample)
+    npts = numpy.arange(nsample) + 1
     meanx = cumu_mean(x)
     meany = cumu_mean(y)
-    cov[0] = x[0] * y[0]
+    cxy = numpy.cumsum(x * y) / npts
 
-    for i in range(1, nsample):
-        cov[i] = (float(i) * cov[i-1] + x[i] * y[i]) / float(i + 1)
-    return cov - meanx * meany
+    return cxy - meanx * meany
 
 
 def cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> float:
@@ -732,7 +727,7 @@ def multivariate_normal_pdf(vals: numpy.ndarray,
 
     return multivariate_normal.pdf(vals, μ, Ω)
 
-
+ 
 def multivariate_normal_samples(μ: numpy.ndarray[float], Ω: numpy.ndarray[float, float], n: int) -> numpy.ndarray[float]:
     """
     Return multivariate normal samples with the specified parameters.
@@ -831,6 +826,7 @@ def mae(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
 
     return numpy.mean(numpy.abs(pred - obs))
 
+
 def rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
     """
     Compute root mean squared error of prediction relative to target.
@@ -849,3 +845,44 @@ def rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
     """
 
     return numpy.sqrt(numpy.mean((pred - obs)**2))
+
+
+def zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
+    """
+    Compute z-score of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    float
+        Z-score of samples.
+    """
+
+    return (samples - numpy.mean(samples)) * Δt / numpy.std(samples)
+
+
+def cumu_zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
+    """
+    Compute cumulative z-score of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples.
+    Δt: float
+        Time delta (default 1.0)
+
+    Returns
+    -------
+    float
+        Z-score of samples.
+    """
+
+    csd = cumu_sd(samples, Δt)
+    return (samples - cumu_mean(samples)) / csd

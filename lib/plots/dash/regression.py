@@ -256,10 +256,13 @@ def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kw
         Specify legend title. (default None) 
     figsize : (int, int), optional
         Specify the width and height of plot (default is (10,8))
+    result_loc : string
+        Specify the location of the result text. (default lower right)
     """
    
     figsize = get_param_default_if_missing("figsize", (10, 6), **kwargs)
     title = get_param_default_if_missing("title", None, **kwargs)
+    result_loc = get_param_default_if_missing("result_loc", "lower right", **kwargs)
 
     _, axis = pyplot.subplots(figsize=figsize)
 
@@ -283,6 +286,14 @@ def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kw
     xlabel = r"$X_{t-1}$"
     ylabel = r"$\Delta X_t$"
 
+    x_result, y_result = 0.1, 0.1
+    if result_loc == "upper right":
+        x_result, y_result = 0.1, 0.6
+    elif result_loc == "lower left":
+        x_result, y_result = 0.6, 0.1
+    elif result_loc == "upper left":
+        x_result, y_result = 0.6, 0.6
+    
     estimates = f"{transform.est_label}={transform.est: 1.2f}\n" + \
                 f"{transform.err_label}={transform.err: 1.2e}\n" + \
                 f"$\lambda$={param.est: 1.2e}\n" + \
@@ -292,6 +303,6 @@ def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kw
                 f"$R^2$={results.r2: 1.2f}"
 
     bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
-    axis.text(0.1, 0.1, estimates, bbox=bbox, fontsize=12.0, zorder=7, transform=axis.transAxes)
+    axis.text(x_result, y_result, estimates, bbox=bbox, fontsize=12.0, zorder=7, transform=axis.transAxes)
 
     comp.fscatter(axis, dxt, func, x_lagged, legend_loc="upper right", labels=labels, ylabel=ylabel, xlabel=xlabel, **kwargs)
