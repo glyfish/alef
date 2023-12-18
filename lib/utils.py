@@ -279,3 +279,29 @@ def get_s_vals(**kwargs) -> list[int]:
         return svals
     else:
         raise Exception(f"smax and npts or svals is required")
+    
+
+def extract_date_range(date: numpy.ndarray[numpy.datetime64], data: numpy.ndarray[float], start_date: str, end_date: str) -> Tuple[numpy.ndarray[float], numpy.ndarray[numpy.datetime64]]:
+    """
+    Extract data from specified start date to specified end date.
+
+    Parameters
+    ----------
+    date: numpy.ndarray[numpy.datetime64]
+        Date array.
+    data: numpy.ndarray[float]
+        Data to extract from.
+    start_date: str
+        Start date.
+    end_date: str
+        End date.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[numpy.datetime64]]
+        Extracted data.
+    """
+
+    start_index = numpy.where(date >= numpy.datetime64(start_date))[0][0]
+    end_index = numpy.where(date == numpy.datetime64(end_date))[0][-1]
+    return date[start_index: end_index], data[start_index: end_index]

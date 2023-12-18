@@ -64,9 +64,9 @@ def periodogram(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray
     xlabel = r"$\omega$"
     ylabel = r"$\rho_\omega$"
 
-    estimates = f"{transforms[0].param.est_label}={format(transforms[0].param.est, '1.2f')}\n" + \
+    estimates = f"{transforms[0].param.est_label}={format(transforms[0].param.est, '1.2f')}, " + \
                 f"{transforms[0].param.err_label}={format(transforms[0].param.err, '1.2e')}\n" + \
-                f"{const.est_label}={format(const.est, '1.2e')}\n" + \
+                f"{const.est_label}={format(const.est, '1.2e')}, " + \
                 f"{const.err_label}={format(const.err, '1.2e')}\n" + \
                 f"$R^2$={format(results.r2, '1.2f')}"
 
@@ -135,9 +135,9 @@ def variance_agg(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarra
     xlabel = r"$m$"
     ylabel = r"VAR$\left(X^m\right)$"
 
-    estimates = f"{transforms[0].param.est_label}={format(transforms[0].param.est, '1.2f')}\n" + \
+    estimates = f"{transforms[0].param.est_label}={format(transforms[0].param.est, '1.2f')}, " + \
                 f"{transforms[0].param.err_label}={format(transforms[0].param.err, '1.2e')}\n" + \
-                f"{const.est_label}={format(const.est, '1.2e')}\n" + \
+                f"{const.est_label}={format(const.est, '1.2e')}, " + \
                 f"{const.err_label}={format(const.err, '1.2e')}\n" + \
                 f"$R^2$={format(results.r2, '1.2f')}"
 
@@ -206,8 +206,18 @@ def ecm_beta(data: numpy.ndarray[float], results: OLSResult, x: numpy.ndarray[fl
         legend_loc = "upper right"
 
     labels = ["Data", results.model]
-    xlabel = r"$x_t$"
-    ylabel = r"$y_t$"
+
+    if 'xlabel' in kwargs:
+        xlabel = kwargs['xlabel']
+        del(kwargs['xlabel'])
+    else:
+        xlabel = r"$X_{t-1}$"
+
+    if 'ylabel' in kwargs:
+        ylabel = kwargs['ylabel']
+        del(kwargs['ylabel'])
+    else:
+        ylabel = r"$Y_{t-1}$"
 
     estimates = f"{transforms[0].param.est_label}={format(transforms[0].param.est, '1.2f')}, " + \
                 f"{transforms[0].param.err_label}={format(transforms[0].param.err, '1.2e')}\n" + \
@@ -294,12 +304,9 @@ def mean_reversion_halflife(data: numpy.ndarray[float], results: OLSResult, **kw
     elif result_loc == "upper left":
         x_result, y_result = 0.6, 0.6
     
-    estimates = f"{transform.est_label}={transform.est: 1.2f}\n" + \
-                f"{transform.err_label}={transform.err: 1.2e}\n" + \
-                f"$\lambda$={param.est: 1.2e}\n" + \
-                f"$\sigma_\lambda$={param.err: 1.2e}\n" + \
-                f"{const.est_label}={const.est: 1.2e}\n" + \
-                f"{const.err_label}={const.err: 1.2e}\n" + \
+    estimates = f"{transform.est_label}={transform.est: 1.2f}, {transform.err_label}={transform.err: 1.2e}\n" + \
+                f"$\lambda$={param.est: 1.2e}, $\sigma_\lambda$={param.err: 1.2e}\n" + \
+                f"{const.est_label}={const.est: 1.2e}, {const.err_label}={const.err: 1.2e}\n" + \
                 f"$R^2$={results.r2: 1.2f}"
 
     bbox = dict(boxstyle='square,pad=1', facecolor='white', alpha=0.75, edgecolor='white')
