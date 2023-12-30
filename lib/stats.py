@@ -390,6 +390,27 @@ def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[floa
     return numpy.sqrt(cumu_var(samples, Δt))
 
 
+def moving_avg(samples: numpy.ndarray, window: int) -> numpy.ndarray:
+    """
+    Moving average of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving average of samples as a function of time.
+    """
+
+    result = numpy.cumsum(samples, dtype=float)
+    result[window:] = result[window:] - result[:-window]
+    return result[window - 1:] / window
+
 def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Cumulative covariance of the samples.
