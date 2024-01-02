@@ -411,6 +411,31 @@ def moving_avg(samples: numpy.ndarray, window: int) -> numpy.ndarray:
     result[window:] = result[window:] - result[:-window]
     return result[window - 1:] / window
 
+
+def moving_var(samples: numpy.ndarray, window: int) -> numpy.ndarray:
+    """
+    Moving variance of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving variance of samples as a function of time.
+    """
+
+    result = numpy.cumsum(samples, dtype=float)
+    result[window:] = result[window:] - result[:-window]
+    result2 = numpy.cumsum(samples**2, dtype=float)
+    result2[window:] = result2[window:] - result2[:-window]
+    return (result2[window - 1:] - result[window - 1:]**2 / window) / window
+
+
 def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Cumulative covariance of the samples.
