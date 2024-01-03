@@ -390,7 +390,7 @@ def cumu_sd(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[floa
     return numpy.sqrt(cumu_var(samples, Δt))
 
 
-def moving_avg(samples: numpy.ndarray, window: int) -> numpy.ndarray:
+def moving_avg(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
     """
     Moving average of samples.
 
@@ -412,7 +412,7 @@ def moving_avg(samples: numpy.ndarray, window: int) -> numpy.ndarray:
     return result[window - 1:] / window
 
 
-def moving_var(samples: numpy.ndarray, window: int) -> numpy.ndarray:
+def moving_var(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
     """
     Moving variance of samples.
 
@@ -893,7 +893,7 @@ def rmse(pred: numpy.ndarray[float], obs: numpy.ndarray[float]) -> float:
     return numpy.sqrt(numpy.mean((pred - obs)**2))
 
 
-def zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
+def zscore(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
     """
     Compute z-score of samples.
 
@@ -901,8 +901,8 @@ def zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
     ----------
     samples: numpy.ndarray[float]
         Samples.
-    Δt: float
-        Time delta (default 1.0)
+    window: int
+        Averaging window.
 
     Returns
     -------
@@ -910,7 +910,7 @@ def zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
         Z-score of samples.
     """
 
-    return (samples - numpy.mean(samples)) * Δt / numpy.std(samples)
+    return (samples[window - 1:] - moving_avg(samples, window)) / moving_var(samples, window)
 
 
 def cumu_zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:

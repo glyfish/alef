@@ -175,6 +175,72 @@ def compute_cumu_var(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) 
     return time, stats.cumu_var(data, Δt)
 
 
+def compute_moving_avg(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Moving average of samples.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    samples: numpy.ndarray[float]
+        Sampled data.
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving average of samples as a function of time.
+    """
+
+    return time[window - 1:], stats.moving_avg(samples, window)
+
+
+def compute_moving_var(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Moving variance of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    time: numpy.ndarray
+        Time
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving variance of samples as a function of time.
+    """
+
+    return time[window - 1:], stats.moving_var(samples, window)
+
+
+def compute_moving_std(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Moving standard deviation of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    time: numpy.ndarray
+        Time
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving variance of samples as a function of time.
+    """
+
+    return time[window - 1:], numpy.sqrt(stats.moving_var(samples, window))
+
+
 def compute_cumu_cov(time: numpy.ndarray, x: numpy.ndarray[float], y: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Cumulative covariance of samples.
@@ -195,7 +261,6 @@ def compute_cumu_cov(time: numpy.ndarray, x: numpy.ndarray[float], y: numpy.ndar
     """
 
     return time, stats.cumu_cov(x, y)
-
 
 
 def compute_agg_var(data: numpy.ndarray, **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
@@ -847,7 +912,7 @@ def __granger_causality_model_from_result(result: DataFrame) -> GrangerCausality
     return GrangerCausalityTestReport(est_id, rank, [GrangerCausalityTestResult.from_dict(r, est_id) for r in results])
 
 
-def compute_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+def compute_zscore(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute z-score of samples.
 
@@ -855,10 +920,10 @@ def compute_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) ->
     ----------
     time: numpy.ndarray
         Time
-    data: numpy.ndarray[float]
+    samples: numpy.ndarray[float]
         Sampled data.
-    Δt: float
-        Time delta (default 1.0)
+    window: int
+        Averaging window.
 
     Returns
     -------
@@ -866,9 +931,7 @@ def compute_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) ->
         Time and cumulative variance of samples as a function of time.
     """
 
-    Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
-
-    return time, stats.zscore(data, Δt)
+    return time[window - 1:], stats.zscore(samples, window)
 
 
 def compute_cumu_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
