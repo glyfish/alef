@@ -436,6 +436,26 @@ def moving_var(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[floa
     return (result2[window - 1:] - result[window - 1:]**2 / window) / window
 
 
+def moving_std(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Moving standard deviation of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    window: int
+        Window size.
+
+    Returns
+    -------
+    numpy.ndarray[float]
+        Moving variance of samples as a function of time.
+    """
+
+    return numpy.sqrt(moving_var(samples, window))
+
+
 def cumu_cov(x: numpy.ndarray[float], y: numpy.ndarray[float]) -> numpy.ndarray[float]:
     """
     Cumulative covariance of the samples.
@@ -910,7 +930,47 @@ def zscore(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
         Z-score of samples.
     """
 
-    return (samples[window - 1:] - moving_avg(samples, window)) / moving_var(samples, window)
+    return (samples[window - 1:] - moving_avg(samples, window)) / moving_std(samples, window)
+
+
+def cumu_linear_profit_loss(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Compute cumulative profit and loss assuming linear trading strategy
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples.
+    window: int
+        Averaging window.
+
+    Returns
+    -------
+    float
+        Profit and loss curve
+    """
+
+    z = zscore(samples, window)
+    daily_pnl = -z[1:] * fractional_purchase(samples, window)
+    return numpy.cumsum(daily_pnl)
+
+
+def fractional_purchase(samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Compute profit and loss assuming linear trading strategy
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Samples.
+    window: int
+        Averaging window.
+
+    Returns
+    -------
+    float
+        Profit and loss curve
+    """
+
+    return (samples[window - 1:-1] - samples[window:]) / samples[window:]
 
 
 def cumu_zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
@@ -931,4 +991,4 @@ def cumu_zscore(samples: numpy.ndarray[float], Δt=1.0) -> numpy.ndarray[float]:
     """
 
     csd = cumu_sd(samples, Δt)
-    return (samples - cumu_mean(samples)) / csd
+    return (samples[1:] - cumu_mean(samples[1:])) / csd[1:]

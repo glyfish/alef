@@ -955,5 +955,49 @@ def compute_cumu_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwarg
 
     Δt = get_param_default_if_missing("Δt", 1.0, **kwargs)
 
-    zscore = stats.zscore(data, Δt)
-    return time, zscore
+    return time[1:], stats.cumu_zscore(data, Δt)
+
+
+def compute_fractional_price_change(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Compute fractional price change used in linear trading strategy.
+
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    samples: numpy.ndarray[float]
+        Samples.
+    window: int
+        Averaging window.
+
+    Returns
+    -------
+    float
+        Profit and loss curve
+    """
+
+    return time[window - 1:], stats.fractional_purchase(samples, window)
+
+
+def compute_cumu_linear_profit_loss(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> numpy.ndarray[float]:
+    """
+    Compute cumulative profit and loss assuming linear trading strategy
+    
+    Parameters
+    ----------
+    time: numpy.ndarray
+        Time
+    samples: numpy.ndarray[float]
+        Samples.
+    window: int
+        Averaging window.
+
+    Returns
+    -------
+    float
+        Profit and loss curve
+    """
+
+    return time[window - 1:], stats.cumu_linear_profit_loss(samples, window)
+
