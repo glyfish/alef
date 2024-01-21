@@ -934,6 +934,26 @@ def compute_zscore(time: numpy.ndarray, samples: numpy.ndarray[float], window: i
     return time[window - 1:], stats.zscore(samples, window)
 
 
+def compute_moving_std(time: numpy.ndarray, samples: numpy.ndarray[float], window: int) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
+    """
+    Moving standard deviation of samples.
+
+    Parameters
+    ----------
+    samples: numpy.ndarray[float]
+        Sampled data.
+    window: int
+        Window size.
+
+    Returns
+    -------
+    Tuple[numpy.ndarray[float], numpy.ndarray[float]]
+        Time and cumulative variance of samples as a function of time.
+    """
+
+    return time[window - 1:], stats.moving_std(samples, window)
+
+
 def compute_cumu_zscore(time: numpy.ndarray, data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Compute cumulative z-score of samples.
