@@ -20,13 +20,24 @@ class MeanRevertingTimeSeries(bt.Strategy):
     """
 
     params = (
-        ('window', 15),
+        # Half-life of mean reversion estimate
+        ('half_life', 15),
+        # Multiple applied to zscore to determine stake size
+        ('stake_multiple', 100)
     )
 
-
     def __init__(self):
+        # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
 
+        # To keep track of pending orders and buy price/commission, current  bar_executed
+        self.order = None
+        self.buyprice = None
+        self.buycomm = None
+
+        # Add a ZScore indicator
+        self.zscore = ZScore(self.datas[0], period=self.params.window)
+        self.zscore.csv = True
 
     def log(self, txt: str, dt: datetime=None):
         """
@@ -56,9 +67,30 @@ class MeanRevertingTimeSeries(bt.Strategy):
         
         if order.status in [order.Submitted, order.Accepted]:
             return
+        
+        # Check if an order has been completed
+        # Attention: broker could reject order if not enough cash
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.log('BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
+                         (order.executed.price, order.executed.value, order.executed.comm))
+
+                self.buyprice = order.executed.price
+                self.buycomm = order.executed.comm
+            else:  # Sell
+                self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
+                         (order.executed.price, order.executed.value, order.executed.comm))
+
+            # save bar when order was executed
+            self.bar_executed = len(self)
+
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            self.log('Order Canceled/Margin/Rejected')
+
+        self.order = None
 
 
-    def notify_trade(self, trade):
+    def notify_trade(self, trade: bt.Trade):
         """
         Called when a trade has a state change.
 
@@ -79,7 +111,39 @@ class MeanRevertingTimeSeries(bt.Strategy):
         Called on each new bar.
         """
 
+        #  Log the closing price
         self.log('Close, %.2f' % self.dataclose[0])
+
+        # Check if an order is pending ... if yes, we cannot send a 2nd one
+        if self.order:
+            return
+
+        # Calculate the desired stake size
+        size = self.params.stake_multiple * self.zscore[0]
+
+        # Check if a position is held
+        if not self.position:
+            # If zscore < 0.0 buy a multiple of the negative z-score value. For this case price is below average
+            # and nothing is owned.
+            if self.zscore[0] < 0.0:
+                self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.2f}, Size, {size}")
+                self.order = self.buy(size=size)
+        else:
+            # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
+            if self.zscore[0] < 0.0:
+                delta = self.position.size - size
+                # Must sell delta to maintain position.
+                if delta < 0:
+                    self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.2f}, Size, {-delta}")
+                    self.order = self.sell(size=-delta)
+                # Must buy delta to maintain position.
+                elif delta > 0:
+                    self.log('BUY CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
+                    self.order = self.sell(size=delta)
+            # If z-score is > 0.0 sell everything.
+            elif self.zscore[0] < 0.0:
+                self.log('SELL CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
+                self.order = self.sell()
 
 
 if __name__ == '__main__':
@@ -107,6 +171,9 @@ if __name__ == '__main__':
 
     # Set the commission - 0.1% ... divide by 100 to remove the %
     cerebro.broker.setcommission(commission=0.0)
+
+    # Write output to file
+    cerebro.addwriter(bt.WriterFile, csv=True, out='apps/output/mean-reversion-timeseries-CAD=X.csv')
 
     # Print out the starting conditions
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())

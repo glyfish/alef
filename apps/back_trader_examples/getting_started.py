@@ -30,6 +30,7 @@ class TestStrategy(bt.Strategy):
 
         # Add a MovingAverageSimple indicator
         self.sma = bt.indicators.MovingAverageSimple(self.datas[0], period=self.params.maperiod)
+        self.sma.csv = True
 
     def notify_order(self, order):
         # If order is submitted/accepted, do nothing
@@ -119,9 +120,11 @@ if __name__ == '__main__':
     # Set the commission - 0.1% ... divide by 100 to remove the %
     cerebro.broker.setcommission(commission=0.0)
 
-
     # Print out the starting conditions
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+    # Write output to file
+    cerebro.addwriter(bt.WriterFile, csv=True, out='apps/output/getting_started.csv')
 
     # Run over everything
     cerebro.run()

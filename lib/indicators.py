@@ -31,6 +31,7 @@ class ZScore(bt.Indicator):
     def next(self):
         self.lines.zscore[0] = zscore(self.data.get(size=self.p.window), self.p.window)
 
+
 class MovingStandardDeviation(bt.Strategy):
     """
     Implementation of moving standard deviation.
