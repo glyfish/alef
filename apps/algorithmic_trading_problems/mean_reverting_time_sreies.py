@@ -139,7 +139,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
                 # Must buy delta to maintain position.
                 elif delta > 0:
                     self.log('BUY CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
-                    self.order = self.sell(size=delta)
+                    self.order = self.buy(size=delta)
             # If z-score is > 0.0 sell everything.
             elif self.zscore[0] < 0.0:
                 self.log('SELL CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
