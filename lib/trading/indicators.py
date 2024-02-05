@@ -64,7 +64,7 @@ class MovingStandardDeviation(bt.Strategy):
     lines = ('mstd',)
 
     params = (
-        ('window', 15),
+        ('period', 15),
     )
 
     def next(self):

@@ -7,7 +7,7 @@ import sys  # To find out the script name (in argv[0])
 # Import the backtrader platform
 import backtrader as bt
 
-from lib.indicators import ZScore
+from lib.trading.indicators import ZScore
 
 
 class MeanRevertingTimeSeries(bt.Strategy):
