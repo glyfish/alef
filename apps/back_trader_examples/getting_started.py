@@ -11,7 +11,7 @@ import backtrader as bt
 # Create a Strategy
 class TestStrategy(bt.Strategy):
     params = (
-        ('maperiod', 15),
+        ('maperiod', 50),
     )
 
     def log(self, txt, dt=None):

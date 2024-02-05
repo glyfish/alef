@@ -1,12 +1,13 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 from lib.stats import moving_std, zscore
+from lib.utils import get_param_default_if_missing
 
 # Import the backtrader platform
 import backtrader as bt
 
 
-class ZScore(bt.Indicator):
+class ZScore(bt.ind.PeriodN):
     """
     Implementation of the z-score indicator described in,
 
@@ -23,14 +24,30 @@ class ZScore(bt.Indicator):
     """
 
     lines = ('zscore',)
+    alias = ('ZS', 'ZScore',)
 
     params = (
-        ('window', 15),
+        ('period', 15),
     )
 
-    def next(self):
-        self.lines.zscore[0] = zscore(self.data.get(size=self.p.window), self.p.window)
+    def __init__(self, **kwargs):
+        period = get_param_default_if_missing("period", self.p.period, **kwargs)
+        setattr(self.params, "period", period)
+        super(ZScore, self).__init__()
 
+        
+    def next(self):
+        data = self.data.get(size=self.p.period)
+        self.lines.zscore[0] = zscore(data, self.p.period)
+
+    
+    def once(self, start, end):
+        src = self.data.array
+        dst = self.line.array
+        period = self.p.period
+
+        for i in range(start, end):
+            pass
 
 class MovingStandardDeviation(bt.Strategy):
     """

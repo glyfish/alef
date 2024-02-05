@@ -21,7 +21,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
 
     params = (
         # Half-life of mean reversion estimate
-        ('half_life', 15),
+        ('half_life', 124),
         # Multiple applied to zscore to determine stake size
         ('stake_multiple', 100)
     )
@@ -36,7 +36,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.buycomm = None
 
         # Add a ZScore indicator
-        self.zscore = ZScore(self.datas[0], period=self.params.window)
+        self.zscore = ZScore(self.datas[0], period=self.params.half_life)
         self.zscore.csv = True
 
     def log(self, txt: str, dt: datetime=None):
