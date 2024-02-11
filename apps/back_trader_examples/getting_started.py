@@ -11,7 +11,7 @@ import backtrader as bt
 # Create a Strategy
 class TestStrategy(bt.Strategy):
     params = (
-        ('maperiod', 50),
+        ('maperiod', 150),
     )
 
     def log(self, txt, dt=None):
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     data = bt.feeds.YahooFinanceCSVData(
         dataname=dataname,
         fromdate = datetime(2007, 7, 22),
-        todate = datetime(2007, 12, 31),
+        todate = datetime(2012, 3, 28),
         reverse=False)
 
     # Add the Data Feed to Cerebro
