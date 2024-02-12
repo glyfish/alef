@@ -1,9 +1,10 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
-from lib.stats import moving_std, zscore
+import numpy
+
+from lib.trading.metrics import std, zscore
 from lib.utils import get_param_default_if_missing
 
-# Import the backtrader platform
 import backtrader as bt
 
 
@@ -38,7 +39,8 @@ class ZScore(bt.ind.PeriodN):
         
     def next(self):
         data = self.data.get(size=self.p.period)
-        self.lines.zscore[0] = zscore(data, self.p.period)
+        result = zscore(data)
+        self.lines.zscore[0] = result
 
     
     def once(self, start, end):
@@ -47,7 +49,11 @@ class ZScore(bt.ind.PeriodN):
         period = self.p.period
 
         for i in range(start, end):
-            pass
+            window_start = i - period + 1
+            window_end = i + 1
+            result = zscore(numpy.flip(src[window_start:window_end]))
+            dst[i] = result
+
 
 class MovingStandardDeviation(bt.Strategy):
     """
@@ -67,5 +73,25 @@ class MovingStandardDeviation(bt.Strategy):
         ('period', 15),
     )
 
+    def __init__(self, **kwargs):
+        period = get_param_default_if_missing("period", self.p.period, **kwargs)
+        setattr(self.params, "period", period)
+        super(MovingStandardDeviation, self).__init__()
+
+
     def next(self):
-        self.lines.mstd[0] = moving_std(self.data.get(size=self.p.window), self.p.window)
+        data = self.data.get(size=self.p.period)
+        result = std(data)
+        self.lines.mstd[0] = result
+
+    
+    def once(self, start, end):
+        src = self.data.array
+        dst = self.line.array
+        period = self.p.period
+
+        for i in range(start, end):
+            window_start = i - period + 1
+            window_end = i + 1
+            result = std(src[window_start:window_end])
+            dst[i] = result

@@ -1,1 +1,1 @@
-from lib.trading.metrics import zscore, compute_zscore
+from lib.trading.metrics import zscore, compute_zscore, std, compute_std

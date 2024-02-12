@@ -52,7 +52,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
         """
 
         dt = dt or self.datas[0].datetime.date(0)
-        print('%s, %s' % (dt.isoformat(), txt))
+        print(f"{dt.isoformat()}, {txt}")
 
 
     def notify_order(self, order: bt.Order):
@@ -72,14 +72,11 @@ class MeanRevertingTimeSeries(bt.Strategy):
         # Attention: broker could reject order if not enough cash
         if order.status in [order.Completed]:
             if order.isbuy():
-                self.log('BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                         (order.executed.price, order.executed.value, order.executed.comm))
-
+                self.log(f"BUY EXECUTED, Price {order.executed.price:.2f}, Cost {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
             else:  # Sell
-                self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
-                         (order.executed.price, order.executed.value, order.executed.comm))
+                self.log(f"SELL EXECUTED, Price: {order.executed.price:.2f}, Cost: {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
 
             # save bar when order was executed
             self.bar_executed = len(self)
@@ -112,37 +109,39 @@ class MeanRevertingTimeSeries(bt.Strategy):
         """
 
         #  Log the closing price
-        self.log('Close, %.2f' % self.dataclose[0])
+        self.log(f"Close {self.dataclose[0]:.2f}")
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return
 
         # Calculate the desired stake size
-        size = self.params.stake_multiple * self.zscore[0]
+        size = abs(int(self.params.stake_multiple * self.zscore[0]))
+        self.log(f"Z-Score {self.zscore[0]:.3f}, Size {size}, Position {self.position.size}")
 
         # Check if a position is held
         if not self.position:
             # If zscore < 0.0 buy a multiple of the negative z-score value. For this case price is below average
             # and nothing is owned.
             if self.zscore[0] < 0.0:
-                self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.2f}, Size, {size}")
+                self.log(f"BUY CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
                 self.order = self.buy(size=size)
         else:
             # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
             if self.zscore[0] < 0.0:
-                delta = self.position.size - size
+                delta = size - self.position.size
+                self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Position {self.position.size}, Size {size}, Delta {delta}")
                 # Must sell delta to maintain position.
                 if delta < 0:
-                    self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.2f}, Size, {-delta}")
+                    self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
                     self.order = self.sell(size=-delta)
                 # Must buy delta to maintain position.
                 elif delta > 0:
-                    self.log('BUY CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
+                    self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
                     self.order = self.buy(size=delta)
             # If z-score is > 0.0 sell everything.
-            elif self.zscore[0] < 0.0:
-                self.log('SELL CREATE, %.2f, ZScore, %.2f' % (self.dataclose[0], self.zscore[0]))
+            elif self.zscore[0] > 0.0:
+                self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
                 self.order = self.sell()
 
 
@@ -156,7 +155,7 @@ if __name__ == '__main__':
     dataname = os.path.abspath('data/algorithmic_trading/CAD=X.csv')
     data = bt.feeds.YahooFinanceCSVData(
         dataname=dataname,
-        fromdate = datetime(2007, 7, 22),
+        fromdate = datetime(2007, 7, 23),
         todate = datetime(2012, 3, 28),
         reverse=False)
 
