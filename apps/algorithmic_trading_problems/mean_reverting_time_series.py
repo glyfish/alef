@@ -142,7 +142,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
             # If z-score is > 0.0 sell everything.
             elif self.zscore[0] > 0.0:
                 self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
-                self.order = self.sell()
+                self.order = self.sell(size=self.position.size)
 
 
 if __name__ == '__main__':

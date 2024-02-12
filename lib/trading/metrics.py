@@ -35,9 +35,6 @@ def zscore(samples: numpy.ndarray[float]) -> float:
     std = numpy.std(samples)
     val = samples[0]
 
-    print(samples)
-    print(f"mean: {mean}, std: {std}, val: {val}, zscore: {(val - mean) / std}, npts: {len(samples)}")
-
     return (val - mean) / std if std > 0 else 0.0
 
 
