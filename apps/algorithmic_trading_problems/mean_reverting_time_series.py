@@ -149,9 +149,6 @@ if __name__ == '__main__':
     # Create a cerebro instance
     cerebro = bt.Cerebro()
 
-    # Add a strategy
-    cerebro.addstrategy(MeanRevertingTimeSeries)
-
     dataname = os.path.abspath('data/algorithmic_trading/CAD=X.csv')
     data = bt.feeds.YahooFinanceCSVData(
         dataname=dataname,
@@ -162,11 +159,14 @@ if __name__ == '__main__':
     # Add the Data Feed to Cerebro
     cerebro.adddata(data)
 
-    # Set our desired cash start
-    cerebro.broker.setcash(1000.0)
+    # Add a strategy
+    cerebro.addstrategy(MeanRevertingTimeSeries)
 
-    # Add a FixedSize sizer according to the stake
-    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+    # Add analyzers
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='strat_sharpe_ration')
+
+    # Set cash start
+    cerebro.broker.setcash(1000.0)
 
     # Set the commission - 0.1% ... divide by 100 to remove the %
     cerebro.broker.setcommission(commission=0.0)
@@ -175,10 +175,14 @@ if __name__ == '__main__':
     cerebro.addwriter(bt.WriterFile, csv=True, out='apps/output/mean-reversion-timeseries-CAD=X.csv')
 
     # Print out the starting conditions
-    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
 
     # Run over everything
-    cerebro.run()
+    strats = cerebro.run()
 
     # Print out the final result
-    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}")
+    print('Sharpe Ratio:', strats[0].analyzers.strat_sharpe_ration.get_analysis())
+
+    # Plot the result
+    cerebro.plot()

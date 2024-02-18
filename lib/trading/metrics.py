@@ -15,8 +15,7 @@ from lib.utils import verify_condition
 def zscore(samples: numpy.ndarray[float]) -> float:
     """
     Calculate the z-score using samples to compute the mean and standard deviation
-    and use the first value in samples as the test value. It is assumed that the
-    data is backtrader line order which has the most recent value at the beginning of the array.
+    and use the last value in samples as the test value.
 
     Parameters
     ----------
@@ -33,7 +32,7 @@ def zscore(samples: numpy.ndarray[float]) -> float:
 
     mean = numpy.mean(samples)
     std = numpy.std(samples)
-    val = samples[0]
+    val = samples[-1]
 
     return (val - mean) / std if std > 0 else 0.0
 
@@ -59,7 +58,7 @@ def compute_zscore(time: numpy.ndarray[float], data: numpy.ndarray[float], windo
     """
 
     npts = len(data) - window + 1
-    zscores = [zscore(numpy.flip(data[i:i + window])) for i in range(npts)]
+    zscores = [zscore(data[i:i + window]) for i in range(npts)]
     return time[window - 1:], numpy.array(zscores)
 
 

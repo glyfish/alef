@@ -39,7 +39,7 @@ class ZScore(bt.ind.PeriodN):
         
     def next(self):
         data = self.data.get(size=self.p.period)
-        result = zscore(data)
+        result = zscore(numpy.flip(data))
         self.lines.zscore[0] = result
 
     
@@ -51,7 +51,7 @@ class ZScore(bt.ind.PeriodN):
         for i in range(start, end):
             window_start = i - period + 1
             window_end = i + 1
-            result = zscore(numpy.flip(src[window_start:window_end]))
+            result = zscore(src[window_start:window_end])
             dst[i] = result
 
 
