@@ -676,8 +676,48 @@ def scatter(y: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
         Plot x-axis label (default is 'x')
     ylabel : string, optional
         Plot y-axis label (default is 'y')
-    lw : int, optional
-        Plot line width (default is 2)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    markers : list[string]
+        Symbols used to mark data points. (default 'o')
+    marker_size : float
+        Symbols used to mark data points. (default 'o')
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
+    
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.scatter(axis, y, x, **kwargs)
+
+
+def scatter_comparison(y: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
+    """"
+    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y : numpy.ndarray
+        Data plotted on y-axis.
+    x : numpy.ndarray[float]
+        Value plotted on x-axis
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
     labels : [string], optional
         Curve labels shown in legend.
     ylim : (float, float)
@@ -688,6 +728,10 @@ def scatter(y: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     plot_axis_type : PlotAxisType
         The type of axis used in the plot    
+    markers : list[string]
+        Symbols used to mark data points. (default 'o')
+    marker_size : float
+        Symbols used to mark data points. (default 'o')
     legend_loc : string
         Specify legend location. (default best)
     legend_title : string

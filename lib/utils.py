@@ -2,6 +2,8 @@ import numpy
 from enum import Enum
 from typing import Tuple
 
+from pandas import read_csv, DataFrame
+
 def get_param_throw_if_missing(param: str, **kwargs):
     """
     Raise exception if parameter is missing from kwargs.
@@ -305,3 +307,42 @@ def extract_date_range(date: numpy.ndarray[numpy.datetime64], data: numpy.ndarra
     start_index = numpy.where(date >= numpy.datetime64(start_date))[0][0]
     end_index = numpy.where(date == numpy.datetime64(end_date))[0][-1]
     return date[start_index: end_index], data[start_index: end_index]
+
+
+def read_backtrader_data(file_path: str) -> DataFrame:
+    """
+    Read a backtrader back test output file at the specified path
+
+    Parameters
+    ----------
+    file_path: str
+        File path.
+
+    Returns
+    -------
+    Pandas DataFrame
+        Backtrader output data.        
+    """
+
+    data = read_csv(file_path, index_col=0, parse_dates=["datetime"], date_format='%Y-%m-%d %H:%M:%S.%f')
+    data.fillna(0.0, inplace=True)
+    return data
+
+
+def read_yahoo_data(file_path: str) -> DataFrame:
+    """
+    Read a yahoo quote CSV file at the specified path
+
+    Parameters
+    ----------
+    file_path: str
+        File path.
+
+    Returns
+    -------
+    Pandas DataFrame
+        Yahoo quote data.
+    """
+    
+    return read_csv(file_path, index_col=0, parse_dates=['Date']).sort_values(by='Date').dropna()
+

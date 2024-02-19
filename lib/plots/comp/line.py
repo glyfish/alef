@@ -537,7 +537,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
 
 def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[float], **kwargs):
     """"
-    Compare data to a function by plotting the functions as a curve and as a scatter plot..
+    Plot data in a scatter plot.
 
     Parameters
     ----------
@@ -555,10 +555,6 @@ def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[floa
         Plot x-axis label (default is 'x')
     ylabel : string, optional
         Plot y-axis label (default is 'y')
-    lw : int, optional
-        Plot line width (default is 2)
-    labels : [string], optional
-        Curve labels shown in legend.
     ylim : (float, float)
         Specify the limits for the y axis. (default None)
     xlim : (float, float)
@@ -566,7 +562,11 @@ def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[floa
     scilimits : (-int, int)
         Specify the order where axis are labeled using scientific notation. (default (-3, 3))
     plot_axis_type : PlotAxisType
-        The type of axis used in the plot    
+        The type of axis used in the plot
+    marker : string
+        Symbol used to mark data points. (default 'o')
+    marker_size : float
+        Symbols used to mark data points. (default 5.0)
    """
 
     plot_axis_type = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
@@ -575,17 +575,26 @@ def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[floa
     ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
     labels         = get_param_default_if_missing("labels", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
-    lw             = get_param_default_if_missing("lw", 2, **kwargs)
     ylim           = get_param_default_if_missing("ylim", None, **kwargs)
     xlim           = get_param_default_if_missing("xlim", None, **kwargs)
     scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
+    marker         = get_param_default_if_missing("marker", 'o', **kwargs)
+    marker_size    = get_param_default_if_missing("marker_size", 5.0, **kwargs)
+    
 
     if x is None:
         npts = len(data)
         x = numpy.linspace(0.0, float(npts - 1), npts)
 
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64):
+        converter = mdates.ConciseDateConverter()
+        munits.registry[numpy.datetime64] = converter
+        munits.registry[date] = converter
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     if labels is None:
         labels = ["Data", "Fit"]
@@ -604,15 +613,120 @@ def scatter(axis: pyplot.axis, data: numpy.ndarray[float], x: numpy.ndarray[floa
     
     if plot_axis_type.value == PlotType.LOG.value:
         logStyle(axis, x, data)
-        axis.loglog(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.loglog(x, data, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
     elif plot_axis_type.value == PlotType.XLOG.value:
         logXStyle(axis, x, data)
-        axis.semilogx(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.semilogx(x, data, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
     elif plot_axis_type.value == PlotType.YLOG.value:
         logYStyle(axis, x, data)
-        axis.semilogy(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.semilogy(x, data, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
     else:
-        axis.plot(x, data, marker='o', markersize=5.0, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+        axis.plot(x, data, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[0])
+
+
+def scatter_comparison(axis: pyplot.axis, data: list[numpy.ndarray[float]], x: numpy.ndarray[float], **kwargs):
+    """"
+    Plot multiple data sets that share the same x-axis in a scatter plot.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    x : numpy.ndarray[float]
+        Value plotted on x-axis.
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    labels : [string], optional
+        Curve labels shown in legend. Must have length of 2.
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    markers : list[string]
+        Symbols used to mark data points. (default 'o')
+    marker_size : float
+        Symbols used to mark data points. (default 'o')
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None) 
+   """
+
+    plot_axis_type = get_param_default_if_missing("plot_axis_type", PlotType.LINEAR, **kwargs)
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", None, **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", None, **kwargs)
+    labels         = get_param_default_if_missing("labels", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
+    scilimits      = get_param_default_if_missing("scilimits", (-4, 4), **kwargs)
+    markers        = get_param_default_if_missing("marker", None, **kwargs)
+    marker_size    = get_param_default_if_missing("marker_size", 5.0, **kwargs)
+    legend_loc     = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_title   = get_param_default_if_missing("legend_title", None, **kwargs)
+
+    ncurve = len(data)
+
+    if x is None:
+        npts = len(data)
+        x = numpy.linspace(0.0, float(npts - 1), npts)
+
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64):
+        converter = mdates.ConciseDateConverter()
+        munits.registry[numpy.datetime64] = converter
+        munits.registry[date] = converter
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+
+    if labels is None:
+        labels = ["Data", "Fit"]
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
+
+    if title is not None:
+        axis.set_title(title, y=1.0 + title_offset)
+
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+    
+    for i in range(ncurve):
+        marker = markers[i] if markers is not None else 'o'
+
+        if plot_axis_type.value == PlotType.LOG.value:
+            logStyle(axis, x, data[i])
+            axis.loglog(x, data[i], marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[i])
+        elif plot_axis_type.value == PlotType.XLOG.value:
+            logXStyle(axis, x, data[i])
+            axis.semilogx(x, data[i], marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[i])
+        elif plot_axis_type.value == PlotType.YLOG.value:
+            logYStyle(axis, x, data[i])
+            axis.semilogy(x, data[i], marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[i])
+        else:
+            axis.plot(x, data[i], marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=labels[i])
+
+    if labels is not None:
+        ncol = math.ceil(ncurve / 6 )
+        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
 
 # Compute twinx ticks

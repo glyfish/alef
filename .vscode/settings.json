@@ -23,6 +23,7 @@
         "nforecast",
         "nlags",
         "nonposy",
+        "pnlminus",
         "smax",
         "statsmodels",
         "strats",
