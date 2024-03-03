@@ -1,14 +1,15 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
-from datetime import datetime, date # For datetime objects
-import os.path  # To manage paths
-import sys  # To find out the script name (in argv[0])
+from datetime import datetime, date
+import os.path
+import sys
 
-# Import the backtrader platform
 import backtrader as bt
+import shortuuid
 
 from lib.trading.indicators import ZScore
 
+run_id = shortuuid.ShortUUID().random(length=12)
 
 class MeanRevertingTimeSeries(bt.Strategy):
     """

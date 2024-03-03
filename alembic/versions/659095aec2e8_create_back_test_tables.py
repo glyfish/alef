@@ -35,6 +35,18 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "positions",
+        sa.Column("run_id", sa.String(256), nullable=False),
+        sa.Column("date", sa.Date, nullable=False, unique=True),
+    )
+
+    op.create_table(
+        "orders",
+        sa.Column("run_id", sa.String(256), nullable=False),
+        sa.Column("date", sa.Date, nullable=False, unique=True),
+    )
+
+    op.create_table(
         "indicators",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
@@ -54,21 +66,21 @@ def upgrade() -> None:
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("ticker", sa.String(256)),
         sa.Column("date", sa.Date, nullable=False, unique=True),
-        sa.Column("open", sa.Float, nullable=False),
-        sa.Column("high", sa.Float, nullable=False),
-        sa.Column("low", sa.Float, nullable=False),
-        sa.Column("close", sa.Float, nullable=False),
+        sa.Column("open_price", sa.Float, nullable=False),
+        sa.Column("high_price", sa.Float, nullable=False),
+        sa.Column("low_price", sa.Float, nullable=False),
+        sa.Column("close_price", sa.Float, nullable=False),
     )
 
     op.create_table(
         "price_series",
         sa.Column("ticker", sa.String(256)),
         sa.Column("date", sa.Date, nullable=False, unique=True),
-        sa.Column("open", sa.Float, nullable=False),
-        sa.Column("high", sa.Float, nullable=False),
-        sa.Column("low", sa.Float, nullable=False),
-        sa.Column("close", sa.Float, nullable=False),
-        sa.Column("adj_close", sa.Float, nullable=False),
+        sa.Column("open_price", sa.Float, nullable=False),
+        sa.Column("high_price", sa.Float, nullable=False),
+        sa.Column("low_price", sa.Float, nullable=False),
+        sa.Column("close_price", sa.Float, nullable=False),
+        sa.Column("adj_close_price", sa.Float, nullable=False),
         sa.Column("volume", sa.Float, nullable=False),
         sa.Column("open_interest", sa.Float, nullable=False),
     )
