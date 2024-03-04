@@ -8,8 +8,8 @@ import backtrader as bt
 import shortuuid
 
 from lib.trading.indicators import ZScore
+from lib.db.backtrader import BacktraderDb
 
-run_id = shortuuid.ShortUUID().random(length=12)
 
 class MeanRevertingTimeSeries(bt.Strategy):
     """
@@ -40,6 +40,13 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.zscore = ZScore(self.datas[0], period=self.params.half_life)
         self.zscore.csv = True
 
+        # Add database interface
+        self.db = BacktraderDb()
+
+        # Create run identifier
+        self.run_id = shortuuid.ShortUUID().random(length=12)
+
+
     def log(self, txt: str, dt: datetime=None):
         """
         Logging function for strategy.
@@ -56,6 +63,19 @@ class MeanRevertingTimeSeries(bt.Strategy):
         print(f"{dt.isoformat()}, {txt}")
 
 
+    def current_date(self):
+        """
+        Get the current date.
+
+        Returns
+        -------
+        date
+            The current date.
+        """
+
+        return self.datas[0].datetime.date(0)
+    
+    
     def notify_order(self, order: bt.Order):
         """
         Called when an order has a state change.
@@ -119,6 +139,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
         # Calculate the desired stake size
         size = abs(int(self.params.stake_multiple * self.zscore[0]))
         self.log(f"Z-Score {self.zscore[0]:.3f}, Size {size}, Position {self.position.size}")
+        # self.insert_zscore_indicator()
 
         # Check if a position is held
         if not self.position:
@@ -145,6 +166,18 @@ class MeanRevertingTimeSeries(bt.Strategy):
                 self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
                 self.order = self.sell(size=self.position.size)
 
+
+    def insert_zscore_indicator(self):
+        """
+        Insert a z-score indicator into the database.
+
+        Parameters
+        ----------
+        zscore : float
+            The z-score value to be inserted.
+        """
+
+        self.db.insert_indicator(self.run_id, self.current_date(), 'zscore', self.zscore[0])
 
 if __name__ == '__main__':
     # Create a cerebro instance
