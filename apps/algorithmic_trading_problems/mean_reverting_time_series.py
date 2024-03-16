@@ -8,7 +8,7 @@ import backtrader as bt
 import shortuuid
 
 from lib.trading.indicators import ZScore
-from lib.db.backtrader import BacktraderDb
+from lib.db.backtest_db import BacktestDb
 
 
 class MeanRevertingTimeSeries(bt.Strategy):
@@ -41,7 +41,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.zscore.csv = True
 
         # Add database interface
-        self.db = BacktraderDb()
+        self.db = BacktestDb()
 
         # Create run identifier
         self.run_id = shortuuid.ShortUUID().random(length=12)
@@ -59,7 +59,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
             Date and time to be logged. The default is None.
         """
 
-        dt = dt or self.datas[0].datetime.date(0)
+        dt = dt or self.current_date()
         print(f"{dt.isoformat()}, {txt}")
 
 
@@ -131,6 +131,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
 
         #  Log the closing price
         self.log(f"Close {self.dataclose[0]:.2f}")
+        # self.db.insert_backtest(self.run_id, self.datas[0])
+        # self.db.insert_yahoo_asset_price(self.run_id, self.datas[0])
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:

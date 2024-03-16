@@ -23,6 +23,7 @@ def upgrade() -> None:
         "backtests",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("strategy", sa.String(256), nullable=False),
         sa.Column("cash", sa.Float, nullable=False),
         sa.Column("value", sa.Float, nullable=False),
         sa.PrimaryKeyConstraint("run_id", "date")
