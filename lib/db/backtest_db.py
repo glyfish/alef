@@ -1,10 +1,32 @@
-from typing import List
-from typing import Optional
+from typing import List, Tuple, Optional
+from enum import Enum
 
 from datetime import datetime
 
-from sqlalchemy import create_engine, String, Float, Date, Integer, ForeignKey
+from sqlalchemy import create_engine, String, Float, Date, Integer, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column, relationship
+
+import backtrader as bt
+
+class OrderExecutionType(Enum):
+    """
+    Order execution type.
+    """
+
+    Market = 0
+    Limit = 2
+    Stop = 3
+    StopLimit = 4
+
+
+class TradeStatus(Enum):
+    """
+    Order execution type.
+    """
+
+    Created = 0
+    Open = 1
+    Closed = 2
 
 
 class Base(DeclarativeBase):
@@ -16,6 +38,7 @@ class BackTest(Base):
 
     run_id: Mapped[str]         = mapped_column(String(256), primary_key=True)
     date: Mapped[datetime.date] = mapped_column(Date, primary_key=True)
+    strategy: Mapped[str]       = mapped_column(String(256), primary_key=True)
     cash: Mapped[float]         = mapped_column(Float, nullable=False)
     value: Mapped[float]        = mapped_column(Float, nullable=False)
 
@@ -23,15 +46,28 @@ class BackTest(Base):
 class Position(Base):
     __tablename__ = "positions"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, primary_key=True)
+    run_id: Mapped[str]          = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]  = mapped_column(Date, primary_key=True)
+    adjbase: Mapped[float]       = mapped_column(Float, nullable=False)
+    price: Mapped[float]         = mapped_column(Float, nullable=False)
+    price_orig: Mapped[float]    = mapped_column(Float, nullable=False)
+    size: Mapped[int]            = mapped_column(Integer, nullable=False)
+    upclosed: Mapped[float]      = mapped_column(Float, nullable=False)
+    upopened: Mapped[float]      = mapped_column(Float, nullable=False)
 
 
 class Trade(Base):
     __tablename__ = "trades"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]             = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]     = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    trade_id: Mapped[int]           = mapped_column(Integer, nullable=False)
+    pnl: Mapped[float]              = mapped_column(Float, nullable=False)
+    pnlcomm: Mapped[float]          = mapped_column(Float, nullable=False)
+    size: Mapped[int]               = mapped_column(Integer, nullable=False)
+    price: Mapped[float]            = mapped_column(Float, nullable=False)
+    dtopen: Mapped[datetime.date]   = mapped_column(Date, nullable=False)
+    dtclose: Mapped[datetime.date]  = mapped_column(Date, nullable=False)
 
 
 class Order(Base):
@@ -39,24 +75,34 @@ class Order(Base):
 
     run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
     date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    buy: Mapped[str]            = mapped_column(Boolean, nullable=False)
+    sell: Mapped[str]           = mapped_column(Boolean, nullable=False)
+    price: Mapped[float]        = mapped_column(Float, nullable=False)
+    value: Mapped[float]        = mapped_column(Float, nullable=False)
+    size: Mapped[int]           = mapped_column(Integer, nullable=False)
+    commission: Mapped[float]   = mapped_column(Float, nullable=False)
+    pnl: Mapped[float]          = mapped_column(Float, nullable=False)
+    exec_type: Mapped[int]      = mapped_column(Integer, nullable=False)
 
 
 class Analyzer(Base):
     __tablename__ = "analyzers"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
-    analyzer: Mapped[str]       = mapped_column(String(256), nullable=False)
-    value: Mapped[float]        = mapped_column(Float, nullable=False)
+    run_id: Mapped[str]                = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]        = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    analyzer: Mapped[str]              = mapped_column(String(256), nullable=False)
+    value: Mapped[dict]                = mapped_column(JSON, nullable=False)
+    parameters: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
 class Indicator(Base):
     __tablename__ = "indicators"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
-    indicator: Mapped[str]      = mapped_column(String(256), nullable=False)
-    value: Mapped[float]        = mapped_column(Float, nullable=False)
+    run_id: Mapped[str]                = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]        = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    indicator: Mapped[str]             = mapped_column(String(256), nullable=False)
+    value: Mapped[dict]                = mapped_column(JSON, nullable=False)
+    parameters: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
 class AssetPrice(Base):
@@ -101,7 +147,7 @@ class BacktestDb:
         self.engine = create_engine(self.__db_url, isolation_level="AUTOCOMMIT")
 
 
-    def insert_backtest(self, run_id: str, date: datetime.date, strategy: str, cash: float, value: float):
+    def insert_backtest(self, run_id: str, date: datetime.date, strategy: str, broker: bt.BrokerBase):
         """
         Insert current backtest financials into the database.
 
@@ -113,18 +159,17 @@ class BacktestDb:
             Date of the indicator.
         strategy: str
             Strategy used in backtest.
-        cash : float
-            Cash balance.
-        value : float
-            Portfolio value.
+        broker: bt.BrokerBase
+            backtrader broker.
         """
 
         with self.engine.connect() as connection:
             connection.execute(BackTest.__table__.insert().values(
                 run_id=run_id, 
                 date=date, 
-                cash=cash, 
-                value=value
+                strategy=strategy,
+                cash=broker.getcash(), 
+                value=broker.getvalue()
             ))
 
 
@@ -185,7 +230,7 @@ class BacktestDb:
             ))
 
 
-    def insert_indicator(self, run_id: str, date: datetime.date, indicator: str, value: float):
+    def insert_indicator(self, run_id: str, date: datetime.date, indicator: str, value: float, parameters: List[Tuple[str, str]] = None):
         """
         Insert current indicator value into the database.
 

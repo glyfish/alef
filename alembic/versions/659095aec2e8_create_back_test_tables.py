@@ -34,6 +34,12 @@ def upgrade() -> None:
         "positions",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("adjbase", sa.Float, nullable=False, unique=False),
+        sa.Column("price", sa.Float, nullable=False, unique=False),
+        sa.Column("price_orig", sa.Float, nullable=False, unique=False),
+        sa.Column("size", sa.Integer, nullable=False, unique=False),
+        sa.Column("upclosed", sa.Float, nullable=False, unique=False),
+        sa.Column("upopened", sa.Float, nullable=False, unique=False),
         sa.PrimaryKeyConstraint("run_id", "date"),
         sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
     )
@@ -43,6 +49,13 @@ def upgrade() -> None:
         "trades",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("trade_id", sa.Integer, nullable=False, unique=True),        
+        sa.Column("pnl", sa.Float, nullable=False, unique=True),        
+        sa.Column("pnlcomm", sa.Float, nullable=False, unique=True),        
+        sa.Column("size", sa.Integer, nullable=False, unique=True),        
+        sa.Column("price", sa.Float, nullable=False, unique=True),        
+        sa.Column("dtclose", sa.Date, nullable=False, unique=True),        
+        sa.Column("dtopen", sa.Date, nullable=False, unique=True),
         sa.PrimaryKeyConstraint("run_id", "date"),
         sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
     )
@@ -52,6 +65,14 @@ def upgrade() -> None:
         "orders",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("buy", sa.Boolean, nullable=False, unique=True),
+        sa.Column("sell", sa.Boolean, nullable=False, unique=True),
+        sa.Column("price", sa.Float, nullable=False, unique=True),        
+        sa.Column("value", sa.Float, nullable=False, unique=True),        
+        sa.Column("size", sa.Integer, nullable=False, unique=True),        
+        sa.Column("commission", sa.Float, nullable=False, unique=True),        
+        sa.Column("pnl", sa.Float, nullable=False, unique=True),        
+        sa.Column("exec_type", sa.Integer, nullable=False, unique=True),        
         sa.PrimaryKeyConstraint("run_id", "date"),
         sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
     )
@@ -62,7 +83,8 @@ def upgrade() -> None:
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
         sa.Column("indicator", sa.String(255), nullable=False),
-        sa.Column("value", sa.Float, nullable=False),
+        sa.Column("value", sa.JSON, nullable=False),
+        sa.Column("params", sa.JSON, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date"),
         sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
     )
@@ -73,7 +95,8 @@ def upgrade() -> None:
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False, unique=True),
         sa.Column("analyzer", sa.String(256), nullable=False),
-        sa.Column("value", sa.Float, nullable=False),
+        sa.Column("value", sa.JSON, nullable=False),
+        sa.Column("params", sa.JSON, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date"),
         sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
     )
