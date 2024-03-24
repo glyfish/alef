@@ -45,6 +45,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
 
         # Create run identifier
         self.run_id = shortuuid.ShortUUID().random(length=12)
+        self.time_stamp = datetime.utcnow()
 
 
     def log(self, txt: str, dt: datetime=None):
@@ -132,8 +133,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
         #  Log the closing price
         self.log(f"Close {self.dataclose[0]:.2f}")
 
-        # self.db.insert_backtest(self.run_id, self.current_date(), self.__class__.__name__, self.broker)
-        # self.db.insert_yahoo_asset_price(self.run_id, self.datas[0])
+        self.db.insert_backtest(self.run_id, self.current_date(), self.__class__.__name__, self.time_stamp, self.broker)
+        self.db.insert_yahoo_asset_price(self.run_id, self.datas[0])
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -154,7 +155,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
             # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
             if self.zscore[0] < 0.0:
                 delta = size - self.position.size
-                self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Position {self.position.size}, Size {size}, Delta {delta}")
+                self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
+                         f"Position {self.position.size}, Size {size}, Delta {delta}")
                 # Must sell delta to maintain position.
                 if delta < 0:
                     self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
