@@ -87,6 +87,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
             The order that has changed state.
         """
         
+        self.db.insert_order(self.run_id, self.current_date(), self.datas[0]._name, order)    
+
         if order.status in [order.Submitted, order.Accepted]:
             return
         
@@ -119,6 +121,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
             The trade that has changed state.
         """
 
+        self.db.insert_trade(self.run_id, self.current_date(), self.datas[0]._name, trade)
+
         if not trade.isclosed:
             return
 
@@ -133,8 +137,12 @@ class MeanRevertingTimeSeries(bt.Strategy):
         #  Log the closing price
         self.log(f"Close {self.dataclose[0]:.2f}")
 
-        self.db.insert_backtest(self.run_id, self.current_date(), self.__class__.__name__, self.time_stamp, self.broker)
+        # Insert backtest and asset price data into database
+        self.db.insert_backtest(self.run_id, self.current_date(), self.__class__.__name__, 
+                                self.time_stamp, self.broker)
         self.db.insert_yahoo_asset_price(self.run_id, self.datas[0])
+        self.db.insert_zscore_indicator(self.run_id, self.current_date(), self.datas[0]._name, 
+                                        self.zscore[0], self.params.half_life)
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -152,6 +160,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
                 self.log(f"BUY CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
                 self.order = self.buy(size=size)
         else:
+            self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position)
             # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
             if self.zscore[0] < 0.0:
                 delta = size - self.position.size

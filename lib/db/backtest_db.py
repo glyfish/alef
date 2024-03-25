@@ -9,23 +9,34 @@ from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column, relationship
 
 import backtrader as bt
 
+class MappedEnum(Enum):
 
-class OrderExecutionType(str, Enum):
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
+
+class OrderExecutionType(str, MappedEnum):
     """
     Order execution type.
     """
 
     Market = 'Market'
+    Close = 'Close'
     Limit = 'Limit'
     Stop = 'Stop'
     StopLimit = 'StopLimit'
+    StopTrail = 'StopTrail'
+    StopTrailLimit = 'StopTrailLimit'
+    Historical = 'Historical'
 
 
-class OrderStatusType(str, Enum):
+class OrderStatusType(str, MappedEnum):
     """
     Order status type.
     """
 
+    Created = 'Created'
     Submitted = 'Submitted'
     Accepted = 'Accepted'
     Partial = 'Partial'
@@ -35,7 +46,17 @@ class OrderStatusType(str, Enum):
     Margin = 'Margin'
     Rejected = 'Rejected'
 
-class TradeStatus(str, Enum):
+
+class OrderType(str, MappedEnum):
+    """
+    Order type.
+    """
+
+    Buy = 'Buy'
+    Sell = 'Sell'
+
+
+class TradeStatus(str, MappedEnum):
     """
     Trade status.
     """
@@ -96,9 +117,8 @@ class Order(Base):
     run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
     date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
     ticker: Mapped[str]         = mapped_column(String(256), nullable=False)
-    status: Mapped[str]         = mapped_column(String(256), nullable=False)
-    buy: Mapped[str]            = mapped_column(Boolean, nullable=False)
-    sell: Mapped[str]           = mapped_column(Boolean, nullable=False)
+    order_status: Mapped[str]   = mapped_column(String(256), nullable=False)
+    order_type: Mapped[str]     = mapped_column(String(256), nullable=False)
     price: Mapped[float]        = mapped_column(Float, nullable=False)
     value: Mapped[float]        = mapped_column(Float, nullable=False)
     size: Mapped[int]           = mapped_column(Integer, nullable=False)
@@ -110,11 +130,12 @@ class Order(Base):
 class Analyzer(Base):
     __tablename__ = "analyzers"
 
-    run_id: Mapped[str]                = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date]        = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
-    analyzer: Mapped[str]              = mapped_column(String(256), nullable=False)
-    value: Mapped[dict]                = mapped_column(JSON, nullable=False)
-    parameters: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    run_id: Mapped[str]                 = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]         = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    ticker: Mapped[str]                 = mapped_column(String(256))
+    analyzer: Mapped[str]               = mapped_column(String(256), nullable=False)
+    value: Mapped[dict]                 = mapped_column(JSON, nullable=False)
+    parameters: Mapped[Optional[dict]]  = mapped_column(JSON, nullable=True)
 
 
 class Indicator(Base):
@@ -122,21 +143,22 @@ class Indicator(Base):
 
     run_id: Mapped[str]                = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
     date: Mapped[datetime.date]        = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    ticker: Mapped[str]                = mapped_column(String(256))
     indicator: Mapped[str]             = mapped_column(String(256), nullable=False)
     value: Mapped[dict]                = mapped_column(JSON, nullable=False)
-    parameters: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    params: Mapped[Optional[dict]]     = mapped_column(JSON, nullable=True)
 
 
 class AssetPrice(Base):
     __tablename__ = "asset_prices"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
-    ticker: Mapped[str]         = mapped_column(String(256))
-    open_price: Mapped[float]   = mapped_column(Float, nullable=False)
-    high_price: Mapped[float]   = mapped_column(Float, nullable=False)
-    low_price: Mapped[float]    = mapped_column(Float, nullable=False)
-    close_price: Mapped[float]  = mapped_column(Float, nullable=False)
+    run_id: Mapped[str]          = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    date: Mapped[datetime.date]  = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    ticker: Mapped[str]          = mapped_column(String(256))
+    open_price: Mapped[float]    = mapped_column(Float, nullable=False)
+    high_price: Mapped[float]    = mapped_column(Float, nullable=False)
+    low_price: Mapped[float]     = mapped_column(Float, nullable=False)
+    close_price: Mapped[float]   = mapped_column(Float, nullable=False)
 
 
 class PriceSeries(Base):
@@ -277,10 +299,30 @@ class BacktestDb:
             Backtrader Order object.
         """
 
+        order_type = order.ordtypename()
+        order_exec_type = OrderExecutionType.list()[order.exectype]
+        order_status = OrderStatusType.list()[order.status]
+
+        order_data = order.executed if order_status == OrderStatusType.Completed.value else order.created
+        price = order_data.price
+        value = order_data.value
+        size = order_data.size
+        comm = order_data.comm
+        pnl = order_data.pnl
+
         with self.engine.connect() as connection:
             connection.execute(Order.__table__.insert().values(
                 run_id=run_id, 
-                date=date
+                date=date,
+                ticker=ticker,
+                order_status=order_status,
+                order_type=order_type,
+                price=price,
+                value=value,
+                size=size,
+                commission=comm,
+                pnl=pnl,
+                exec_type=order_exec_type
             ))
 
 
@@ -314,8 +356,9 @@ class BacktestDb:
         open_price: float
             Opening price.
         high_price: float
-            High price.
+            High price for day.
         low_price: float 
+            Low price for day.
         close_price: float
             Closing price.
         adj_close_price: float
@@ -340,10 +383,10 @@ class BacktestDb:
             ))
 
     
-    def insert_zscore_indicator(self, run_id: str, date: datetime.date, zscore: float, period: int):
+    def insert_zscore_indicator(self, run_id: str, date: datetime.date, ticker: str, zscore: float, period: int):
         params = json.dumps({'period': period})
         value = json.dumps({'zscore': zscore})
-        self.__insert_indicator(run_id, date, 'zscore', value, params)
+        self.__insert_indicator(run_id, date, ticker, 'zscore', value, params)
 
 
     def __insert_asset_price(self, run_id: str, date: datetime.date, ticker: str, open_price: float, 
@@ -406,7 +449,7 @@ class BacktestDb:
             ))
 
 
-    def __insert_indicator(self, run_id: str, date: datetime.date, indicator: str, value: str, 
+    def __insert_indicator(self, run_id: str, date: datetime.date, ticker: str, indicator: str, value: str, 
                           params: str = None):
         """
         Insert current indicator value into the database.
@@ -428,7 +471,8 @@ class BacktestDb:
         with self.engine.connect() as connection:
             connection.execute(Indicator.__table__.insert().values(
                 run_id=run_id, 
-                date=date, 
+                date=date,
+                ticker=ticker,
                 indicator=indicator, 
                 value=value,
                 params=params
