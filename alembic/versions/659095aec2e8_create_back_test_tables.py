@@ -34,79 +34,75 @@ def upgrade() -> None:
     op.create_table(
         "positions",
         sa.Column("run_id", sa.String(256), nullable=False),
-        sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("date", sa.Date, nullable=False),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("adjbase", sa.Float, nullable=False, unique=False),
-        sa.Column("price", sa.Float, nullable=False, unique=False),
-        sa.Column("price_orig", sa.Float, nullable=False, unique=False),
-        sa.Column("size", sa.Integer, nullable=False, unique=False),
-        sa.Column("upclosed", sa.Float, nullable=False, unique=False),
-        sa.Column("upopened", sa.Float, nullable=False, unique=False),
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.Column("adjbase", sa.Float, nullable=False),
+        sa.Column("price", sa.Float, nullable=False),
+        sa.Column("price_orig", sa.Float, nullable=False),
+        sa.Column("size", sa.Integer, nullable=False),
+        sa.Column("upclosed", sa.Float, nullable=False),
+        sa.Column("upopened", sa.Float, nullable=False),
+        sa.Column("updt", sa.Float, nullable=True),
+        sa.PrimaryKeyConstraint("run_id", "date")
     )
 
 
     op.create_table(
         "trades",
         sa.Column("run_id", sa.String(256), nullable=False),
-        sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("date", sa.Date, nullable=False),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("status", sa.String, nullable=False, unique=True),
-        sa.Column("trade_id", sa.Integer, nullable=False, unique=True),
-        sa.Column("size", sa.Integer, nullable=False, unique=True),        
-        sa.Column("price", sa.Float, nullable=False, unique=True),        
-        sa.Column("value", sa.Float, nullable=False, unique=True),        
-        sa.Column("commission", sa.Float, nullable=False, unique=True),        
-        sa.Column("pnl", sa.Float, nullable=False, unique=True),        
-        sa.Column("pnlcomm", sa.Float, nullable=False, unique=True),        
-        sa.Column("dtclose", sa.Date, nullable=False, unique=True),        
-        sa.Column("dtopen", sa.Date, nullable=False, unique=True),
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.Column("status", sa.String, nullable=False),
+        sa.Column("trade_id", sa.Integer, nullable=False),
+        sa.Column("size", sa.Integer, nullable=False),        
+        sa.Column("price", sa.Float, nullable=False),        
+        sa.Column("value", sa.Float, nullable=False),        
+        sa.Column("commission", sa.Float, nullable=False),        
+        sa.Column("pnl", sa.Float, nullable=False),        
+        sa.Column("pnlcomm", sa.Float, nullable=False),        
+        sa.Column("dtclose", sa.Date, nullable=True),        
+        sa.Column("dtopen", sa.Date, nullable=True),
+        sa.PrimaryKeyConstraint("run_id", "date")
     )
 
 
     op.create_table(
         "orders",
         sa.Column("run_id", sa.String(256), nullable=False),
-        sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("date", sa.Date, nullable=False),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("order_status", sa.String, nullable=False, unique=True),
-        sa.Column("order_type", sa.String, nullable=False, unique=True),
-        sa.Column("price", sa.Float, nullable=False, unique=True),        
-        sa.Column("value", sa.Float, nullable=False, unique=True),        
-        sa.Column("size", sa.Integer, nullable=False, unique=True),        
-        sa.Column("commission", sa.Float, nullable=False, unique=True),        
-        sa.Column("pnl", sa.Float, nullable=False, unique=True),        
-        sa.Column("exec_type", sa.String, nullable=False, unique=True),        
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.Column("order_status", sa.String, nullable=False),
+        sa.Column("order_type", sa.String, nullable=False),
+        sa.Column("price", sa.Float, nullable=False),        
+        sa.Column("value", sa.Float, nullable=False),        
+        sa.Column("size", sa.Integer, nullable=False),        
+        sa.Column("commission", sa.Float, nullable=False),        
+        sa.Column("pnl", sa.Float, nullable=False),        
+        sa.Column("exec_type", sa.String, nullable=False),        
+        sa.PrimaryKeyConstraint("run_id", "date", "order_status")
     )
 
 
     op.create_table(
         "indicators",
         sa.Column("run_id", sa.String(256), nullable=False),
-        sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("date", sa.Date, nullable=False),
         sa.Column("indicator", sa.String(255), nullable=False),
         sa.Column("ticker", sa.String(256), nullable=False),
         sa.Column("value", sa.JSON, nullable=False),
         sa.Column("params", sa.JSON, nullable=True),
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.PrimaryKeyConstraint("run_id", "date", )
     )
 
 
     op.create_table(
         "analyzers",
         sa.Column("run_id", sa.String(256), nullable=False),
-        sa.Column("date", sa.Date, nullable=False, unique=True),
+        sa.Column("date", sa.Date, nullable=False),
         sa.Column("analyzer", sa.String(256), nullable=False),
         sa.Column("value", sa.JSON, nullable=False),
         sa.Column("params", sa.JSON, nullable=True),
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.PrimaryKeyConstraint("run_id", "date")
     )
 
 
@@ -119,8 +115,7 @@ def upgrade() -> None:
         sa.Column("high_price", sa.Float, nullable=False),
         sa.Column("low_price", sa.Float, nullable=False),
         sa.Column("close_price", sa.Float, nullable=False),
-        sa.PrimaryKeyConstraint("run_id", "date"),
-        sa.ForeignKeyConstraint(["run_id", "date"], ["backtests.run_id", "backtests.date"], name="fk_run_id_date")
+        sa.PrimaryKeyConstraint("run_id", "date")
     )
 
 
@@ -134,7 +129,8 @@ def upgrade() -> None:
         sa.Column("close_price", sa.Float, nullable=False),
         sa.Column("adj_close_price", sa.Float, nullable=False),
         sa.Column("volume", sa.Float, nullable=False),
-        sa.Column("open_interest", sa.Float, nullable=False)
+        sa.Column("open_interest", sa.Float, nullable=False),
+        sa.PrimaryKeyConstraint("ticker", "date")
     )
 
 

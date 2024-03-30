@@ -93,6 +93,7 @@ class Position(Base):
     size: Mapped[int]            = mapped_column(Integer, nullable=False)
     upclosed: Mapped[float]      = mapped_column(Float, nullable=False)
     upopened: Mapped[float]      = mapped_column(Float, nullable=False)
+    updt: Mapped[datetime.date]  = mapped_column(Date, nullable=False)
 
 
 class Trade(Base):
@@ -101,14 +102,16 @@ class Trade(Base):
     run_id: Mapped[str]             = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
     date: Mapped[datetime.date]     = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
     ticker: Mapped[str]             = mapped_column(String(256), nullable=False)
-    trade_id: Mapped[int]           = mapped_column(Integer, nullable=False)
     status: Mapped[str]             = mapped_column(String(256), nullable=False)
+    trade_id: Mapped[int]           = mapped_column(Integer, nullable=False)
+    size: Mapped[float]             = mapped_column(Integer, nullable=False)
+    price: Mapped[float]            = mapped_column(Float, nullable=False)
+    value: Mapped[float]            = mapped_column(Float, nullable=False)
+    commission: Mapped[float]       = mapped_column(Float, nullable=False)
     pnl: Mapped[float]              = mapped_column(Float, nullable=False)
     pnlcomm: Mapped[float]          = mapped_column(Float, nullable=False)
-    size: Mapped[int]               = mapped_column(Integer, nullable=False)
-    price: Mapped[float]            = mapped_column(Float, nullable=False)
-    dtopen: Mapped[datetime.date]   = mapped_column(Date, nullable=False)
     dtclose: Mapped[datetime.date]  = mapped_column(Date, nullable=False)
+    dtopen: Mapped[datetime.date]   = mapped_column(Date, nullable=False)
 
 
 class Order(Base):
@@ -237,6 +240,8 @@ class BacktestDb:
             Backtrader Position object.
         """
 
+        updt =  None
+
         with self.engine.connect() as connection:
             connection.execute(Position.__table__.insert().values(
                 run_id=run_id, 
@@ -247,7 +252,8 @@ class BacktestDb:
                 price_orig=position.price_orig,
                 size=position.size,
                 upclosed=position.upclosed,
-                upopened=position.upopened
+                upopened=position.upopened,
+                updt=position.updt
             ))
 
 
@@ -267,6 +273,9 @@ class BacktestDb:
             Backtrader Trade object.
         """
 
+        dtclose = trade.close_datetime() if trade.dtclose > 0.0 else None
+        dtopen = trade.open_datetime() if trade.dtopen > 0.0 else None
+
         with self.engine.connect() as connection:
             connection.execute(Trade.__table__.insert().values(
                 run_id=run_id, 
@@ -274,12 +283,14 @@ class BacktestDb:
                 ticker=ticker,
                 status=trade.status,
                 trade_id=trade.tradeid,
-                pnl=trade.pnl,
-                pnlcomm=trade.pnlcomm,
                 size=trade.size,
                 price=trade.price,
-                dtclose=trade.dtclose,
-                dtopen=trade.dtopen
+                value=trade.value,
+                commission=trade.commission,
+                pnl=trade.pnl,
+                pnlcomm=trade.pnlcomm,
+                dtclose=dtclose,
+                dtopen=dtopen
             ))
         
 
