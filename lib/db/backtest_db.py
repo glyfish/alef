@@ -3,11 +3,16 @@ from enum import Enum
 
 from datetime import datetime
 import json
+import pandas
+import os
+import numpy
 
 from sqlalchemy import create_engine, String, Float, Date, Integer, ForeignKey, JSON, Boolean, DateTime
 from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column, relationship
 
 import backtrader as bt
+
+from lib.utils import read_yahoo_data
 
 class MappedEnum(Enum):
 
@@ -399,6 +404,52 @@ class BacktestDb:
         value = json.dumps({'zscore': zscore})
         self.__insert_indicator(run_id, date, ticker, 'zscore', value, params)
 
+
+    def insert_yahoo_price_series(self, file_root: str, ticker: str):
+        """
+        Insert current price series into the database from a yahoo CSV input feed.        
+
+        Parameters
+        ----------
+        file_path: str
+            File path.            
+        """
+
+        file_path = os.path.abspath(f"{file_root}/{ticker}.csv")
+        data = read_yahoo_data(file_path)
+        data.rename(columns={"Open": "open_price", "High": "high_price", "Low": "low_price", "Close": "close_price", 
+                             "Adj Close": "adj_close_price", "Volume": "volume"}, inplace=True)
+        data.index.names = ['date']
+        data['ticker'] = numpy.full(len(data), ticker)
+        data.to_sql("price_series", self.engine, if_exists="append")
+
+
+    def fetch_price_series(self, ticker: str, start_date: str=None, end_date: str=None) -> pandas.DataFrame:
+        """
+        Fetch price series from the backtest database.
+
+        Parameters
+        ----------
+        ticker: str
+            Ticker symbol.
+        start_date: str
+            Start date.
+        end_date: str
+            End date.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Price series.
+        """
+
+        query = f"SELECT * FROM price_series WHERE ticker='{ticker}'"
+        if start_date:
+            query += f" AND date >= '{start_date}'"
+        if end_date:
+            query += f" AND date <= '{end_date}'"
+
+        return pandas.read_sql(query, self.engine)
 
     def __insert_asset_price(self, run_id: str, date: datetime.date, ticker: str, open_price: float, 
                              high_price: float, low_price: float, close_price: float):

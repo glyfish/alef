@@ -129,7 +129,6 @@ def upgrade() -> None:
         sa.Column("close_price", sa.Float, nullable=False),
         sa.Column("adj_close_price", sa.Float, nullable=False),
         sa.Column("volume", sa.Float, nullable=False),
-        sa.Column("open_interest", sa.Float, nullable=False),
         sa.PrimaryKeyConstraint("ticker", "date")
     )
 
