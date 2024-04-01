@@ -10,6 +10,7 @@ import shortuuid
 from lib.trading.indicators import ZScore
 from lib.db.backtest_db import BacktestDb
 
+ensemble_id = shortuuid.ShortUUID().random(length=12)
 
 class MeanRevertingTimeSeries(bt.Strategy):
     """
@@ -87,7 +88,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
             The order that has changed state.
         """
         
-        self.db.insert_order(self.run_id, self.current_date(), self.datas[0]._name, order)    
+        self.db.insert_order(self.run_id, self.current_date(), self.datas[0]._name, order, ensemble_id)    
 
         if order.status in [order.Submitted, order.Accepted]:
             return
@@ -121,7 +122,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
             The trade that has changed state.
         """
 
-        self.db.insert_trade(self.run_id, self.current_date(), self.datas[0]._name, trade)
+        self.db.insert_trade(self.run_id, self.current_date(), self.datas[0]._name, trade, ensemble_id)
 
         if not trade.isclosed:
             return
@@ -139,10 +140,10 @@ class MeanRevertingTimeSeries(bt.Strategy):
 
         # Insert backtest and asset price data into database
         self.db.insert_backtest(self.run_id, self.current_date(), self.__class__.__name__, 
-                                self.time_stamp, self.broker)
-        self.db.insert_yahoo_asset_price(self.run_id, self.datas[0])
+                                self.time_stamp, self.broker, ensemble_id)
+        self.db.insert_yahoo_asset_price(self.run_id, self.datas[0], ensemble_id)
         self.db.insert_zscore_indicator(self.run_id, self.current_date(), self.datas[0]._name, 
-                                        self.zscore[0], self.params.half_life)
+                                        self.zscore[0], self.params.half_life, ensemble_id)
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:

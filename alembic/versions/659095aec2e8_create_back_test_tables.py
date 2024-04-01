@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects.postgresql import JSONB
 
 # revision identifiers, used by Alembic.
 revision: str = '659095aec2e8'
@@ -24,6 +24,7 @@ def upgrade() -> None:
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("time_stamp", sa.DateTime, nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("strategy", sa.String(256), nullable=False),
         sa.Column("cash", sa.Float, nullable=False),
         sa.Column("value", sa.Float, nullable=False),
@@ -35,6 +36,7 @@ def upgrade() -> None:
         "positions",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
         sa.Column("adjbase", sa.Float, nullable=False),
         sa.Column("price", sa.Float, nullable=False),
@@ -51,6 +53,7 @@ def upgrade() -> None:
         "trades",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
         sa.Column("status", sa.String, nullable=False),
         sa.Column("trade_id", sa.Integer, nullable=False),
@@ -70,6 +73,7 @@ def upgrade() -> None:
         "orders",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
         sa.Column("order_status", sa.String, nullable=False),
         sa.Column("order_type", sa.String, nullable=False),
@@ -88,9 +92,10 @@ def upgrade() -> None:
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
         sa.Column("indicator", sa.String(255), nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("value", sa.JSON, nullable=False),
-        sa.Column("params", sa.JSON, nullable=True),
+        sa.Column("value", JSONB, nullable=False),
+        sa.Column("params", JSONB, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date", )
     )
 
@@ -99,9 +104,10 @@ def upgrade() -> None:
         "analyzers",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("analyzer", sa.String(256), nullable=False),
-        sa.Column("value", sa.JSON, nullable=False),
-        sa.Column("params", sa.JSON, nullable=True),
+        sa.Column("value", JSONB, nullable=False),
+        sa.Column("params", JSONB, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date")
     )
 
@@ -110,6 +116,7 @@ def upgrade() -> None:
         "asset_prices",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("ticker", sa.String(256)),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("date", sa.Date, nullable=False),
         sa.Column("open_price", sa.Float, nullable=False),
         sa.Column("high_price", sa.Float, nullable=False),
