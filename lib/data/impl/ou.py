@@ -5,7 +5,6 @@ Simulation and analysis of the Ornstein-Uhlenbeck process.
 """
 
 from typing import Tuple
-import uuid
 import numpy
 import statsmodels.api as sm
 

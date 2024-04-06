@@ -207,6 +207,22 @@ class BacktestDb:
 
     """
     Insert objects into the backtest database.
+
+    Methods
+    -------
+    insert_backtest(run_id: str, date: datetime.date, strategy: str, broker: bt.BrokerBase, ensemble_id: str = None)
+        Insert current backtest financials into the database.
+    insert_position(run_id: str, date: datetime.date, ticker: str, position: bt.Position, ensemble_id: str = None)
+        Insert current position into the database.
+    insert_trade(run_id: str, date: datetime.date, ticker: str, trade: bt.Trade, ensemble_id: str = None)
+        Insert current trade into the database.
+    insert_order(run_id: str, date: datetime.date, ticker: str, order: bt.Order, ensemble_id: str = None)
+        Insert current order into the database.
+    insert_yahoo_asset_price(run_id: str, datas, ensemble_id: str = None)
+        Insert current position into the database from a yahoo CSV input feed.
+    insert_price_series(ticker: str, date: datetime.date, open_price: float, high_price: float, low_price: float, close_price: float, 
+                        adj_close_price: float, volume: float, open_interest: float)
+        Insert current price series into the database.
     """
     def insert_backtest(self, run_id: str, date: datetime.date, strategy: str, time_stamp: datetime, 
                         broker: bt.BrokerBase, ensemble_id: str = None):
@@ -470,7 +486,160 @@ class BacktestDb:
 
     """
     Retrieve objects from the backtest database.
+    
+    Methods
+    -------
+    fetch_price_series(ticker: str, start_date: str=None, end_date: str=None) -> pandas.DataFrame
+        Fetch price series from the backtest database.
+    fetch_zscore_indicator(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch Z-score indicator.
+    fetch_asset_prices(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch asset prices backtrader output.
+    fetch_trades(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch trades.
+    fetch_position(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch position.
+    fetch_backtest(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch backtest objects.
+    fetch_orders(run_id: str, ensemble: str=None) -> pandas.DataFrame
+        Fetch orders.
     """
+    def fetch_backtest(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+        """
+        Fetch backtest.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        query = f"""
+        SELECT date, 
+                run_id,
+                strategy,
+                time_stamp,
+                ensemble_id,
+                cash,
+                value
+        FROM backtests WHERE run_id='{run_id}' 
+        """
+
+        if ensemble is not None:
+            query += f"    AND ensemble_id='{ensemble}'"
+
+        query += "ORDER BY date ASC"
+
+        return pandas.read_sql(query, self.engine)
+    
+    
+    def fetch_position(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+        """
+        Fetch position.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        query = f"""
+        SELECT date, 
+                run_id,
+                ticker,
+                ensemble_id,
+                adjbase,
+                price,
+                price_orig,
+                size,
+                upclosed,
+                upopened,
+                updt
+        FROM positions WHERE run_id='{run_id}' 
+        """
+
+        if ensemble is not None:
+            query += f"    AND ensemble_id='{ensemble}'"
+
+        query += "ORDER BY date ASC"
+
+        return pandas.read_sql(query, self.engine)
+    
+    
+    def fetch_trades(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+        """
+        Fetch trades.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        query = f"""
+        SELECT date, 
+                run_id,
+                ticker,
+                ensemble_id,
+                status,
+                trade_id,
+                size,
+                price,
+                value,
+                commission,
+                pnl,
+                pnlcomm,
+                dtclose,
+                dtopen
+        FROM trades WHERE run_id='{run_id}' 
+        """
+
+        if ensemble is not None:
+            query += f"    AND ensemble_id='{ensemble}'"
+
+        query += "ORDER BY date ASC"
+
+        return pandas.read_sql(query, self.engine)
+
+
+    def fetch_asset_price(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+        """
+        Fetch asset price time series.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        query = f"""
+        SELECT date, 
+                run_id,
+                ticker,
+                ensemble_id,
+                open_price,
+                high_price,
+                low_price,
+                close_price
+        FROM asset_prices WHERE run_id='{run_id}' 
+        """
+
+        if ensemble is not None:
+            query += f"    AND ensemble_id='{ensemble}'"
+
+        query += "ORDER BY date ASC"
+
+        return pandas.read_sql(query, self.engine)
+    
+
     def fetch_price_series(self, ticker: str, start_date: str=None, end_date: str=None) -> pandas.DataFrame:
         """
         Fetch price series from the backtest database.
@@ -532,6 +701,57 @@ class BacktestDb:
 
         return pandas.read_sql(query, self.engine)
 
+    
+    def fetch_orders(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+        """
+        Fetch orders.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        query = f"""
+        SELECT date, 
+                run_id,
+                ticker,
+                ensemble_id,
+                order_status,
+                order_type,
+                price,
+                value,
+                size,
+                commission,
+                pnl,
+                exec_type
+        FROM orders WHERE run_id='{run_id}' 
+        """
+
+        if ensemble is not None:
+            query += f"    AND ensemble_id='{ensemble}'"
+
+        query += "ORDER BY date ASC"
+
+        return pandas.read_sql(query, self.engine)
+    
+
+    """
+    Private methods
+
+    Methods
+    -------
+    __insert_asset_price(run_id: str, date: datetime.date, ticker: str, open_price: float, high_price: float, 
+                         low_price: float, close_price: float, ensemble_id: str)
+        Insert current position into the database.
+    __insert_analyzer(run_id: str, date: datetime.date, analyzer: str, value: float)
+        Insert current analyzer value into the database.
+    __insert_indicator(run_id: str, date: datetime.date, ticker: str, indicator: str, value: str, 
+                      params: str = None, ensemble_id: str = None)
+        Insert current indicator value into the database.
+    """
     def __insert_asset_price(self, run_id: str, date: datetime.date, ticker: str, open_price: float, 
                              high_price: float, low_price: float, close_price: float, ensemble_id: str):
         """

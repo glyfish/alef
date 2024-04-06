@@ -5,6 +5,7 @@ from lib.utils import get_param_default_if_missing
 from lib.plots import comp
 from typing import Callable
 
+
 def curve(y: numpy.ndarray, x: numpy.ndarray=None, **kwargs):
     """
     Plot a curve.
