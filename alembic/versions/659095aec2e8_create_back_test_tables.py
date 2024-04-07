@@ -65,6 +65,10 @@ def upgrade() -> None:
         sa.Column("pnlcomm", sa.Float, nullable=False),        
         sa.Column("dtclose", sa.Date, nullable=True),        
         sa.Column("dtopen", sa.Date, nullable=True),
+        sa.Column("baropen", sa.Integer, nullable=True),        
+        sa.Column("barclose", sa.Integer, nullable=True),
+        sa.Column("barlen", sa.Integer, nullable=True),
+        sa.Column("long", sa.Boolean, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date")
     )
 

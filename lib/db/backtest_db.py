@@ -329,7 +329,11 @@ class BacktestDb:
                 pnl=trade.pnl,
                 pnlcomm=trade.pnlcomm,
                 dtclose=dtclose,
-                dtopen=dtopen
+                dtopen=dtopen,
+                baropen=trade.baropen,
+                barclose=trade.barclose,
+                barlen=trade.barlen,
+                long=trade.islong
             ))
         
 
@@ -504,7 +508,7 @@ class BacktestDb:
     fetch_orders(run_id: str, ensemble: str=None) -> pandas.DataFrame
         Fetch orders.
     """
-    def fetch_backtest(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_backtest(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch backtest.
 
@@ -518,24 +522,20 @@ class BacktestDb:
 
         query = f"""
         SELECT date, 
-                run_id,
-                strategy,
-                time_stamp,
-                ensemble_id,
-                cash,
-                value
-        FROM backtests WHERE run_id='{run_id}' 
+               run_id,
+               strategy,
+               time_stamp,
+               ensemble_id,
+               cash,
+               value
+        FROM backtests WHERE run_id='{run_id}'
+        ORDER BY date ASC
         """
-
-        if ensemble is not None:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
     
     
-    def fetch_position(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_position(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch position.
 
@@ -549,28 +549,24 @@ class BacktestDb:
 
         query = f"""
         SELECT date, 
-                run_id,
-                ticker,
-                ensemble_id,
-                adjbase,
-                price,
-                price_orig,
-                size,
-                upclosed,
-                upopened,
-                updt
+               run_id,
+               ticker,
+               ensemble_id,
+               adjbase,
+               price,
+               price_orig,
+               size,
+               upclosed,
+               upopened,
+               updt
         FROM positions WHERE run_id='{run_id}' 
+        ORDER BY date ASC
         """
-
-        if ensemble is not None:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
     
     
-    def fetch_trades(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_trades(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch trades.
 
@@ -596,19 +592,19 @@ class BacktestDb:
                 pnl,
                 pnlcomm,
                 dtclose,
-                dtopen
+                dtopen,
+                baropen,
+                barclose,
+                barlen,
+                long
         FROM trades WHERE run_id='{run_id}' 
+        ORDER BY date ASC
         """
-
-        if ensemble is not None:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
 
 
-    def fetch_asset_price(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_asset_price(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch asset price time series.
 
@@ -630,12 +626,8 @@ class BacktestDb:
                 low_price,
                 close_price
         FROM asset_prices WHERE run_id='{run_id}' 
+        ORDER BY date ASC
         """
-
-        if ensemble is not None:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
     
@@ -670,7 +662,7 @@ class BacktestDb:
         return pandas.read_sql(query, self.engine)
 
 
-    def fetch_zscore_indicator(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_zscore_indicator(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch Z-score indicator.
 
@@ -692,17 +684,13 @@ class BacktestDb:
                params->'period' as half_life
         FROM indicators WHERE run_id='{run_id}' 
             AND indicator='zscore'
+        ORDER BY date ASC
         """
-
-        if ensemble:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
 
     
-    def fetch_orders(self, run_id: str, ensemble: str=None) -> pandas.DataFrame:
+    def fetch_orders(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch orders.
 
@@ -728,12 +716,8 @@ class BacktestDb:
                 pnl,
                 exec_type
         FROM orders WHERE run_id='{run_id}' 
+        ORDER BY date ASC
         """
-
-        if ensemble is not None:
-            query += f"    AND ensemble_id='{ensemble}'"
-
-        query += "ORDER BY date ASC"
 
         return pandas.read_sql(query, self.engine)
     

@@ -51,8 +51,11 @@ def asset_price(data: DataFrame, **kwargs):
     date = data.date.to_numpy()
     close = data.close_price.to_numpy()
     ticker = data.ticker[0]
+    run_id = data.run_id[0]
+    ensemble_id = data.ensemble_id[0]
 
-    title = f"{ticker} Asset Price Series"
+
+    title = f"{ticker} Asset Price Series\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
 
     comp.curve(axis, close, date, title=title, xlabel="Date", ylabel="Price", label=ticker, lw=1)
 
@@ -78,8 +81,39 @@ def zscore_indicator(data: DataFrame, mean_reversion_half_life: int, **kwargs):
     zscore = data.zscore.to_numpy()
     ticker = data.ticker[0]
     mean_reversion_half_life = int(mean_reversion_half_life)
+    run_id = data.run_id[0]
+    ensemble_id = data.ensemble_id[0]
 
-    title = f"{ticker} ZScore Indicator Time Series, $t_{{1/2}}$={mean_reversion_half_life}"
+    zero = numpy.full(len(zscore), 0.0)
 
-    comp.curve(axis, zscore[mean_reversion_half_life:], date[mean_reversion_half_life:], title=title, xlabel="Date", 
-               ylabel="Z-Score", label=ticker, lw=1)
+    title = f"{ticker}, Z-Score Indicator Time Series, $t_{{1/2}}$={mean_reversion_half_life}\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+
+    comp.comparison(axis, [zscore[mean_reversion_half_life:], zero], date[mean_reversion_half_life:], title=title, xlabel="Date", 
+                    ylabel="Z-Score", lw=1)
+
+
+def cash_value(data: DataFrame, **kwargs):
+    """
+    Plot zscore indicator time series.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize)
+
+    date = data.date.to_numpy()
+    cash = data.cash.to_numpy()
+    value = data.value.to_numpy()
+    strategy = data.strategy[0]
+    run_id = data.run_id[0]
+    ensemble_id = data.ensemble_id[0]
+
+    title = f"{strategy} Balance\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+
+    comp.comparison(axis, [cash, value], date, title=title, xlabel="Date", ylabel="Dollars", lw=1, labels=["Cash", "Value"])

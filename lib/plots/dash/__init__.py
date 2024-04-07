@@ -6,4 +6,4 @@ from lib.plots.dash.hyp_test import variance_ratio_test
 from lib.plots.dash.surface import contour, contour_hist, colored_scatter_contour, colored_scatter
 from lib.plots.dash.forecast import training, prediction
 
-from lib.plots.dash.backtrader import price_series, asset_price, zscore_indicator
+from lib.plots.dash.backtrader import price_series, asset_price, zscore_indicator, cash_value
