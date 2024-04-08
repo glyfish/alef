@@ -23,14 +23,20 @@ def upgrade() -> None:
         "backtests",
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("time_stamp", sa.DateTime, nullable=False),
-        sa.Column("date", sa.Date, nullable=False),
         sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("strategy", sa.String(256), nullable=False),
+        sa.PrimaryKeyConstraint("run_id")
+    )
+
+    op.create_table(
+        "broker",
+        sa.Column("run_id", sa.String(256), nullable=False),
+        sa.Column("date", sa.Date, nullable=False),
+        sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("cash", sa.Float, nullable=False),
         sa.Column("value", sa.Float, nullable=False),
         sa.PrimaryKeyConstraint("run_id", "date")
     )
-
 
     op.create_table(
         "positions",
@@ -55,8 +61,8 @@ def upgrade() -> None:
         sa.Column("date", sa.Date, nullable=False),
         sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("status", sa.String, nullable=False),
-        sa.Column("trade_id", sa.Integer, nullable=False),
+        sa.Column("status", sa.String(256), nullable=False),
+        sa.Column("trade_id", sa.BigInteger, nullable=False),
         sa.Column("size", sa.Integer, nullable=False),        
         sa.Column("price", sa.Float, nullable=False),        
         sa.Column("value", sa.Float, nullable=False),        
@@ -68,7 +74,7 @@ def upgrade() -> None:
         sa.Column("baropen", sa.Integer, nullable=True),        
         sa.Column("barclose", sa.Integer, nullable=True),
         sa.Column("barlen", sa.Integer, nullable=True),
-        sa.Column("long", sa.Boolean, nullable=True),
+        sa.Column("is_long", sa.Boolean, nullable=True),
         sa.PrimaryKeyConstraint("run_id", "date")
     )
 
@@ -79,8 +85,9 @@ def upgrade() -> None:
         sa.Column("date", sa.Date, nullable=False),
         sa.Column("ensemble_id", sa.String(256), nullable=True),
         sa.Column("ticker", sa.String(256), nullable=False),
-        sa.Column("order_status", sa.String, nullable=False),
-        sa.Column("order_type", sa.String, nullable=False),
+        sa.Column("order_status", sa.String(256), nullable=False),
+        sa.Column("order_type", sa.String(256), nullable=False),
+        sa.Column("trade_id", sa.BigInteger, nullable=False),
         sa.Column("price", sa.Float, nullable=False),        
         sa.Column("value", sa.Float, nullable=False),        
         sa.Column("size", sa.Integer, nullable=False),        
@@ -153,3 +160,4 @@ def downgrade() -> None:
     op.drop_table("asset_prices")
     op.drop_table("price_series")
     op.drop_table("backtests")
+    op.drop_table("broker")

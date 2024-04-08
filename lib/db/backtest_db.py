@@ -6,7 +6,7 @@ import pandas
 import os
 import numpy
 
-from sqlalchemy import create_engine, String, Float, Date, Integer, ForeignKey, JSON, Boolean, DateTime
+from sqlalchemy import create_engine, String, Float, Date, Integer, ForeignKey, BigInteger, Boolean, DateTime
 from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -80,9 +80,18 @@ class BackTest(Base):
 
     run_id: Mapped[str]          = mapped_column(String(256), primary_key=True)
     time_stamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    date: Mapped[datetime.date]  = mapped_column(Date, primary_key=True)
     ensemble_id: Mapped[str]     = mapped_column(String(256), nullable=False)
     strategy: Mapped[str]        = mapped_column(String(256), primary_key=True)
+
+
+class Broker(Base):
+    __tablename__ = "broker"
+
+    run_id: Mapped[str]          = mapped_column(String(256), primary_key=True)
+    time_stamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    date: Mapped[datetime.date]  = mapped_column(Date, primary_key=True)
+    ensemble_id: Mapped[str]     = mapped_column(String(256), nullable=False)
+    strategy: Mapped[str]        = mapped_column(String(256), primary_key=False)
     cash: Mapped[float]          = mapped_column(Float, nullable=False)
     value: Mapped[float]         = mapped_column(Float, nullable=False)
 
@@ -120,6 +129,11 @@ class Trade(Base):
     pnlcomm: Mapped[float]          = mapped_column(Float, nullable=False)
     dtclose: Mapped[datetime.date]  = mapped_column(Date, nullable=False)
     dtopen: Mapped[datetime.date]   = mapped_column(Date, nullable=False)
+    baropen: Mapped[int]            = mapped_column(Integer, nullable=False)
+    barclose: Mapped[int]           = mapped_column(Integer, nullable=False)
+    barlen: Mapped[int]             = mapped_column(Integer, nullable=False)
+    is_long: Mapped[bool]           = mapped_column(Boolean, nullable=False)
+    pnlcomm: Mapped[float]          = mapped_column(Float, nullable=False)
 
 
 class Order(Base):
@@ -131,6 +145,7 @@ class Order(Base):
     ticker: Mapped[str]         = mapped_column(String(256), nullable=False)
     order_status: Mapped[str]   = mapped_column(String(256), nullable=False)
     order_type: Mapped[str]     = mapped_column(String(256), nullable=False)
+    trade_id: Mapped[int]       = mapped_column(Integer, nullable=True)
     price: Mapped[float]        = mapped_column(Float, nullable=False)
     value: Mapped[float]        = mapped_column(Float, nullable=False)
     size: Mapped[int]           = mapped_column(Integer, nullable=False)
@@ -212,6 +227,8 @@ class BacktestDb:
     -------
     insert_backtest(run_id: str, date: datetime.date, strategy: str, broker: bt.BrokerBase, ensemble_id: str = None)
         Insert current backtest financials into the database.
+    insert_broker(run_id: str, date: datetime.date, broker: bt.BrokerBase, ensemble_id: str = None)
+        Insert current broker state into the database.
     insert_position(run_id: str, date: datetime.date, ticker: str, position: bt.Position, ensemble_id: str = None)
         Insert current position into the database.
     insert_trade(run_id: str, date: datetime.date, ticker: str, trade: bt.Trade, ensemble_id: str = None)
@@ -224,21 +241,16 @@ class BacktestDb:
                         adj_close_price: float, volume: float, open_interest: float)
         Insert current price series into the database.
     """
-    def insert_backtest(self, run_id: str, date: datetime.date, strategy: str, time_stamp: datetime, 
-                        broker: bt.BrokerBase, ensemble_id: str = None):
+    def insert_backtest(self, run_id: str, strategy: str, time_stamp: datetime, ensemble_id: str = None):
         """
-        Insert current backtest financials into the database.
+        Insert backtest info.
 
         Parameters
         ----------
         run_id : str
             Unique identifier for the backtest.
-        date : datetime.date 
-            Date of the indicator.
         strategy: str
             Strategy used in backtest.
-        broker : bt.BrokerBase
-            backtrader broker
         time_stamp: datetime
             Time stamp of the backtest.
         ensemble_id: str
@@ -250,8 +262,33 @@ class BacktestDb:
                 run_id=run_id, 
                 time_stamp=time_stamp,
                 ensemble_id=ensemble_id,
+                strategy=strategy
+            ))
+
+
+    def insert_broker(self, run_id: str, date: datetime.date, broker: bt.BrokerBase, ensemble_id: str = None):
+        """
+        Insert broker state.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        date : datetime.date 
+            Date of the indicator.
+        broker : bt.BrokerBase
+            backtrader broker
+        time_stamp: datetime
+            Time stamp of the backtest.
+        ensemble_id: str
+            Identifier for an ensemble of backtests.
+        """
+
+        with self.engine.connect() as connection:
+            connection.execute(Broker.__table__.insert().values(
+                run_id=run_id, 
+                ensemble_id=ensemble_id,
                 date=date, 
-                strategy=strategy,
                 cash=broker.getcash(), 
                 value=broker.getvalue()
             ))
@@ -274,8 +311,6 @@ class BacktestDb:
         ensemble_id: str
             Identifier for an ensemble of backtests.
         """
-
-        updt =  None
 
         with self.engine.connect() as connection:
             connection.execute(Position.__table__.insert().values(
@@ -313,6 +348,7 @@ class BacktestDb:
 
         dtclose = trade.close_datetime() if trade.dtclose > 0.0 else None
         dtopen = trade.open_datetime() if trade.dtopen > 0.0 else None
+        trade_status = TradeStatus.list()[trade.status]
 
         with self.engine.connect() as connection:
             connection.execute(Trade.__table__.insert().values(
@@ -320,7 +356,7 @@ class BacktestDb:
                 date=date,
                 ticker=ticker,
                 ensemble_id=ensemble_id,
-                status=trade.status,
+                status=trade_status,
                 trade_id=trade.tradeid,
                 size=trade.size,
                 price=trade.price,
@@ -333,7 +369,7 @@ class BacktestDb:
                 baropen=trade.baropen,
                 barclose=trade.barclose,
                 barlen=trade.barlen,
-                long=trade.islong
+                is_long=trade.long
             ))
         
 
@@ -365,6 +401,7 @@ class BacktestDb:
         size = order_data.size
         comm = order_data.comm
         pnl = order_data.pnl
+        tradeid = order.tradeid
 
         with self.engine.connect() as connection:
             connection.execute(Order.__table__.insert().values(
@@ -374,6 +411,7 @@ class BacktestDb:
                 ensemble_id=ensemble_id,
                 order_status=order_status,
                 order_type=order_type,
+                trade_id=tradeid,
                 price=price,
                 value=value,
                 size=size,
@@ -516,8 +554,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
@@ -525,9 +561,7 @@ class BacktestDb:
                run_id,
                strategy,
                time_stamp,
-               ensemble_id,
-               cash,
-               value
+               ensemble_id
         FROM backtests WHERE run_id='{run_id}'
         ORDER BY date ASC
         """
@@ -535,6 +569,31 @@ class BacktestDb:
         return pandas.read_sql(query, self.engine)
     
     
+    def fetch_broker(self, run_id: str) -> pandas.DataFrame:
+        """
+        Fetch backtest.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique identifier for the backtest.
+        """
+
+        query = f"""
+        SELECT date, 
+               run_id,
+               strategy,
+               time_stamp,
+               cash,
+               value,
+               commission
+        FROM broker WHERE run_id='{run_id}'
+        ORDER BY date ASC
+        """
+
+        return pandas.read_sql(query, self.engine)
+
+
     def fetch_position(self, run_id: str) -> pandas.DataFrame:
         """
         Fetch position.
@@ -543,8 +602,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
@@ -574,8 +631,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
@@ -596,7 +651,7 @@ class BacktestDb:
                 baropen,
                 barclose,
                 barlen,
-                long
+                is_long
         FROM trades WHERE run_id='{run_id}' 
         ORDER BY date ASC
         """
@@ -612,8 +667,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
@@ -670,8 +723,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
@@ -698,8 +749,6 @@ class BacktestDb:
         ----------
         run_id : str
             Unique identifier for the backtest.
-        ensemble_id: str
-            Identifier for an ensemble of backtests.
         """
 
         query = f"""
