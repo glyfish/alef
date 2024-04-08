@@ -571,7 +571,7 @@ class BacktestDb:
     
     def fetch_broker(self, run_id: str) -> pandas.DataFrame:
         """
-        Fetch backtest.
+        Fetch broker.
 
         Parameters
         ----------
@@ -582,11 +582,8 @@ class BacktestDb:
         query = f"""
         SELECT date, 
                run_id,
-               strategy,
-               time_stamp,
                cash,
-               value,
-               commission
+               value
         FROM broker WHERE run_id='{run_id}'
         ORDER BY date ASC
         """
