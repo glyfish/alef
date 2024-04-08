@@ -582,6 +582,7 @@ class BacktestDb:
         query = f"""
         SELECT date, 
                run_id,
+               ensemble_id,
                cash,
                value
         FROM broker WHERE run_id='{run_id}'

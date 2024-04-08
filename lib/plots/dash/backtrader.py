@@ -111,11 +111,10 @@ def cash_value(data: DataFrame, **kwargs):
     cash = data.cash.to_numpy()
     value = data.value.to_numpy()
     spend = value - cash
-    strategy = data.strategy[0]
     run_id = data.run_id[0]
     ensemble_id = data.ensemble_id[0]
 
-    title = f"{strategy} Balance\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+    title = f"Account Balance\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
 
     comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=1, 
                     labels=["Cash", "Value", "Spend"])
