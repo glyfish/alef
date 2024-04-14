@@ -49,8 +49,20 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.run_id = shortuuid.ShortUUID().random(length=12)
         self.time_stamp = datetime.utcnow()
 
+        # Maintain trade ID
+        self.tradeid = None
+
+        self.set_tradehistory()
+
+
         self.db.insert_backtest(self.run_id, self.__class__.__name__, self.time_stamp, ensemble_id)
 
+
+    def get_tradeid(self):
+        if self.tradeid is None:
+            self.tradeid = random.getrandbits(32)
+        return self.tradeid
+        
 
     def log(self, txt: str, dt: datetime=None):
         """
@@ -130,7 +142,12 @@ class MeanRevertingTimeSeries(bt.Strategy):
         if not trade.isclosed:
             return
 
+        self.tradeid = None
         self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
+
+
+    def notify_cashvalue(self, cash, value):
+        self.log(f"Cash={cash:.2f}, Value={value:.2f}")
 
 
     def next(self):
@@ -153,7 +170,6 @@ class MeanRevertingTimeSeries(bt.Strategy):
 
         # Calculate the desired stake size and trade identifier
         size = abs(int(self.params.stake_multiple * self.zscore[0]))
-        trade_id = random.getrandbits(32)
         
         self.log(f"Z-Score {self.zscore[0]:.3f}, Size {size}, Position {self.position.size}")
 
@@ -163,9 +179,9 @@ class MeanRevertingTimeSeries(bt.Strategy):
             # and nothing is owned.
             if self.zscore[0] < 0.0:
                 self.log(f"BUY CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
-                self.order = self.buy(size=size, tradeid=trade_id)
+                self.order = self.buy(size=size, tradeid=self.get_tradeid())
         else:
-            self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position)
+            self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position, ensemble_id)
             # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
             if self.zscore[0] < 0.0:
                 delta = size - self.position.size
@@ -174,15 +190,15 @@ class MeanRevertingTimeSeries(bt.Strategy):
                 # Must sell delta to maintain position.
                 if delta < 0:
                     self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
-                    self.order = self.sell(size=-delta, tradeid=trade_id)
+                    self.order = self.sell(size=-delta, tradeid=self.get_tradeid())
                 # Must buy delta to maintain position.
                 elif delta > 0:
                     self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
-                    self.order = self.buy(size=delta, tradeid=trade_id)
+                    self.order = self.buy(size=delta, tradeid=self.get_tradeid())
             # If z-score is > 0.0 sell everything.
             elif self.zscore[0] > 0.0:
                 self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
-                self.order = self.sell(size=self.position.size, tradeid=trade_id)
+                self.order = self.sell(size=self.position.size, tradeid=self.get_tradeid())
 
 
 if __name__ == '__main__':

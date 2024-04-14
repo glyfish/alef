@@ -57,6 +57,7 @@ def upgrade() -> None:
 
     op.create_table(
         "trades",
+        sa.Column("ref",  sa.Integer, nullable=False),
         sa.Column("run_id", sa.String(256), nullable=False),
         sa.Column("date", sa.Date, nullable=False),
         sa.Column("ensemble_id", sa.String(256), nullable=True),

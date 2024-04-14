@@ -99,7 +99,7 @@ class Broker(Base):
 class Position(Base):
     __tablename__ = "positions"
 
-    run_id: Mapped[str]          = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
+    run_id: Mapped[str]          = mapped_column(String(256), primary_key=True)
     date: Mapped[datetime.date]  = mapped_column(Date, primary_key=True)
     ticker: Mapped[str]          = mapped_column(String(256), nullable=False)
     ensemble_id: Mapped[str]     = mapped_column(String(256), nullable=False)
@@ -115,8 +115,9 @@ class Position(Base):
 class Trade(Base):
     __tablename__ = "trades"
 
-    run_id: Mapped[str]             = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date]     = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]             = mapped_column(String(256), primary_key=True)
+    ref: Mapped[str]                = mapped_column(Integer)
+    date: Mapped[datetime.date]     = mapped_column(Date, primary_key=True)
     ensemble_id: Mapped[str]        = mapped_column(String(256), nullable=False)
     ticker: Mapped[str]             = mapped_column(String(256), nullable=False)
     status: Mapped[str]             = mapped_column(String(256), nullable=False)
@@ -139,8 +140,8 @@ class Trade(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    run_id: Mapped[str]         = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date] = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]         = mapped_column(String(256), primary_key=True)
+    date: Mapped[datetime.date] = mapped_column(Date, primary_key=True)
     ensemble_id: Mapped[str]    = mapped_column(String(256), nullable=False)
     ticker: Mapped[str]         = mapped_column(String(256), nullable=False)
     order_status: Mapped[str]   = mapped_column(String(256), nullable=False)
@@ -157,8 +158,8 @@ class Order(Base):
 class Analyzer(Base):
     __tablename__ = "analyzers"
 
-    run_id: Mapped[str]                 = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date]         = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]                 = mapped_column(String(256), primary_key=True)
+    date: Mapped[datetime.date]         = mapped_column(Date, primary_key=True)
     ensemble_id: Mapped[str]            = mapped_column(String(256), nullable=False)
     ticker: Mapped[str]                 = mapped_column(String(256))
     analyzer: Mapped[str]               = mapped_column(String(256), nullable=False)
@@ -169,8 +170,8 @@ class Analyzer(Base):
 class Indicator(Base):
     __tablename__ = "indicators"
 
-    run_id: Mapped[str]                = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date]        = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]                = mapped_column(String(256), primary_key=True)
+    date: Mapped[datetime.date]        = mapped_column(Date, primary_key=True)
     ticker: Mapped[str]                = mapped_column(String(256))
     indicator: Mapped[str]             = mapped_column(String(256), nullable=False)
     value: Mapped[dict]                = mapped_column(JSONB, nullable=False)
@@ -180,8 +181,8 @@ class Indicator(Base):
 class AssetPrice(Base):
     __tablename__ = "asset_prices"
 
-    run_id: Mapped[str]          = mapped_column(String(256), ForeignKey("backtests.id"), primary_key=True)
-    date: Mapped[datetime.date]  = mapped_column(Date, ForeignKey("backtests.date"), primary_key=True)
+    run_id: Mapped[str]          = mapped_column(String(256), primary_key=True)
+    date: Mapped[datetime.date]  = mapped_column(Date, primary_key=True)
     ensemble_id: Mapped[str]     = mapped_column(String(256), nullable=False)
     ticker: Mapped[str]          = mapped_column(String(256))
     open_price: Mapped[float]    = mapped_column(Float, nullable=False)
@@ -352,6 +353,7 @@ class BacktestDb:
 
         with self.engine.connect() as connection:
             connection.execute(Trade.__table__.insert().values(
+                ref=trade.ref,
                 run_id=run_id, 
                 date=date,
                 ticker=ticker,
