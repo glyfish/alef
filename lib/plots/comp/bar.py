@@ -273,13 +273,13 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarra
         axis.set_ylabel(bar_ylabel)
     if xlabel is not None:        
         axis.set_xlabel(xlabel)        
-    list1 = __plot_bar(axis, x_bar, y_bar, 0, 1, **kwargs)
+    list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **kwargs)
 
     axis2 = axis.twinx()
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
     if line_ylabel is not None:
         axis2.set_ylabel(line_ylabel, rotation=-90, labelpad=15)
-    list2 = __plot_curve(axis2, x_line, y_line, len(x_line), 1, 2, **kwargs)
+    list2 = __plot_curve(axis2, x_line, y_line, 1, **kwargs)
     
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)

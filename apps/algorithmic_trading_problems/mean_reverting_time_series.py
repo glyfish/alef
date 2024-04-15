@@ -141,8 +141,8 @@ class MeanRevertingTimeSeries(bt.Strategy):
         
         if not trade.isclosed:
             return
-
         self.tradeid = None
+
         self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
 
 
@@ -242,3 +242,4 @@ if __name__ == '__main__':
 
     # Plot the result
     cerebro.plot()
+    

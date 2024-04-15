@@ -1,4 +1,5 @@
 import numpy
+from typing import Tuple
 from matplotlib import pyplot
 
 from lib.utils import get_param_default_if_missing
@@ -8,7 +9,7 @@ from lib.data import OLSResult, stats
 
 def training(forecast_data: numpy.ndarray[float], observed_data: numpy.ndarray[float], upper_bound_error: numpy.ndarray[float], 
              lower_bound_error: numpy.ndarray[float], x: numpy.ndarray[float]=None, title: str=None, title_offset: float=0.015,
-             figsize: (int, int)=(10, 6), alpha: float=0.05, ylabel=None):
+             figsize: Tuple[int, int]=(10, 6), alpha: float=0.05, ylabel=None):
     """"
     Plot the result of a training analysis.
 
@@ -52,7 +53,7 @@ def training(forecast_data: numpy.ndarray[float], observed_data: numpy.ndarray[f
 
 def prediction(training_data: numpy.ndarray[float], forecast_data: numpy.ndarray[float], upper_bound_error: numpy.ndarray[float], 
                lower_bound_error: numpy.ndarray[float], x: numpy.ndarray[float]=None, title: str=None, title_offset: float=0.0,
-               figsize: (int, int)=(10, 6), alpha: float=0.05, ylabel=None):
+               figsize: Tuple[int, int]=(10, 6), alpha: float=0.05, ylabel=None):
     """"
     Plot the result of a training analysis.
 

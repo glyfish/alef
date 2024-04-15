@@ -3,7 +3,7 @@ import numpy
 from pandas import DataFrame
 
 from lib.utils import get_param_default_if_missing
-from lib.plots import comp
+from lib.plots import comp, bar
 from typing import Callable
 
 def price_series(data: DataFrame, **kwargs):
@@ -94,7 +94,7 @@ def zscore_indicator(data: DataFrame, mean_reversion_half_life: int, **kwargs):
 
 def cash_value(data: DataFrame, **kwargs):
     """
-    Plot zscore indicator time series.
+    Plot cash and value time series.
 
     Parameters
     ----------
@@ -118,3 +118,32 @@ def cash_value(data: DataFrame, **kwargs):
 
     comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=1, 
                     labels=["Cash", "Value", "Spend"])
+
+
+def position(data: DataFrame, **kwargs):
+    """
+    Plot position size and value time series.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    _, axis = pyplot.subplots(2, figsize=figsize, sharex=True, sharey=False)
+
+    position = data['size'].to_numpy()
+    price = data.price.to_numpy()
+    date = data.date.to_numpy()
+    value = price * position
+
+    date = data.date.to_numpy()
+    ticker = data.ticker[0]
+    
+    title = f"{ticker} Position Size and Value"
+
+    comp.bar(axis[0], position, date, xlabel=None, title=title, ylabel="Size", alpha=1.0)
+    comp.bar(axis[1], position, date, xlabel="Date", ylabel="Dollars", alpha=1.0)

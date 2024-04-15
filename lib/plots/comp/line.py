@@ -752,6 +752,7 @@ def __plot_curve(axis, x, y, n, **kwargs):
     ylabel          = get_param_default_if_missing("ylabel", None, **kwargs)
     npts            = get_param_default_if_missing("npts", min(len(y), len(x)), **kwargs)
 
+    print(type(x[0]))
     if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
         converter = mdates.ConciseDateConverter()
         munits.registry[numpy.datetime64] = converter
