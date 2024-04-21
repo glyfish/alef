@@ -3,7 +3,7 @@ import numpy
 from pandas import DataFrame
 
 from lib.utils import get_param_default_if_missing
-from lib.plots import comp, bar
+from lib.plots import comp
 from typing import Callable
 
 def price_series(data: DataFrame, **kwargs):
@@ -146,4 +146,4 @@ def position(data: DataFrame, **kwargs):
     title = f"{ticker} Position Size and Value"
 
     comp.bar(axis[0], position, date, xlabel=None, title=title, ylabel="Size", alpha=1.0)
-    comp.bar(axis[1], position, date, xlabel="Date", ylabel="Dollars", alpha=1.0)
+    comp.bar(axis[1], value, date, xlabel="Date", ylabel="Dollars", alpha=1.0)

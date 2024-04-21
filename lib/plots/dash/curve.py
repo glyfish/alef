@@ -615,6 +615,60 @@ def fscatter(data: numpy.ndarray[float], func: Callable[[float], float], x: nump
     comp.fscatter(axis, data, func, x, **kwargs)
 
 
+def fcurve_scatter_comparison(data: list[numpy.ndarray[float]], func: Callable[[float], float], x: numpy.ndarray[float]=None, 
+                              fx: numpy.ndarray[float]=None, **kwargs):
+    """"
+    Compare a function curve to multiple datasets by plotting the functions as a curve and data 
+    as a scatter plot.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : numpy.ndarray[float]
+        Function plotted as a function of x.
+    x : numpy.ndarray[float], optional
+        Value plotted on x-axis (default is index values of data)
+    fx : numpy.ndarray[float], optional
+        function x values (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None)
+    symbols : [string]
+        List of symbols to use for scatter plots.
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.fcurve_scatter_comparison(axis, data, func, x, fx, **kwargs)
+
+
 def fbar(y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
     """
     Plot samples in a bar chart and compare to a function.

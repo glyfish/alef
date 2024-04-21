@@ -758,6 +758,7 @@ class BacktestDb:
                 ensemble_id,
                 order_status,
                 order_type,
+                trade_id,
                 price,
                 value,
                 size,

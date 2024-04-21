@@ -19,6 +19,8 @@ from typing import Callable
 
 from lib.plots.comp.axis import (PlotType, logStyle, logXStyle, logYStyle)
 from lib.utils import (get_param_throw_if_missing, get_param_default_if_missing)
+from lib.plots.comp.plot_utils import (__plot_curve, __plot_curves, __twinx_ticks, __plot_symbols,
+                                       __plot_symbol, __plot_bar)
 from lib import config
 
 def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[float], x: numpy.ndarray=None, fx: numpy.ndarray=None, **kwargs):
@@ -86,11 +88,13 @@ def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[f
         npts = len(func)
         fx = numpy.linspace(0.0, float(npts-1), npts)
 
-    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
         converter = mdates.ConciseDateConverter()
         munits.registry[numpy.datetime64] = converter
         munits.registry[date] = converter
-        munits.registry[datetime] = converter    
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=xscilimits, useMathText=True)
 
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
@@ -103,7 +107,6 @@ def fpoints(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[f
         axis.set_ylim(ylim)
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=yscilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=xscilimits, useMathText=True)
 
     data_label = None
     func_label = None
@@ -199,11 +202,13 @@ def fcurve(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[fl
         npts = len(func)
         fx = numpy.linspace(0.0, float(npts-1), npts)
 
-    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime):
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
         converter = mdates.ConciseDateConverter()
         munits.registry[numpy.datetime64] = converter
         munits.registry[date] = converter
-        munits.registry[datetime] = converter    
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     axis.set_xlabel(xlabel)
     axis.set_ylabel(ylabel)
@@ -216,7 +221,6 @@ def fcurve(axis: pyplot.axis, data: numpy.ndarray[float], func: numpy.ndarray[fl
         axis.set_ylim(ylim)
 
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     data_label = None
     func_label = None
@@ -312,8 +316,15 @@ def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[floa
         npts = len(data)
         x = numpy.linspace(0.0, float(npts - 1), npts)
 
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
+        converter = mdates.ConciseDateConverter()
+        munits.registry[numpy.datetime64] = converter
+        munits.registry[date] = converter
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
-    axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
     if labels is None:
         labels = ["Data", "Fit"]
@@ -353,11 +364,62 @@ def fscatter(axis: pyplot.axis, data: numpy.ndarray[float], func: Callable[[floa
         axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.85, 0.85), title=legend_title).set_zorder(10)
 
 
-def __remove_zeros_if_needed(data, x):
-    if x[0] == 0.0:
-        return data[1:], x[1:]
-    else:
-        return data, x
+
+def fcurve_scatter_comparison(axis: pyplot.axis, data: list[numpy.ndarray[float]], func: numpy.ndarray[float], 
+                              x: list[numpy.ndarray[float]]=None, fx: numpy.ndarray[float]=None, **kwargs):
+    """"
+    Compare a function to multiple datasets by plotting the functions as a curve and data 
+    as a scatter plot.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : numpy.ndarray
+        Data compared to function.
+    func : Callable[[float], float]
+        Function plotted as a function of x.
+    x : list[numpy.ndarray[float]], optional
+        Value plotted on x-axis (default is index values of data)
+    fx : numpy.ndarray[float], optional
+        Value plotted on x-axis for f (default is index values of data)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    lw : int, optional
+        Plot line width (default is 2)
+    labels : [string], optional
+        Curve labels shown in legend.
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis are labeled using scientific notation. (default (-3, 3))
+    plot_axis_type : PlotAxisType
+        The type of axis used in the plot    
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_title : string
+        Specify legend title. (default None)
+    symbols : [string]
+        List of symbols to use for scatter plots.
+   """
+
+    title             = get_param_default_if_missing("title", None, **kwargs)
+    title_offset      = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+
+    if title is not None:
+        axis.set_title(title, y=1.0 + title_offset)
+
+    __plot_curve(axis, fx, func, 0, **kwargs)
+    __plot_symbols(axis, x, data, 1, **kwargs)
+
 
 def fbar(axis: pyplot.axis, y: numpy.ndarray[float], fy: numpy.ndarray[float], x: numpy.ndarray[float]=None, fx: numpy.ndarray[float]=None, **kwargs):
     """
@@ -419,20 +481,9 @@ def fbar(axis: pyplot.axis, y: numpy.ndarray[float], fy: numpy.ndarray[float], x
 
     axis.legend(loc=legend_loc, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.85, 0.85))
 
-def __plot_bar(axis, x, y, n, zorder=5, **kwargs):
-    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
-    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
-    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
-    labels       = get_param_default_if_missing("labels", None, **kwargs)
-    colors       = get_param_default_if_missing("colors", None, **kwargs)
 
-    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
-        
-    cycler = axis._get_lines.prop_cycler
-    color = colors[n] if colors is not None else next(cycler)['color']
-
-    width = bar_width*(x[1]-x[0])
-
-    label = labels[n] if labels is not None else None
-    return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=label, color=color)
-
+def __remove_zeros_if_needed(data, x):
+    if x[0] == 0.0:
+        return data[1:], x[1:]
+    else:
+        return data, x
