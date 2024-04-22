@@ -185,30 +185,48 @@ def __plot_symbol(axis, x, y, n, **kwargs):
         axis.plot(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=label, color=color)
 
 
-def __plot_bar(axis, x, y, n, zorder=5, **kwargs):
+def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
     alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
     border_width = get_param_default_if_missing("border_width", 1, **kwargs)
     bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
     labels       = get_param_default_if_missing("labels", None, **kwargs)
     colors       = get_param_default_if_missing("colors", None, **kwargs)
+    bar_colors   = get_param_default_if_missing("bar_colors", None, **kwargs)
+    scilimits    = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
+
+    if x is None:
+        x = numpy.linspace(0, len(y) - 1, len(y))
+
+    if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
+        converter = mdates.ConciseDateConverter()
+        munits.registry[numpy.datetime64] = converter
+        munits.registry[date] = converter
+        munits.registry[datetime] = converter 
+    else:
+        axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
+    axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
 
     alpha_value = alpha[n] if isinstance(alpha, list) else alpha
         
     cycler = axis._get_lines.prop_cycler
-    color = colors[n] if colors is not None else next(cycler)['color']
+
+    if bar_colors is not None:
+        color = bar_colors
+    else:    
+        color = colors[n] if colors is not None and len(colors) > n else next(cycler)['color']
+
+    label = labels[n] if labels is not None and len(labels) > n else None
 
     width = bar_width*(x[1]-x[0])
 
-    label = labels[n] if labels is not None else None
     return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=label, color=color)
 
 
-# Compute twinx ticks
 def __twinx_ticks(axis1, axis2):
     y1_lim = axis1.get_ylim()
     y2_lim = axis2.get_ylim()
     f = lambda x : y2_lim[0] + (x - y1_lim[0])*(y2_lim[1] - y2_lim[0])/(y1_lim[1] - y1_lim[0])
     ticks = f(axis1.get_yticks())
     axis2.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(ticks))
-
 

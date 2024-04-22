@@ -800,3 +800,50 @@ def scatter_comparison(y: numpy.ndarray[float], x: numpy.ndarray[float], **kwarg
     _, axis = pyplot.subplots(figsize=figsize)
     comp.scatter(axis, y, x, **kwargs)
 
+
+def positive_negative_bar(y: numpy.ndarray[float], x: numpy.ndarray=None, **kwargs):
+    """
+    Plot data in a bar chart with different colors for positive and negative values.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    pos : numpy.ndarray
+        Positive data values.
+    neg : numpy.ndarray
+        Negative data values.
+    x_pos : numpy.ndarray
+        Value plotted in x axis for positive values (default use pos index)
+    x_neg : numpy.ndarray
+        Value plotted in x axis for negative values (default use neg index)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    alpha : float
+        Bar alpha (default 0.5)
+    border_width : float
+        Bar border width (default)
+    bar_width : float
+        Bar width ras faction of x delta.
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    colors : list[float]
+        Bar colors
+    figsize : (int, int), optional
+        Specify the width and height of plot (default is (8,6))
+   """
+    
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+
+    _, axis = pyplot.subplots(figsize=figsize)
+    comp.positive_negative_bar(axis, y, x, **kwargs)
+
+

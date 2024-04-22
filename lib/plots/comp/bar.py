@@ -5,12 +5,12 @@ import matplotlib.units as munits
 from matplotlib import pyplot
 from datetime import datetime, date
 
-from lib.plots.comp.line import (__plot_curve, __twinx_ticks)
+from lib.plots.comp.plot_utils import (__plot_curve, __twinx_ticks, __plot_bar)
 
 from lib.utils import get_param_default_if_missing
 from lib import config
 
-def bar(axis: pyplot.axis, y, x=None, **kwargs):
+def bar(axis: pyplot.axis, y: numpy.ndarray[float], x: numpy.ndarray=None, **kwargs):
     """
     Plot samples in a bar chart.
 
@@ -18,7 +18,7 @@ def bar(axis: pyplot.axis, y, x=None, **kwargs):
     ----------
     axis : matplotlib.pyplot.axis
         Axis used to draw plot.
-    y : numpy.ndarray
+    y : numpy.ndarray[float]
         Value plotted on y-axis.
     x : numpy.ndarray
         Value plotted in x axis (default use y index)
@@ -72,7 +72,70 @@ def bar(axis: pyplot.axis, y, x=None, **kwargs):
 
     __plot_bar(axis, x, y, 0, **kwargs)
 
-def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
+
+def positive_negative_bar(axis: pyplot.axis, y: numpy.ndarray[float], x: numpy.ndarray=None, **kwargs):
+    """
+    Plot data in a bar chart with different colors for positive and negative values.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    pos : numpy.ndarray
+        Positive data values.
+    neg : numpy.ndarray
+        Negative data values.
+    x_pos : numpy.ndarray
+        Value plotted in x axis for positive values (default use pos index)
+    x_neg : numpy.ndarray
+        Value plotted in x axis for negative values (default use neg index)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is 'x')
+    ylabel : string, optional
+        Plot y-axis label (default is 'y')
+    alpha : float
+        Bar alpha (default 0.5)
+    border_width : float
+        Bar border width (default)
+    bar_width : float
+        Bar width ras faction of x delta.
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    ylim : (float, float)
+        Specify the limits for the y axis. (default None)
+    colors : list[float]
+        Bar colors
+    """
+
+    title          = get_param_default_if_missing("title", None, **kwargs)
+    title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    xlabel         = get_param_default_if_missing("xlabel", "x", **kwargs)
+    ylabel         = get_param_default_if_missing("ylabel", "y", **kwargs)
+    xlim           = get_param_default_if_missing("xlim", None, **kwargs)
+    ylim           = get_param_default_if_missing("ylim", None, **kwargs)
+    colors         = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+
+    if title is not None:
+        axis.set_title(title, y=title_offset + 1.0)
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
+
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+
+    kwargs["bar_colors"] = numpy.where(y > 0, colors[0], colors[1])
+    __plot_bar(axis, x, y, 0, **kwargs)
+
+
+def twinx_bar(axis: pyplot.axis, left: numpy.ndarray[float], right: numpy.ndarray[float], x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -186,7 +249,8 @@ def twinx_bar(axis: pyplot.axis, left: numpy.ndarray, right: numpy.ndarray, x_le
         labs = [l.get_label() for l in list]
         axis2.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
 
-def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.ndarray=None, x_line: numpy.ndarray=None, **kwargs):
+
+def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray[float], y_line: numpy.ndarray[float], x_bar: numpy.ndarray=None, x_line: numpy.ndarray=None, **kwargs):
     """
     Plot two curves with different scales on the y-axis that use the same scale on the
     x-axis.
@@ -260,12 +324,6 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarra
 
     if x_line is None:
         x_line = numpy.linspace(0, len(y_line) - 1, len(y_line))
-
-    if isinstance(x_bar[0], pandas.Timestamp) or isinstance(x_bar[0], datetime):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
 
     if title is not None:
         axis.set_title(title, y=title_offset + 1.0)
@@ -381,11 +439,6 @@ def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: li
         x_right = numpy.linspace(0, len(right) - 1, len(right))
         x_left = numpy.linspace(0, len(left) - 1, len(left))
 
-    if (isinstance(x_left[0], pandas.Timestamp) and isinstance(x_right[0], pandas.Timestamp)) or  (isinstance(x_left[0], datetime) and isinstance(x_right[0], datetime)):
-        converter = mdates.ConciseDateConverter()
-        munits.registry[numpy.datetime64] = converter
-        munits.registry[date] = converter
-        munits.registry[datetime] = converter    
     list1 = __plot_bar(axis, x_left, left, 0, 1, **kwargs)
 
     axis2 = axis.twinx()
@@ -414,7 +467,7 @@ def twinx_bar_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: li
         labs = [l.get_label() for l in list]
         axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
 
-def hist(axis: pyplot.axis, samples: numpy.ndarray, fx=None, **kwargs):
+def hist(axis: pyplot.axis, samples: numpy.ndarray[float], fx=None, **kwargs):
     """
     Plot samples in histogram and compare with given function.
 
@@ -495,23 +548,4 @@ def hist(axis: pyplot.axis, samples: numpy.ndarray, fx=None, **kwargs):
 
     if labels is not None:
         axis.legend(loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
-
-def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
-    alpha        = get_param_default_if_missing("alpha", 0.5, **kwargs)
-    border_width = get_param_default_if_missing("border_width", 1, **kwargs)
-    bar_width    = get_param_default_if_missing("bar_width", 1.0, **kwargs)
-    labels       = get_param_default_if_missing("labels", None, **kwargs)
-    colors       = get_param_default_if_missing("colors", None, **kwargs)
-
-    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
-        
-    cycler = axis._get_lines.prop_cycler
-    color = colors[n] if colors is not None else next(cycler)['color']
-
-    width = bar_width*(x[1]-x[0])
-
-    if labels is None:
-        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, color=color)
-    else:
-        return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=labels[n], color=color)
 
