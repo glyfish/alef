@@ -207,8 +207,8 @@ def pnl(data: DataFrame, **kwargs):
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,8), **kwargs)
-    _, axis = pyplot.subplots(2, figsize=figsize, sharex=True, sharey=False)
+    figsize = get_param_default_if_missing("figsize", (9,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize, sharex=True, sharey=False)
 
     ticker = data.ticker.iloc[0]
     run_id = data.run_id.iloc[0]
@@ -248,10 +248,12 @@ def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: Da
     spec = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
 
     ax1 = fig.add_subplot(spec[0, 0])
-    ax2 = fig.add_subplot(spec[1:, 0])
+    ax2 = fig.add_subplot(spec[1:3, 0])
+    ax3 = fig.add_subplot(spec[3:, 0])
 
     __cash_value(ax1, broker)
     __orders(ax2, orders, asset)
+    __pnl(ax3, orders)
 
 
 """
@@ -333,15 +335,18 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
         Figure title.
     """
 
-    title = get_param_default_if_missing("title", None, **kwargs)
+    title   = get_param_default_if_missing("title", None, **kwargs)
+    colors  = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
 
     pnl = data.pnl.to_numpy()
     pnl_date = data.date.to_numpy()
-
     cumulative_pnl = data.pnl.cumsum().to_numpy()
 
-    comp.positive_negative_bar(axis[0], pnl, pnl_date, title=title, ylabel='PnL (Dollars)', alpha=1.0, xlabel=None)
-    comp.curve(axis[1], cumulative_pnl, pnl_date, ylabel='Value (Dollars)', xlabel='Date')
+    bar_colors = numpy.where(pnl > 0, colors[0], colors[1])
+
+    comp.twinx_bar_line(axis, pnl, cumulative_pnl, pnl_date, pnl_date, title=title, xlabel="Date", 
+                        bar_ylabel="Order PnL (Dollars)", line_ylabel="Cumulative PnL (Dollars)", lw=2, 
+                        bar_colors=bar_colors)
 
 
 def __orders(axis: pyplot.axis, order_data: DataFrame, asset_price_data: DataFrame, **kwargs):

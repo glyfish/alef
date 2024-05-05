@@ -362,67 +362,6 @@ def twinx_bar_line(y_bar: numpy.ndarray, y_line: numpy.ndarray, x_bar: numpy.nda
     comp.twinx_bar_line(axis, y_bar, y_line, x_bar, x_line, **kwargs)
 
 
-def twinx_bar(left: numpy.ndarray, right: numpy.ndarray, x_left: numpy.ndarray=None, x_right: numpy.ndarray=None, **kwargs):
-    """
-    Plot two curves with different scales on the y-axis that use the same scale on the
-    x-axis.
-
-    Parameters
-    ----------
-    axis : matplotlib.pyplot.axis
-        Axis used to draw plot.
-    left : numpy.ndarray
-        Value plotted on left y-axis.
-    right : numpy.ndarray
-        Value plotted on right y-axis.
-    x_left : numpy.array or numpy.ndarray, optional
-        Value plotted for the left on the x-axis. If property is an list each x is plotted with y of 
-        same index (default is index values of y)
-    x_right : numpy.array or numpy.ndarray, optional
-        Value plotted for the right on the x-axis. If property is an list each x is plotted with y of 
-        same index (default is index values of y)
-    title : string, optional
-        Plot title (default is None)
-    title_offset : float (default is 0.0)
-        Plot title off set from top of plot.
-    xlabel : string, optional
-        Plot x-axis label (default is None)
-    left_ylabel : string, optional
-        Plot left y-axis label (default is None)
-    right_ylabel : string, optional
-        Plot left y-axis label (default is None)
-    labels : [string], optional
-        Curve labels shown in legend. Must have length of 2.
-    lw : int, optional
-        Plot line width (default is 2)
-    npts : int, optional
-        Number of points plotted (default is length of y)
-    left_ylim : (float, float)
-        Specify the limits for the left y axis. (default None)
-    right_ylim : (float, float)
-        Specify the limits for the right y axis. (default None)
-    xlim : (float, float)
-        Specify the limits for the x axis. (default None)
-    scilimits : (-int, int)
-        Specify the order where axis is labeled using scientific notation. (default (-3, 3))
-    legend_loc : string
-        Specify legend location. (default best)
-    alpha : float
-        Bar alpha (default 0.5)
-    border_width : float
-        Bar border width (default)
-    bar_width : float
-        Bar width ras faction of x delta.
-    figsize : (int, int), optional
-        Specify the width and height of plot (default is (8,6))
-   """
-
-    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
-
-    _, axis = pyplot.subplots(figsize=figsize)
-    comp.twinx_bar(axis, left, right, x_left, x_right, **kwargs)
-
-
 def hist(samples: numpy.ndarray, fx=None, **kwargs):
     """
     Plot samples in histogram and compare with given function.

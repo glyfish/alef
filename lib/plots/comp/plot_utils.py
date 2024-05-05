@@ -193,6 +193,10 @@ def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
     colors       = get_param_default_if_missing("colors", None, **kwargs)
     bar_colors   = get_param_default_if_missing("bar_colors", None, **kwargs)
     scilimits    = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
+    xlabel       = get_param_default_if_missing("xlabel", "x", **kwargs)
+    ylabel       = get_param_default_if_missing("ylabel", "y", **kwargs)
+    xlim         = get_param_default_if_missing("xlim", None, **kwargs)
+    ylim         = get_param_default_if_missing("ylim", None, **kwargs)
 
     if x is None:
         x = numpy.linspace(0, len(y) - 1, len(y))
@@ -204,11 +208,9 @@ def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
         munits.registry[datetime] = converter 
     else:
         axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
-
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
 
-    alpha_value = alpha[n] if isinstance(alpha, list) else alpha
-        
+    alpha_value = alpha[n] if isinstance(alpha, list) else alpha        
     cycler = axis._get_lines.prop_cycler
 
     if bar_colors is not None:
@@ -217,10 +219,35 @@ def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
         color = colors[n] if colors is not None and len(colors) > n else next(cycler)['color']
 
     label = labels[n] if labels is not None and len(labels) > n else None
+    axis.set_ylabel(ylabel)
+    axis.set_xlabel(xlabel)
+
+    if xlim is not None:
+        axis.set_xlim(xlim)
+
+    if ylim is not None:
+        axis.set_ylim(ylim)
 
     width = bar_width*(x[1]-x[0])
 
     return axis.bar(x, y, align='center', width=width, zorder=zorder, alpha=alpha_value, linewidth=border_width, label=label, color=color)
+
+
+def __axis_twinx(axis, **kwargs):
+    ylabel      = get_param_default_if_missing("ylabel", None, **kwargs)
+    scilimits   = get_param_default_if_missing("scilimits", (-3, 3), **kwargs)
+
+    axis2 = axis.twinx()
+    axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
+
+    if ylabel is not None:
+        axis2.set_ylabel(ylabel, rotation=-90, labelpad=15)
+    axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
+
+    __twinx_ticks(axis, axis2)
+    axis2.grid(False)
+
+    return axis2
 
 
 def __twinx_ticks(axis1, axis2):
