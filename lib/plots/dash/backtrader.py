@@ -1,5 +1,7 @@
 from matplotlib import pyplot
 import matplotlib.gridspec as gridspec
+from matplotlib.lines import Line2D
+
 import numpy
 from pandas import DataFrame
 
@@ -165,6 +167,33 @@ def orders(order_data: DataFrame, asset_price_data: DataFrame, **kwargs):
     __orders(axis, order_data, asset_price_data, title=title)
 
 
+def order_value(order_data: DataFrame, **kwargs):
+    """
+    Plot order value time series. Sell orders have positive value and buy 
+    orders have negative value.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    symbol_offset_factor : float
+        Symbol offset factor.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize, sharex=True, sharey=False)
+
+    ticker = order_data.ticker.iloc[0]
+    run_id = order_data.run_id.iloc[0]
+    ensemble_id = order_data.ensemble_id.iloc[0]
+
+    title = f"{ticker} Order Value\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+
+    __order_value(axis, order_data, title=title)
+
+
 def order_pnl(data: DataFrame, **kwargs):
     """
     Plot profit and loss time series computed from orders.
@@ -210,6 +239,7 @@ def pnl(data: DataFrame, **kwargs):
     figsize = get_param_default_if_missing("figsize", (9,6), **kwargs)
     _, axis = pyplot.subplots(figsize=figsize, sharex=True, sharey=False)
 
+
     ticker = data.ticker.iloc[0]
     run_id = data.run_id.iloc[0]
     ensemble_id = data.ensemble_id.iloc[0]
@@ -219,10 +249,10 @@ def pnl(data: DataFrame, **kwargs):
     __pnl(axis, data, title=title)
 
 
-def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
-                    orders: DataFrame, mean_reversion_half_life: int, **kwargs):
+def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
+                         orders: DataFrame, mean_reversion_half_life: int, **kwargs):
     """
-    Plot backtest results.
+    Plot backtest results for long z-score strategy.
 
     Parameters
     ----------
@@ -242,18 +272,43 @@ def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: Da
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,10), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,14), **kwargs)
+
+    completed_orders = orders.query('order_status == "Completed"')
 
     fig = pyplot.figure(constrained_layout=True, figsize=figsize)
-    spec = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
+    spec = gridspec.GridSpec(ncols=1, nrows=9, figure=fig)
 
     ax1 = fig.add_subplot(spec[0, 0])
-    ax2 = fig.add_subplot(spec[1:3, 0])
-    ax3 = fig.add_subplot(spec[3:, 0])
+    ax2 = fig.add_subplot(spec[1:4, 0], sharex=ax1)
+    ax3 = fig.add_subplot(spec[4:6, 0], sharex=ax1)
+    ax4 = fig.add_subplot(spec[6:8, 0], sharex=ax1)
+    ax5 = fig.add_subplot(spec[8 :, 0], sharex=ax1)
 
-    __cash_value(ax1, broker)
+    ticker = orders.ticker.iloc[0]
+    run_id = orders.run_id.iloc[0]
+    ensemble_id = orders.ensemble_id.iloc[0]
+    
+    title = f"Backtest using Long Z-Score Strategy, {ticker}\n" + \
+            f"$t_{{1/2}}$={mean_reversion_half_life:2.2f}\n" + \
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
+    ax1.set_title(title, y=1.1)
+
+    __cash_value(ax1, broker, lw=1)
     __orders(ax2, orders, asset)
-    __pnl(ax3, orders)
+    __pnl(ax3, completed_orders, lw=1)
+    __order_value(ax4, orders)
+    __zscore_indicator(ax5, zscore_indicator, mean_reversion_half_life)
+
+    ax1.set_xlabel(None)
+    ax2.set_xlabel(None)
+    ax3.set_xlabel(None)
+    ax4.set_xlabel(None)
+
+    pyplot.setp(ax1.get_xticklabels(), visible=False)
+    pyplot.setp(ax2.get_xticklabels(), visible=False)
+    pyplot.setp(ax3.get_xticklabels(), visible=False)
+    pyplot.setp(ax4.get_xticklabels(), visible=False)
 
 
 """
@@ -333,10 +388,17 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
         Data to plot.
     title : str
         Figure title.
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_loc : string
+        Specify legend location. (default best)
     """
 
-    title   = get_param_default_if_missing("title", None, **kwargs)
-    colors  = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    lw               = get_param_default_if_missing("lw", 2, **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_fontsize  = get_param_default_if_missing("legend_fontsize", None, **kwargs)
 
     pnl = data.pnl.to_numpy()
     pnl_date = data.date.to_numpy()
@@ -345,8 +407,57 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
     bar_colors = numpy.where(pnl > 0, colors[0], colors[1])
 
     comp.twinx_bar_line(axis, pnl, cumulative_pnl, pnl_date, pnl_date, title=title, xlabel="Date", 
-                        bar_ylabel="Order PnL (Dollars)", line_ylabel="Cumulative PnL (Dollars)", lw=2, 
-                        bar_colors=bar_colors)
+                        bar_ylabel="Order PnL", line_ylabel="Cumulative PnL", lw=lw, 
+                        bar_colors=bar_colors, alpha=1.0)
+    
+    custom_lines = [Line2D([0], [0], color=colors[0], lw=2),
+                    Line2D([0], [0], color=colors[1], lw=2),
+                    Line2D([0], [0], color='#0067C4', lw=2)]
+    
+    axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
+                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95), fontsize=legend_fontsize)
+
+
+def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
+    """
+    Plot profit and loss time series.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : DataFrame
+        Data to plot.
+    title : str
+        Figure title.
+    legend_loc : string
+        Specify legend location. (default best)
+    legend_loc : string
+        Specify legend location. (default best)
+    """
+
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    lw               = get_param_default_if_missing("lw", 2, **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_fontsize  = get_param_default_if_missing("legend_fontsize", None, **kwargs)
+
+    completed_orders = data.query('order_status == "Completed"')
+    size = completed_orders['size'].to_numpy()
+    order_date = completed_orders.date.to_numpy()
+
+    value = numpy.where(size > 0, -completed_orders.value.to_numpy(), completed_orders.value.to_numpy())
+    bar_colors = numpy.where(size > 0, colors[0], colors[1])
+
+    comp.positive_negative_bar(axis, value, order_date, title=title, xlabel="Date", ylabel="Order Value", lw=lw, 
+                               bar_colors=bar_colors, alpha=1.0)
+    
+    custom_lines = [Line2D([0], [0], color=colors[0], lw=2),
+                    Line2D([0], [0], color=colors[1], lw=2)]
+    
+    legend = axis.legend(custom_lines, ['Sell', 'Buy'], loc=legend_loc, 
+                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95), fontsize=legend_fontsize)
+
 
 
 def __orders(axis: pyplot.axis, order_data: DataFrame, asset_price_data: DataFrame, **kwargs):
@@ -402,6 +513,7 @@ def __cash_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
 
     title = get_param_default_if_missing("title", None, **kwargs)
+    lw    = get_param_default_if_missing("lw", 1, **kwargs)
 
     date = data.date.to_numpy()
     cash = data.cash.to_numpy()
@@ -410,7 +522,7 @@ def __cash_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     run_id = data.run_id[0]
     ensemble_id = data.ensemble_id[0]
 
-    comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=1, 
+    comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=lw, 
                     labels=["Cash", "Value", "Spend"])
 
 

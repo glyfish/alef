@@ -173,7 +173,6 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray[float], y_line: numpy
     axis.set_title(title, y=title_offset + 1.0)
     
     list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **dict(kwargs, ylim=bar_ylim, ylabel=bar_ylabel))
-
     axis2 = __axis_twinx(axis, ylabel=line_ylabel)
     list2 = __plot_curve(axis2, x_line, y_line, 1, **dict(kwargs, ylim=line_ylim, ylabel=line_ylabel))
     
