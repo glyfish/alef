@@ -162,7 +162,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.db.insert_broker(self.run_id, self.current_date(), self.broker, ensemble_id)
         self.db.insert_yahoo_asset_price(self.run_id, self.datas[0], ensemble_id)
         self.db.insert_zscore_indicator(self.run_id, self.current_date(), self.datas[0]._name, 
-                                        self.zscore[0], self.params.half_life, ensemble_id)
+                                        self.zscore[0], self.params.half_life, self.params.stake_multiple, ensemble_id)
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -242,4 +242,4 @@ if __name__ == '__main__':
 
     # Plot the result
     cerebro.plot()
-    
+

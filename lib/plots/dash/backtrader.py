@@ -60,7 +60,7 @@ def asset_price(data: DataFrame, **kwargs):
     __asset_price(axis, data, title=title)
 
 
-def zscore_indicator(data: DataFrame, mean_reversion_half_life: int, **kwargs):
+def zscore_indicator(data: DataFrame, **kwargs):
     """
     Plot zscore indicator time series.
 
@@ -78,11 +78,14 @@ def zscore_indicator(data: DataFrame, mean_reversion_half_life: int, **kwargs):
     _, axis = pyplot.subplots(figsize=figsize)
 
     ticker = data.ticker[0]
-    mean_reversion_half_life = int(mean_reversion_half_life)
+    mean_reversion_half_life = data.half_life.iloc[0]
+    stake_multiple = data.stake_multiple.iloc[0]
     run_id = data.run_id[0]
     ensemble_id = data.ensemble_id[0]
 
-    title = f"{ticker}, Z-Score Indicator Time Series, $t_{{1/2}}$={mean_reversion_half_life}\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+    title = f"{ticker}, Z-Score Indicator Time Series\n" + \
+            f"$t_{{1/2}}$={mean_reversion_half_life}, Stake Multiple={stake_multiple}\n" + \
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
 
     __zscore_indicator(axis, data, title=title)  
 
@@ -249,7 +252,7 @@ def pnl(data: DataFrame, **kwargs):
     __pnl(axis, data, title=title)
 
 
-def zscore_indicator_position(zscore: DataFrame, position: DataFrame, mean_reversion_half_life: int, **kwargs):
+def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     """
     Plot comparing zscore indicator and position time series.
 
@@ -259,8 +262,6 @@ def zscore_indicator_position(zscore: DataFrame, position: DataFrame, mean_rever
         Z-Score data to plot.
     position : DataFrame
         Position data to plot.
-    mean_reversion_half_life : int
-        Mean reversion half life for price series.
     figsize : Tuple[int, int]
         Figure size.
     """
@@ -268,13 +269,21 @@ def zscore_indicator_position(zscore: DataFrame, position: DataFrame, mean_rever
     figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
     _, axis = pyplot.subplots(figsize=figsize)
 
-    title = f"Z-Score Indicator and Position Size\n$t_{{1/2}}$={mean_reversion_half_life:2.2f}"
+    mean_reversion_half_life = zscore.half_life.iloc[0]
+    stake_multiple = zscore.stake_multiple.iloc[0]
+    ticker = zscore.ticker.iloc[0]
+    run_id = zscore.run_id.iloc[0]
+    ensemble_id = zscore.ensemble_id.iloc[0]
+
+    title = f"{ticker}, Z-Score Indicator Time Series\n" + \
+            f"$t_{{1/2}}$={mean_reversion_half_life}, Stake Multiple={stake_multiple}\n" + \
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
 
     __zscore_indicator_position(axis, zscore, position, title=title)
 
 
 def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
-                         orders: DataFrame, mean_reversion_half_life: int, **kwargs):
+                         orders: DataFrame, **kwargs):
     """
     Plot backtest results for long z-score strategy.
 
@@ -290,8 +299,6 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
         Asset data.
     orders : DataFrame
         Order data.
-    mean_reversion_half_life : int
-        Mean reversion half life for price series.
     figsize : Tuple[int, int]
         Figure size.
     """
@@ -314,9 +321,11 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
     ticker = orders.ticker.iloc[0]
     run_id = orders.run_id.iloc[0]
     ensemble_id = orders.ensemble_id.iloc[0]
+    mean_reversion_half_life = zscore_indicator.half_life.iloc[0]
+    stake_multiple = zscore_indicator.stake_multiple.iloc[0]
     
     title = f"Backtest using Long Z-Score Strategy, {ticker}\n" + \
-            f"$t_{{1/2}}$={mean_reversion_half_life:2.2f}\n" + \
+            f"$t_{{1/2}}$={mean_reversion_half_life:2.2f}, Stake Multiple={stake_multiple}\n" + \
             f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
     ax1.set_title(title, y=1.1)
 
@@ -583,12 +592,11 @@ def __cash_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     date = data.date.to_numpy()
     cash = data.cash.to_numpy()
     value = data.value.to_numpy()
-    spend = value - cash
     run_id = data.run_id[0]
     ensemble_id = data.ensemble_id[0]
 
-    comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=lw, 
-                    labels=["Cash", "Value", "Spend"])
+    comp.comparison(axis, [cash, value], date, title=title, xlabel="Date", ylabel="Dollars", lw=lw, 
+                    labels=["Cash", "Value"])
 
 
 def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):

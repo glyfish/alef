@@ -172,6 +172,7 @@ class Indicator(Base):
 
     run_id: Mapped[str]                = mapped_column(String(256), primary_key=True)
     date: Mapped[datetime.date]        = mapped_column(Date, primary_key=True)
+    ensemble_id: Mapped[str]           = mapped_column(String(256), nullable=False)
     ticker: Mapped[str]                = mapped_column(String(256))
     indicator: Mapped[str]             = mapped_column(String(256), nullable=False)
     value: Mapped[dict]                = mapped_column(JSONB, nullable=False)
@@ -482,7 +483,7 @@ class BacktestDb:
             ))
 
     
-    def insert_zscore_indicator(self, run_id: str, date: datetime.date, ticker: str, zscore: float, period: int, ensemble_id: str = None):
+    def insert_zscore_indicator(self, run_id: str, date: datetime.date, ticker: str, zscore: float, period: int, stake_multiple: float, ensemble_id: str = None):
         """
         Insert current Z-score indicator value into the database.
 
@@ -502,7 +503,7 @@ class BacktestDb:
             Identifier for an ensemble of backtests.
         """
 
-        params = {'period': period}
+        params = {'period': period, "stake_multiple": stake_multiple}
         value = {'zscore': zscore}
         self.__insert_indicator(run_id, date, ticker, 'zscore', value, params, ensemble_id)
 
@@ -731,8 +732,9 @@ class BacktestDb:
                indicator,
                ensemble_id,
                ticker,
-               value->'zscore' as zscore,
-               params->'period' as half_life
+               value->'zscore' zscore,
+               params->'period' half_life,
+               params->'stake_multiple' stake_multiple
         FROM indicators WHERE run_id='{run_id}' 
             AND indicator='zscore'
         ORDER BY date ASC
@@ -872,8 +874,9 @@ class BacktestDb:
             connection.execute(Indicator.__table__.insert().values(
                 run_id=run_id, 
                 date=date,
-                ticker=ticker,
                 indicator=indicator, 
+                ensemble_id=ensemble_id,
+                ticker=ticker,
                 value=value,
                 params=params
             ))
