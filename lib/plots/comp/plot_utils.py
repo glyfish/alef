@@ -63,16 +63,16 @@ def __plot_curve(axis, x, y, n, **kwargs):
     label = labels[n] if labels is not None and n < len(labels) else None
 
     if plot_axis_type.value == PlotType.LINEAR.value:
-        return axis.plot(x, y, lw=lw, label=label, color=color, zorder=10)
+        return axis.plot(x, y, lw=lw, label=label, color=color, zorder=5)
     elif plot_axis_type.value == PlotType.YLOG.value:
         logYStyle(axis, x, y)
-        return axis.semilogy(x, y, lw=lw, label=label, color=color, zorder=10)
+        return axis.semilogy(x, y, lw=lw, label=label, color=color, zorder=5)
     elif plot_axis_type.value == PlotType.XLOG.value:
         logXStyle(axis, x, y)
-        return axis.semilogx(x, y, lw=lw, label=label, color=color, zorder=10)
+        return axis.semilogx(x, y, lw=lw, label=label, color=color, zorder=5)
     elif plot_axis_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
-        return axis.loglog(x, y, lw=lw, label=label, color=color, zorder=10)
+        return axis.loglog(x, y, lw=lw, label=label, color=color, zorder=5)
     else:
         raise Exception("Invalid PlotAxisType")
 
@@ -103,7 +103,7 @@ def __plot_curves(axis, x, y, **kwargs):
 
     if labels is not None:
         ncol = math.ceil(ncurve / 6 )
-        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
+        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(20)
 
 
 def __plot_symbols(axis, x, y, loc, **kwargs):
@@ -135,7 +135,7 @@ def __plot_symbols(axis, x, y, loc, **kwargs):
 
     if labels is not None:
         ncol = math.ceil(ncurve / 6 )
-        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(10)
+        axis.legend(loc=legend_loc, ncol=ncol, title=legend_title, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9)).set_zorder(20)
 
 
 def __plot_symbol(axis, x, y, n, **kwargs):
@@ -241,7 +241,7 @@ def __axis_twinx(axis, **kwargs):
     axis2._get_lines.prop_cycler = axis._get_lines.prop_cycler
 
     if ylabel is not None:
-        axis2.set_ylabel(ylabel, rotation=-90, labelpad=15)
+        axis2.set_ylabel(ylabel, rotation=-90, labelpad=20)
     axis2.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
 
     __twinx_ticks(axis, axis2)

@@ -5,7 +5,7 @@ import matplotlib.units as munits
 from matplotlib import pyplot
 from datetime import datetime, date
 
-from lib.plots.comp.plot_utils import (__plot_curve, __twinx_ticks, __plot_bar, __axis_twinx)
+from lib.plots.comp.plot_utils import (__plot_curve, __plot_curves, __twinx_ticks, __plot_bar, __axis_twinx)
 
 from lib.utils import get_param_default_if_missing
 from lib import config
@@ -175,6 +175,98 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray[float], y_line: numpy
     list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **dict(kwargs, ylim=bar_ylim, ylabel=bar_ylabel))
     axis2 = __axis_twinx(axis, ylabel=line_ylabel)
     list2 = __plot_curve(axis2, x_line, y_line, 1, **dict(kwargs, ylim=line_ylim, ylabel=line_ylabel))
+    
+    __twinx_ticks(axis, axis2)
+
+    if labels is not None:
+        list = [list1] + list2
+        labs = [l.get_label() for l in list]
+        axis.legend(list, labs, loc=legend_loc, bbox_to_anchor=(0.1, 0.1, 0.9, 0.9))
+
+
+
+def twinx_bar_line_comparison(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: numpy.ndarray[float], x_bar: numpy.ndarray=None,
+                              x_line: numpy.ndarray=None, **kwargs):
+    """
+    Bar plot and comparison line plot using same x-axis but different scales on y-axis. Bar plot is on left y-axis
+    and line plot is on right y-axis.
+    
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    y_bar : numpy.ndarray
+        Bar y axis plot data.
+    y_line : numpy.ndarray
+        Line y axis plot data.
+    x_bar : numpy.array or numpy.ndarray, optional
+        Value plotted on x-axis for bar plot. If property is an list each x is plotted with y of 
+        same index (default is index values of y)
+    x_line : numpy.array or numpy.ndarray, optional
+        Value plotted on x-axis for bar plot. If property is an list each x is plotted with y of 
+        same index (default is index values of y)
+    title : string, optional
+        Plot title (default is None)
+    title_offset : float (default is 0.0)
+        Plot title off set from top of plot.
+    xlabel : string, optional
+        Plot x-axis label (default is None)
+    bar_ylabel : string, optional
+        Bar plot y-axis label (default is None)
+    line_ylabel : string, optional
+        Line plot left y-axis label (default is None)
+    labels : [string], optional
+        Curve labels shown in legend. Must have length of 2.
+    lw : int, optional
+        Plot line width (default is 2)
+    npts : int, optional
+        Number of points plotted (default is length of y)
+    bar_ylim : (float, float)
+        Specify the limits for the bar y axis. (default None)
+    line_ylim : (float, float)
+        Specify the limits for the right y axis. (default None)
+    scilimits : (-int, int)
+        Specify the order where axis is labeled using scientific notation. (default (-3, 3))
+    legend_loc : string
+        Specify legend location. (default best)
+    prec : int
+        Precision shown for y axis ticks.
+    alpha : float
+        Bar alpha (default 0.5)
+    border_width : float
+        Bar border width (default)
+    bar_width : float
+        Bar width ras faction of x delta.
+    xlim : (float, float)
+        Specify the limits for the x axis. (default None)
+    bar_color : list[float]
+        Colors to use for bars. Default uses color cycler
+    line_colors : list[float]
+        Colors to use for lines. Default uses color cycler
+    """
+
+    title           = get_param_default_if_missing("title", None, **kwargs)
+    title_offset    = get_param_default_if_missing("title_offset", 0.0, **kwargs)
+    bar_ylabel      = get_param_default_if_missing("bar_ylabel", None, **kwargs)
+    line_ylabel      = get_param_default_if_missing("line_ylabel", None, **kwargs)
+    labels          = get_param_default_if_missing("labels", None, **kwargs)
+    bar_ylim        = get_param_default_if_missing("bar_ylim", None, **kwargs)
+    line_ylim       = get_param_default_if_missing("line_ylim", None, **kwargs)
+    legend_loc      = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    bar_color       = get_param_default_if_missing("bar_color", "#0067C4", **kwargs)
+    line_colors      = get_param_default_if_missing("line_colors", None, **kwargs)
+
+    if x_bar is None:
+        x_bar = numpy.linspace(0, len(y_bar) - 1, len(y_bar))
+
+    if x_line is None:
+        x_line = numpy.linspace(0, len(y_line) - 1, len(y_line))
+
+    axis.set_title(title, y=title_offset + 1.0)
+    
+    list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **dict(kwargs, ylim=bar_ylim, ylabel=bar_ylabel, colors=[bar_color]))
+    axis2 = __axis_twinx(axis, ylabel=line_ylabel)
+    list2 = __plot_curves(axis2, x_line, y_line, **dict(kwargs, ylim=line_ylim, ylabel=line_ylabel, colors=line_colors))
     
     __twinx_ticks(axis, axis2)
 

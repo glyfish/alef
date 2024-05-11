@@ -84,7 +84,7 @@ def zscore_indicator(data: DataFrame, mean_reversion_half_life: int, **kwargs):
 
     title = f"{ticker}, Z-Score Indicator Time Series, $t_{{1/2}}$={mean_reversion_half_life}\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
 
-    __zscore_indicator(axis, data, mean_reversion_half_life, title=title)  
+    __zscore_indicator(axis, data, title=title)  
 
 
 def cash_value(data: DataFrame, **kwargs):
@@ -249,6 +249,30 @@ def pnl(data: DataFrame, **kwargs):
     __pnl(axis, data, title=title)
 
 
+def zscore_indicator_position(zscore: DataFrame, position: DataFrame, mean_reversion_half_life: int, **kwargs):
+    """
+    Plot comparing zscore indicator and position time series.
+
+    Parameters
+    ----------
+    zscore : DataFrame
+        Z-Score data to plot.
+    position : DataFrame
+        Position data to plot.
+    mean_reversion_half_life : int
+        Mean reversion half life for price series.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize)
+
+    title = f"Z-Score Indicator and Position Size\n$t_{{1/2}}$={mean_reversion_half_life:2.2f}"
+
+    __zscore_indicator_position(axis, zscore, position, title=title)
+
+
 def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
                          orders: DataFrame, mean_reversion_half_life: int, **kwargs):
     """
@@ -272,18 +296,20 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,14), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,16), **kwargs)
 
     completed_orders = orders.query('order_status == "Completed"')
 
     fig = pyplot.figure(constrained_layout=True, figsize=figsize)
-    spec = gridspec.GridSpec(ncols=1, nrows=9, figure=fig)
+
+    spec = gridspec.GridSpec(ncols=1, nrows=11, figure=fig)
 
     ax1 = fig.add_subplot(spec[0, 0])
-    ax2 = fig.add_subplot(spec[1:4, 0], sharex=ax1)
-    ax3 = fig.add_subplot(spec[4:6, 0], sharex=ax1)
-    ax4 = fig.add_subplot(spec[6:8, 0], sharex=ax1)
-    ax5 = fig.add_subplot(spec[8 :, 0], sharex=ax1)
+    ax2 = fig.add_subplot(spec[1, 0])
+    ax3 = fig.add_subplot(spec[2:5, 0], sharex=ax1)
+    ax4 = fig.add_subplot(spec[5:7, 0], sharex=ax1)
+    ax5 = fig.add_subplot(spec[7:9, 0], sharex=ax1)
+    ax6 = fig.add_subplot(spec[9:, 0], sharex=ax1)
 
     ticker = orders.ticker.iloc[0]
     run_id = orders.run_id.iloc[0]
@@ -295,20 +321,23 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
     ax1.set_title(title, y=1.1)
 
     __cash_value(ax1, broker, lw=1)
-    __orders(ax2, orders, asset)
-    __pnl(ax3, completed_orders, lw=1)
-    __order_value(ax4, orders)
-    __zscore_indicator(ax5, zscore_indicator, mean_reversion_half_life)
+    __position_value(ax2, position)
+    __orders(ax3, orders, asset)
+    __pnl(ax4, completed_orders, lw=1)
+    __order_value(ax5, orders)
+    __zscore_indicator_position(ax6, zscore_indicator, position)
 
     ax1.set_xlabel(None)
     ax2.set_xlabel(None)
     ax3.set_xlabel(None)
     ax4.set_xlabel(None)
+    ax5.set_xlabel(None)
 
     pyplot.setp(ax1.get_xticklabels(), visible=False)
     pyplot.setp(ax2.get_xticklabels(), visible=False)
     pyplot.setp(ax3.get_xticklabels(), visible=False)
     pyplot.setp(ax4.get_xticklabels(), visible=False)
+    pyplot.setp(ax5.get_xticklabels(), visible=False)
 
 
 """
@@ -316,15 +345,22 @@ Reusable plot components.
 
 __zscore_indicator
     Plot zscore indicator time series.
+__zscore_indicator_position
+    Plot zscore indicator comparison with position..
 __asset_price
     Plot asset price series.
 __pnl
     Plot profit and loss time series.
 __orders
     Plot when orders type occurs compared with asset price.
+__order_value
+    Plot but and sell order value time series.
 __cash_value
+    Plot cash, spend value time series.
+__position_value
+    Plot position value time series.
 """
-def __zscore_indicator(axis: pyplot.axis, data: DataFrame, mean_reversion_half_life: int, **kwargs):
+def __zscore_indicator(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
     Plot zscore indicator time series.
 
@@ -334,8 +370,6 @@ def __zscore_indicator(axis: pyplot.axis, data: DataFrame, mean_reversion_half_l
         Axis used to draw plot.
     data : DataFrame
         Data to plot.
-    mean_reversion_half_life : int
-        Mean reversion half life for price series.
     """
 
     title = get_param_default_if_missing("title", None, **kwargs)
@@ -343,12 +377,49 @@ def __zscore_indicator(axis: pyplot.axis, data: DataFrame, mean_reversion_half_l
 
     date = data.date.to_numpy()
     zscore = data.zscore.to_numpy()
-    mean_reversion_half_life = int(mean_reversion_half_life)
 
     zero = numpy.full(len(zscore), 0.0)
 
-    comp.comparison(axis, [zscore[mean_reversion_half_life:], zero], date[mean_reversion_half_life:], title=title, xlabel="Date", 
+    comp.comparison(axis, [zscore, zero], date, title=title, xlabel="Date", 
                     ylabel="Z-Score", lw=1)
+
+
+def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, position_data: DataFrame, **kwargs):
+    """
+    Plot zscore indicator time series.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    zscore : DataFrame
+        Z-Score data to plot.
+    position : DataFrame
+        .
+    """
+
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
+
+    bar_color = '#0067C4'
+    line_colors  = ['#FF9500', '#0067C4']
+
+    position = position_data['size'].to_numpy()
+    position_date = position_data.date.to_numpy()
+
+    zscore = zscore_data.zscore.to_numpy()
+    zscore_date = zscore_data.date.to_numpy()
+    zero = numpy.full(len(zscore), 0.0)
+
+    comp.twinx_bar_line_comparison(axis, position, [zero, zscore], position_date, [zscore_date, zscore_date], title=title, xlabel="Date", 
+                                   bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=0.15, bar_color=bar_color, line_colors=line_colors)
+
+    custom_lines = [Line2D([0], [0], color=bar_color, lw=4, alpha=0.15),
+                    Line2D([0], [0], color=line_colors[1], lw=2)]
+    
+    axis.legend(custom_lines, ['Position', 'Z-Score'], loc=legend_loc, 
+                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
 def __asset_price(axis: pyplot.axis, data: DataFrame, **kwargs):
@@ -390,15 +461,12 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
         Figure title.
     legend_loc : string
         Specify legend location. (default best)
-    legend_loc : string
-        Specify legend location. (default best)
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
     colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
     lw               = get_param_default_if_missing("lw", 2, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
-    legend_fontsize  = get_param_default_if_missing("legend_fontsize", None, **kwargs)
 
     pnl = data.pnl.to_numpy()
     pnl_date = data.date.to_numpy()
@@ -415,12 +483,12 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
                     Line2D([0], [0], color='#0067C4', lw=2)]
     
     axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
-                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95), fontsize=legend_fontsize)
+                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(100)
 
 
 def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
-    Plot profit and loss time series.
+    Values of buy and sell orders.
 
     Parameters
     ----------
@@ -432,15 +500,12 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
         Figure title.
     legend_loc : string
         Specify legend location. (default best)
-    legend_loc : string
-        Specify legend location. (default best)
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
     colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
     lw               = get_param_default_if_missing("lw", 2, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
-    legend_fontsize  = get_param_default_if_missing("legend_fontsize", None, **kwargs)
 
     completed_orders = data.query('order_status == "Completed"')
     size = completed_orders['size'].to_numpy()
@@ -455,8 +520,8 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2),
                     Line2D([0], [0], color=colors[1], lw=2)]
     
-    legend = axis.legend(custom_lines, ['Sell', 'Buy'], loc=legend_loc, 
-                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95), fontsize=legend_fontsize)
+    axis.legend(custom_lines, ['Sell', 'Buy'], loc=legend_loc, 
+                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
 
@@ -525,4 +590,25 @@ def __cash_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     comp.comparison(axis, [cash, value, spend], date, title=title, xlabel="Date", ylabel="Dollars", lw=lw, 
                     labels=["Cash", "Value", "Spend"])
 
+
+def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):
+    """
+    Plot position value time series.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    alpha = get_param_default_if_missing("alpha", 0.25, **kwargs)
+
+    position = data['size'].to_numpy()
+    price = data.price.to_numpy()
+    date = data.date.to_numpy()
+    value = price * position
+    
+    comp.bar(axis, value, date, xlabel="Date", ylabel="Position Value", alpha=alpha)
 
