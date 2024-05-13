@@ -303,7 +303,7 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,16), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,14), **kwargs)
 
     completed_orders = orders.query('order_status == "Completed"')
 
@@ -312,7 +312,7 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
     spec = gridspec.GridSpec(ncols=1, nrows=11, figure=fig)
 
     ax1 = fig.add_subplot(spec[0, 0])
-    ax2 = fig.add_subplot(spec[1, 0])
+    ax2 = fig.add_subplot(spec[1, 0], sharex=ax1)
     ax3 = fig.add_subplot(spec[2:5, 0], sharex=ax1)
     ax4 = fig.add_subplot(spec[5:7, 0], sharex=ax1)
     ax5 = fig.add_subplot(spec[7:9, 0], sharex=ax1)
@@ -491,8 +491,10 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
                     Line2D([0], [0], color=colors[1], lw=2),
                     Line2D([0], [0], color='#0067C4', lw=2)]
     
-    axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
-                bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(100)
+    legend = axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
+                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95))
+    legend.set_zorder(102)
+    legend.get_frame().set_fill(True)
 
 
 def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
@@ -533,7 +535,6 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
                 bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
-
 def __orders(axis: pyplot.axis, order_data: DataFrame, asset_price_data: DataFrame, **kwargs):
     """
     Plot order size and value time series.
@@ -569,7 +570,6 @@ def __orders(axis: pyplot.axis, order_data: DataFrame, asset_price_data: DataFra
     comp.fcurve_scatter_comparison(axis, [buy_price, sell_price], price, [buy_date, sell_date], price_date, title=title, xlabel='Date', 
                                    ylabel='Price', lw=1, labels=[ticker, 'Buy', 'Sell'], markers=['^', 'v'], marker_colors=['#007735', '#BB0000'],
                                    marker_size=6.0) 
-
 
 
 def __cash_value(axis: pyplot.axis, data: DataFrame, **kwargs):
@@ -611,7 +611,7 @@ def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):
         Figure size.
     """
 
-    alpha = get_param_default_if_missing("alpha", 0.25, **kwargs)
+    alpha = get_param_default_if_missing("alpha", 0.15, **kwargs)
 
     position = data['size'].to_numpy()
     price = data.price.to_numpy()

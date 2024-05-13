@@ -1,5 +1,3 @@
-from __future__ import (absolute_import, division, print_function, unicode_literals)
-
 from datetime import datetime, date
 import os.path
 import sys
@@ -10,16 +8,21 @@ import shortuuid
 
 from lib.trading.indicators import ZScore
 from lib.db.backtest_db import BacktestDb
+from lib.trading.strategy import GlyfishStrategy
 
 ensemble_id = shortuuid.ShortUUID().random(length=12)
 
-class MeanRevertingTimeSeries(bt.Strategy):
+class LongZScore(GlyfishStrategy):
     """
     Implementation of the mean reverting time series strategy described in,
 
         'Algorithmic Trading: Winning Strategies and Their Rationale' - Ernest Chan
 
-    described in Example 2.8, 'Backtesting a Linear Mean-Reverting Strategy on a Portfolio'.  
+    described in Example 2.8, 'Backtesting a Linear Mean-Reverting Strategy on a Portfolio'.
+
+    The strategy uses the time series z-score to scale the position size. In this implementation
+    a long position is taken when the z-score is less than zero and the position size is a multiple
+    of the negative z-score value. The position is exited when the z-score is greater than zero.  
     """
 
     params = (
@@ -30,68 +33,12 @@ class MeanRevertingTimeSeries(bt.Strategy):
     )
 
     def __init__(self):
-        # Keep a reference to the "close" line in the data[0] dataseries
-        self.dataclose = self.datas[0].close
-
-        # To keep track of pending orders and buy price/commission, current  bar_executed
-        self.order = None
-        self.buyprice = None
-        self.buycomm = None
+        super().__init__(ensemble_id)
 
         # Add a ZScore indicator
         self.zscore = ZScore(self.datas[0], period=self.params.half_life)
         self.zscore.csv = True
-
-        # Add database interface
-        self.db = BacktestDb()
-
-        # Create run identifier
-        self.run_id = shortuuid.ShortUUID().random(length=12)
-        self.time_stamp = datetime.utcnow()
-
-        # Maintain trade ID
-        self.tradeid = None
-
-        self.set_tradehistory()
-
-
-        self.db.insert_backtest(self.run_id, self.__class__.__name__, self.time_stamp, ensemble_id)
-
-
-    def get_tradeid(self):
-        if self.tradeid is None:
-            self.tradeid = random.getrandbits(32)
-        return self.tradeid
-        
-
-    def log(self, txt: str, dt: datetime=None):
-        """
-        Logging function for strategy.
-
-        Parameters
-        ----------
-        txt : str
-            Text to be logged.
-        dt : datetime, optional
-            Date and time to be logged. The default is None.
-        """
-
-        dt = dt or self.current_date()
-        print(f"{dt.isoformat()}, {txt}")
-
-
-    def current_date(self):
-        """
-        Get the current date.
-
-        Returns
-        -------
-        date
-            The current date.
-        """
-
-        return self.datas[0].datetime.date(0)
-    
+            
     
     def notify_order(self, order: bt.Order):
         """
@@ -103,7 +50,7 @@ class MeanRevertingTimeSeries(bt.Strategy):
             The order that has changed state.
         """
         
-        self.db.insert_order(self.run_id, self.current_date(), self.datas[0]._name, order, ensemble_id)    
+        super().notify_order(order)
 
         if order.status in [order.Submitted, order.Accepted]:
             return
@@ -127,44 +74,16 @@ class MeanRevertingTimeSeries(bt.Strategy):
         self.order = None
 
 
-    def notify_trade(self, trade: bt.Trade):
-        """
-        Called when a trade has a state change.
-
-        Parameters
-        ----------
-        trade : bt.Trade
-            The trade that has changed state.
-        """
-        
-        self.db.insert_trade(self.run_id, self.current_date(), self.datas[0]._name, trade, ensemble_id)
-        
-        if not trade.isclosed:
-            return
-        self.tradeid = None
-
-        self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
-
-
-    def notify_cashvalue(self, cash, value):
-        self.log(f"Cash={cash:.2f}, Value={value:.2f}")
-
-
     def next(self):
         """
         Called on each new bar.
         """
 
-        #  Log the closing price
-        self.log(f"Close {self.dataclose[0]:.2f}")
+        super().next()
 
-        # Insert broker and asset price data into database
-        self.db.insert_broker(self.run_id, self.current_date(), self.broker, ensemble_id)
-        self.db.insert_yahoo_asset_price(self.run_id, self.datas[0], ensemble_id)
         self.db.insert_zscore_indicator(self.run_id, self.current_date(), self.datas[0]._name, 
                                         self.zscore[0], self.params.half_life, self.params.stake_multiple, ensemble_id)
 
-        # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return
 
@@ -216,19 +135,13 @@ if __name__ == '__main__':
     cerebro.adddata(data)
 
     # Add a strategy
-    cerebro.addstrategy(MeanRevertingTimeSeries)
-
-    # Add analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='strat_sharpe_ration')
+    cerebro.addstrategy(LongZScore)
 
     # Set cash start
     cerebro.broker.setcash(1000.0)
 
     # Set the commission - 0.1% ... divide by 100 to remove the %
     cerebro.broker.setcommission(commission=0.0)
-
-    # Write output to file
-    cerebro.addwriter(bt.WriterFile, csv=True, out='apps/output/mean-reversion-timeseries-CAD=X.csv')
 
     # Print out the starting conditions
     print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
@@ -238,8 +151,7 @@ if __name__ == '__main__':
 
     # Print out the final result
     print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}")
-    print('Sharpe Ratio:', strats[0].analyzers.strat_sharpe_ration.get_analysis())
-
+    
     # Plot the result
     cerebro.plot()
 
