@@ -89,7 +89,7 @@ def positive_negative_bar(axis: pyplot.axis, y: numpy.ndarray[float], x: numpy.n
 
     title          = get_param_default_if_missing("title", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
-    colors         = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    colors         = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
 
     axis.set_title(title, y=title_offset + 1.0)
     kwargs["bar_colors"] = numpy.where(y > 0, colors[0], colors[1])

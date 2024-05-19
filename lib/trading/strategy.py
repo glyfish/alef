@@ -36,6 +36,7 @@ class GlyfishStrategy(bt.Strategy):
         # Maintain trade ID
         self.tradeid = None
         self.db.insert_backtest(self.run_id, self.__class__.__name__, self.time_stamp, ensemble_id)
+        self.log(f"Run ID={self.run_id}, Ensemble ID={ensemble_id}")
 
 
     def get_tradeid(self):

@@ -125,23 +125,35 @@ def position(data: DataFrame, **kwargs):
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    figsize    = get_param_default_if_missing("figsize", (10,6), **kwargs)
+    lw         = get_param_default_if_missing("lw", 2, **kwargs)
+    legend_loc = get_param_default_if_missing("legend_loc", "best", **kwargs)
+
     _, axis = pyplot.subplots(2, figsize=figsize, sharex=True, sharey=False)
 
     position = data['size'].to_numpy()
     price = data.price.to_numpy()
     date = data.date.to_numpy()
-    value = price * position
+    value = -price * position
 
     date = data.date.to_numpy()
     ticker = data.ticker.iloc[0]
     run_id = data.run_id.iloc[0]
     ensemble_id = data.ensemble_id.iloc[0]
+
+    position_colors = ['#ff8c1a', '#5900b3']
     
     title = f"{ticker} Position Size and Value\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
 
-    comp.bar(axis[0], position, date, xlabel=None, title=title, ylabel="Size", alpha=1.0)
-    comp.bar(axis[1], value, date, xlabel="Date", ylabel="Dollars", alpha=1.0)
+    comp.positive_negative_bar(axis[0], position, date, title=title, xlabel=None, ylabel="Size", lw=lw, 
+                               colors=position_colors, alpha=0.5)
+
+    comp.positive_negative_bar(axis[1], value, date, xlabel="Date", ylabel="Value (Dollars)", lw=lw, alpha=0.5)
+        
+    custom_lines = [Line2D([0], [0], color=position_colors[0], lw=2),
+                    Line2D([0], [0], color=position_colors[1], lw=2)]
+    axis[0].legend(custom_lines, ['Long', 'Short'], loc=legend_loc, 
+                   bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
 def orders(order_data: DataFrame, asset_price_data: DataFrame, **kwargs):
@@ -409,10 +421,10 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
 
     title            = get_param_default_if_missing("title", None, **kwargs)
     lw               = get_param_default_if_missing("lw", 1, **kwargs)
-    legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
 
-    bar_color = '#0067C4'
-    line_colors  = ['#FF9500', '#0067C4']
+    bar_colors = ['#008000', '#e60000']
+    line_colors = ['#FF9500', '#0067C4']
 
     position = position_data['size'].to_numpy()
     position_date = position_data.date.to_numpy()
@@ -421,13 +433,15 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
     zscore_date = zscore_data.date.to_numpy()
     zero = numpy.full(len(zscore), 0.0)
 
+    size_colors = numpy.where(position > 0, bar_colors[0], bar_colors[1])
     comp.twinx_bar_line_comparison(axis, position, [zero, zscore], position_date, [zscore_date, zscore_date], title=title, xlabel="Date", 
-                                   bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=0.15, bar_color=bar_color, line_colors=line_colors)
+                                   bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=0.25, bar_color=size_colors, line_colors=line_colors)
 
-    custom_lines = [Line2D([0], [0], color=bar_color, lw=4, alpha=0.15),
+    custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=4, alpha=0.25),
+                    Line2D([0], [0], color=bar_colors[1], lw=4, alpha=0.25),
                     Line2D([0], [0], color=line_colors[1], lw=2)]
     
-    axis.legend(custom_lines, ['Position', 'Z-Score'], loc=legend_loc, 
+    axis.legend(custom_lines, ['Long', 'Short', 'Z-Score'], loc=legend_loc, 
                 bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
@@ -473,7 +487,7 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
-    colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
     lw               = get_param_default_if_missing("lw", 2, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
 
@@ -514,7 +528,7 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
-    colors           = get_param_default_if_missing("colors", ('#007735', '#BB0000'), **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
     lw               = get_param_default_if_missing("lw", 2, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
 
@@ -523,10 +537,9 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     order_date = completed_orders.date.to_numpy()
 
     value = numpy.where(size > 0, -completed_orders.value.to_numpy(), completed_orders.value.to_numpy())
-    bar_colors = numpy.where(size > 0, colors[0], colors[1])
 
     comp.positive_negative_bar(axis, value, order_date, title=title, xlabel="Date", ylabel="Order Value", lw=lw, 
-                               bar_colors=bar_colors, alpha=1.0)
+                               colors=colors, alpha=1.0)
     
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2),
                     Line2D([0], [0], color=colors[1], lw=2)]
@@ -566,9 +579,9 @@ def __orders(axis: pyplot.axis, order_data: DataFrame, asset_price_data: DataFra
     sell_date = sell_orders.date.to_numpy()
 
     ticker = sell_orders.ticker.iloc[0]
-    
+
     comp.fcurve_scatter_comparison(axis, [buy_price, sell_price], price, [buy_date, sell_date], price_date, title=title, xlabel='Date', 
-                                   ylabel='Price', lw=1, labels=[ticker, 'Buy', 'Sell'], markers=['^', 'v'], marker_colors=['#007735', '#BB0000'],
+                                   ylabel='Price', lw=1, labels=[ticker, 'Buy', 'Sell'], markers=['^', 'v'], marker_colors=['#006600', '#990000'],
                                    marker_size=6.0) 
 
 

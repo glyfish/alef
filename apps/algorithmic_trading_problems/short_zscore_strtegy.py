@@ -54,19 +54,19 @@ class ShortZScore(GlyfishStrategy):
         
         # Check if an order has been completed
         # Attention: broker could reject order if not enough cash
-        # if order.status in [order.Completed]:
-        #     if order.isbuy():
-        #         self.log(f"BUY EXECUTED, Price {order.executed.price:.2f}, Cost {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
-        #         self.buyprice = order.executed.price
-        #         self.buycomm = order.executed.comm
-        #     else:  # Sell
-        #         self.log(f"SELL EXECUTED, Price: {order.executed.price:.2f}, Cost: {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.log(f"BUY COVER EXECUTED, Price {order.executed.price:.2f}, Cost {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
+                self.buyprice = order.executed.price
+                self.buycomm = order.executed.comm
+            else:  # Sell
+                self.log(f"SHORT SELL EXECUTED, Price: {order.executed.price:.2f}, Cost: {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
 
-        #     # save bar when order was executed
-        #     self.bar_executed = len(self)
+            # save bar when order was executed
+            self.bar_executed = len(self)
 
-        # elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-        #     self.log('Order Canceled/Margin/Rejected')
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            self.log('Order Canceled/Margin/Rejected')
 
         self.order = None
 
@@ -91,30 +91,30 @@ class ShortZScore(GlyfishStrategy):
 
         # Check if a position is held
         if not self.position:
-            # If zscore < 0.0 buy a multiple of the negative z-score value. For this case price is below average
+            # If zscore > 0.0 short sell a multiple of the negative z-score value. For this case price is below average
             # and nothing is owned.
             if self.zscore[0] > 0.0:
                 self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
                 self.order = self.sell(size=size, tradeid=self.get_tradeid())
         else:
             self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position, ensemble_id)
-        #     # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
-        #     if self.zscore[0] < 0.0:
-        #         delta = size - self.position.size
-        #         self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
-        #                  f"Position {self.position.size}, Size {size}, Delta {delta}")
-        #         # Must sell delta to maintain position.
-        #         if delta < 0:
-        #             self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
-        #             self.order = self.sell(size=-delta, tradeid=self.get_tradeid())
-        #         # Must buy delta to maintain position.
-        #         elif delta > 0:
-        #             self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
-        #             self.order = self.buy(size=delta, tradeid=self.get_tradeid())
-        #     # If z-score is > 0.0 sell everything.
-        #     elif self.zscore[0] > 0.0:
-        #         self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
-        #         self.order = self.sell(size=self.position.size, tradeid=self.get_tradeid())
+            # If zscore > 0.0 short sell or cover what is needed to obtain a multiple of the negative z-score value.
+            if self.zscore[0] > 0.0:
+                delta = size + self.position.size
+                self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
+                         f"Position {self.position.size}, Size {size}, Delta {delta}")
+                # Must sell delta to maintain position.
+                if delta < 0:
+                    self.log(f"COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
+                    self.order = self.buy(size=-delta, tradeid=self.get_tradeid())
+                # Must buy delta to maintain position.
+                elif delta > 0:
+                    self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
+                    self.order = self.sell(size=delta, tradeid=self.get_tradeid())
+            # If z-score is < 0.0 Cover position.
+            elif self.zscore[0] < 0.0:
+                self.log(f"EXITING POSITION COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
+                self.order = self.buy(size=self.position.size, tradeid=self.get_tradeid())
 
 
 if __name__ == '__main__':
@@ -150,8 +150,7 @@ if __name__ == '__main__':
     strats = cerebro.run()
 
     # Print out the final result
-    print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}")
-    print('Sharpe Ratio:', strats[0].analyzers.strat_sharpe_ration.get_analysis())
+    print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
 
     # Plot the result
     cerebro.plot()
