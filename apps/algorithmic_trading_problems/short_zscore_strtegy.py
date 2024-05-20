@@ -37,40 +37,6 @@ class ShortZScore(GlyfishStrategy):
         self.zscore.csv = True
 
 
-    def notify_order(self, order: bt.Order):
-        """
-        Called when an order has a state change.
-
-        Parameters
-        ----------
-        order : bt.Order
-            The order that has changed state.
-        """
-        
-        super().notify_order(order)
-
-        if order.status in [order.Submitted, order.Accepted]:
-            return
-        
-        # Check if an order has been completed
-        # Attention: broker could reject order if not enough cash
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                self.log(f"BUY COVER EXECUTED, Price {order.executed.price:.2f}, Cost {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
-                self.buyprice = order.executed.price
-                self.buycomm = order.executed.comm
-            else:  # Sell
-                self.log(f"SHORT SELL EXECUTED, Price: {order.executed.price:.2f}, Cost: {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
-
-            # save bar when order was executed
-            self.bar_executed = len(self)
-
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log('Order Canceled/Margin/Rejected')
-
-        self.order = None
-
-
     def next(self):
         """
         Called on each new bar.

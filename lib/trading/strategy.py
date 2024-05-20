@@ -114,6 +114,27 @@ class GlyfishStrategy(bt.Strategy):
         
         self.db.insert_order(self.run_id, self.current_date(), self.datas[0]._name, order, self.ensemble_id)    
 
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+        
+        # Check if an order has been completed
+        # Attention: broker could reject order if not enough cash
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.log(f"BUY EXECUTED, Price {order.executed.price:.2f}, Cost {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
+                self.buyprice = order.executed.price
+                self.buycomm = order.executed.comm
+            else:  # Sell
+                self.log(f"SHORT EXECUTED, Price: {order.executed.price:.2f}, Cost: {order.executed.value:.2f}, Comm {order.executed.comm:.2f}")
+
+            # save bar when order was executed
+            self.bar_executed = len(self)
+
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            self.log('Order Canceled/Margin/Rejected')
+
+        self.order = None
+
 
     def next(self):
         """

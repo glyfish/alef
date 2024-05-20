@@ -150,6 +150,7 @@ def __plot_symbol(axis, x, y, n, **kwargs):
     npts            = get_param_default_if_missing("npts", min(len(y), len(x)), **kwargs)
     marker          = get_param_default_if_missing("marker", 'o', **kwargs)
     marker_size     = get_param_default_if_missing("marker_size", 5.0, **kwargs)
+    alpha           = get_param_default_if_missing("alpha", 0.75, **kwargs)  
 
     if isinstance(x[0], pandas.Timestamp) or isinstance(x[0], datetime) or isinstance(x[0], numpy.datetime64) or isinstance(x[0], date):
         converter = mdates.ConciseDateConverter()
@@ -174,15 +175,19 @@ def __plot_symbol(axis, x, y, n, **kwargs):
 
     if plot_axis_type.value == PlotType.LOG.value:
         logStyle(axis, x, y)
-        axis.loglog(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=label, color=color)
+        axis.loglog(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, 
+                    alpha=alpha, zorder=5, label=label, color=color)
     elif plot_axis_type.value == PlotType.XLOG.value:
         logXStyle(axis, x, y)
-        axis.semilogx(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=label, color=color)
+        axis.semilogx(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, 
+                      alpha=alpha, zorder=5, label=label, color=color)
     elif plot_axis_type.value == PlotType.YLOG.value:
         logYStyle(axis, x, y)
-        axis.semilogy(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=label, color=color)
+        axis.semilogy(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, 
+                      alpha=alpha, zorder=5, label=label, color=color)
     else:
-        axis.plot(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, alpha=0.75, zorder=5, label=label, color=color)
+        axis.plot(x, y, marker=marker, markersize=marker_size, linestyle="None", markeredgewidth=1.0, 
+                  alpha=alpha, zorder=5, label=label, color=color)
 
 
 def __plot_bar(axis, x, y, n, zorder=10, **kwargs):

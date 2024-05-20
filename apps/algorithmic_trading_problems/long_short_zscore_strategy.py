@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime
 import os.path
 import sys
 import random
@@ -12,17 +12,15 @@ from lib.trading.strategy import GlyfishStrategy
 
 ensemble_id = shortuuid.ShortUUID().random(length=12)
 
-class LongZScore(GlyfishStrategy):
+class LongShortZScore(GlyfishStrategy):
     """
     Implementation of the mean reverting time series strategy described in,
 
         'Algorithmic Trading: Winning Strategies and Their Rationale' - Ernest Chan
 
-    described in Example 2.8, 'Backtesting a Linear Mean-Reverting Strategy on a Portfolio'.
-
     The strategy uses the time series z-score to scale the position size. In this implementation
-    a long position is taken when the z-score is less than zero and the position size is a multiple
-    of the negative z-score value. The position is exited when the z-score is greater than zero.  
+    a short position is taken when the z-score is greater than zero and the position size is a multiple
+    of the z-score value. A long position is taken if the z-score is less than zero.  
     """
 
     params = (
@@ -34,11 +32,10 @@ class LongZScore(GlyfishStrategy):
 
     def __init__(self):
         super().__init__(ensemble_id)
-
-        # Add a ZScore indicator
+        
         self.zscore = ZScore(self.datas[0], period=self.params.half_life)
         self.zscore.csv = True
-            
+
 
     def next(self):
         """
@@ -60,30 +57,30 @@ class LongZScore(GlyfishStrategy):
 
         # Check if a position is held
         if not self.position:
-            # If zscore < 0.0 buy a multiple of the negative z-score value. For this case price is below average
+            # If zscore > 0.0 short sell a multiple of the negative z-score value. For this case price is below average
             # and nothing is owned.
-            if self.zscore[0] < 0.0:
-                self.log(f"BUY CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
-                self.order = self.buy(size=size, tradeid=self.get_tradeid())
+            if self.zscore[0] > 0.0:
+                self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
+                self.order = self.sell(size=size, tradeid=self.get_tradeid())
         else:
             self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position, ensemble_id)
-            # If zscore < 0.0 buy or sell what is needed to obtain a multiple of the negative z-score value.
-            if self.zscore[0] < 0.0:
-                delta = size - self.position.size
+            # If zscore > 0.0 short sell or cover what is needed to obtain a multiple of the negative z-score value.
+            if self.zscore[0] > 0.0:
+                delta = size + self.position.size
                 self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
                          f"Position {self.position.size}, Size {size}, Delta {delta}")
                 # Must sell delta to maintain position.
                 if delta < 0:
-                    self.log(f"SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
-                    self.order = self.sell(size=-delta, tradeid=self.get_tradeid())
+                    self.log(f"COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
+                    self.order = self.buy(size=-delta, tradeid=self.get_tradeid())
                 # Must buy delta to maintain position.
                 elif delta > 0:
-                    self.log(f"BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
-                    self.order = self.buy(size=delta, tradeid=self.get_tradeid())
-            # If z-score is > 0.0 sell everything.
-            elif self.zscore[0] > 0.0:
-                self.log(f"EXITING POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
-                self.order = self.sell(size=self.position.size, tradeid=self.get_tradeid())
+                    self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
+                    self.order = self.sell(size=delta, tradeid=self.get_tradeid())
+            # If z-score is < 0.0 Cover position.
+            elif self.zscore[0] < 0.0:
+                self.log(f"EXITING POSITION COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
+                self.order = self.buy(size=self.position.size, tradeid=self.get_tradeid())
 
 
 if __name__ == '__main__':
@@ -101,10 +98,13 @@ if __name__ == '__main__':
     cerebro.adddata(data)
 
     # Add a strategy
-    cerebro.addstrategy(LongZScore)
+    cerebro.addstrategy(LongShortZScore)
 
     # Set cash start
     cerebro.broker.setcash(1000.0)
+
+    # Decrease cash and add value when short asset is sold.
+    cerebro.broker.set_shortcash(False)
 
     # Set the commission - 0.1% ... divide by 100 to remove the %
     cerebro.broker.setcommission(commission=0.0)
@@ -117,7 +117,6 @@ if __name__ == '__main__':
 
     # Print out the final result
     print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
-    
+
     # Plot the result
     cerebro.plot()
-
