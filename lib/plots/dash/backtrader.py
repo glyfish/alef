@@ -128,6 +128,7 @@ def position(data: DataFrame, **kwargs):
     figsize    = get_param_default_if_missing("figsize", (10,6), **kwargs)
     lw         = get_param_default_if_missing("lw", 2, **kwargs)
     legend_loc = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    alpha      = get_param_default_if_missing("alpha", 0.5, **kwargs)
 
     _, axis = pyplot.subplots(2, figsize=figsize, sharex=True, sharey=False)
 
@@ -146,12 +147,12 @@ def position(data: DataFrame, **kwargs):
     title = f"{ticker} Position Size and Value\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
 
     comp.positive_negative_bar(axis[0], position, date, title=title, xlabel=None, ylabel="Size", lw=lw, 
-                               colors=position_colors, alpha=0.5)
+                               colors=position_colors, alpha=alpha)
 
-    comp.positive_negative_bar(axis[1], value, date, xlabel="Date", ylabel="Value (Dollars)", lw=lw, alpha=0.5)
+    comp.positive_negative_bar(axis[1], value, date, xlabel="Date", ylabel="Value (Dollars)", lw=lw, alpha=alpha)
         
-    custom_lines = [Line2D([0], [0], color=position_colors[0], lw=2),
-                    Line2D([0], [0], color=position_colors[1], lw=2)]
+    custom_lines = [Line2D([0], [0], color=position_colors[0], lw=2, alpha=alpha),
+                    Line2D([0], [0], color=position_colors[1], lw=2, alpha=alpha)]
     axis[0].legend(custom_lines, ['Long', 'Short'], loc=legend_loc, 
                    bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
@@ -319,7 +320,7 @@ def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     __zscore_indicator_position(axis, zscore, position, title=title)
 
 
-def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
+def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
                          orders: DataFrame, **kwargs):
     """
     Plot backtest results for long z-score strategy.
@@ -341,6 +342,7 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
     """
 
     figsize = get_param_default_if_missing("figsize", (10,14), **kwargs)
+    strategy = get_param_default_if_missing("strategy", "Backtest for Long-Short Z-Score Strategy", **kwargs)
 
     completed_orders = orders.query('order_status == "Completed"')
 
@@ -361,7 +363,7 @@ def long_zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, positio
     mean_reversion_half_life = zscore_indicator.half_life.iloc[0]
     stake_multiple = zscore_indicator.stake_multiple.iloc[0]
     
-    title = f"Backtest using Long Z-Score Strategy, {ticker}\n" + \
+    title = f"{strategy}, {ticker}\n" + \
             f"$t_{{1/2}}$={mean_reversion_half_life:2.2f}, Stake Multiple={stake_multiple}\n" + \
             f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
     ax1.set_title(title, y=1.1)
@@ -447,21 +449,24 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
     title            = get_param_default_if_missing("title", None, **kwargs)
     lw               = get_param_default_if_missing("lw", 1, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "upper center", **kwargs)
-    alpha            = get_param_default_if_missing("alpha", 0.15, **kwargs)
+    alpha            = get_param_default_if_missing("alpha", 0.25, **kwargs)
 
     bar_colors = ( '#007700', '#770000')
     line_colors = ['#FF9500', '#0067C4']
 
     position = position_data['size'].to_numpy()
+    position_max = numpy.max(numpy.abs(position))
     position_date = position_data.date.to_numpy()
 
     zscore = zscore_data.zscore.to_numpy()
+    max_zscore = numpy.max(numpy.abs(zscore))
     zscore_date = zscore_data.date.to_numpy()
     zero = numpy.full(len(zscore), 0.0)
 
     size_colors = numpy.where(position > 0, bar_colors[0], bar_colors[1])
     comp.twinx_bar_line_comparison(axis, position, [zero, zscore], position_date, [zscore_date, zscore_date], title=title, xlabel="Date", 
-                                   bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=alpha, bar_color=size_colors, line_colors=line_colors)
+                                   bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=alpha, bar_color=size_colors, line_colors=line_colors,
+                                   line_ylim=(-max_zscore, max_zscore), bar_ylim=(-position_max, position_max))
 
     custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=4, alpha=alpha),
                     Line2D([0], [0], color=bar_colors[1], lw=4, alpha=alpha),
@@ -515,7 +520,7 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
     title            = get_param_default_if_missing("title", None, **kwargs)
     colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
     lw               = get_param_default_if_missing("lw", 2, **kwargs)
-    legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
     alpha            = get_param_default_if_missing("alpha", 0.5, **kwargs)
 
     pnl = data.pnl.to_numpy()
@@ -649,7 +654,7 @@ def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):
         Figure size.
     """
 
-    alpha      = get_param_default_if_missing("alpha", 0.15, **kwargs)
+    alpha      = get_param_default_if_missing("alpha", 0.4, **kwargs)
     legend_loc = get_param_default_if_missing("legend_loc", "best", **kwargs)
     title      = get_param_default_if_missing("title", None, **kwargs)
 

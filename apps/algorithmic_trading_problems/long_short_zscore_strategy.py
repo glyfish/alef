@@ -62,61 +62,56 @@ class LongShortZScore(GlyfishStrategy):
             if self.zscore[0] > 0.0:
                 self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
                 self.order = self.sell(size=size, tradeid=self.get_tradeid())
+            elif self.zscore[0] < 0.0:
+                self.log(f"LONG BUY CREATE, {self.dataclose[0]:.3f}, Z-Score {self.zscore[0]:.3f}, Size {size}")
+                self.order = self.buy(size=size, tradeid=self.get_tradeid())
         else:
             self.db.insert_position(self.run_id, self.current_date(), self.datas[0]._name, self.position, ensemble_id)
             # If zscore > 0.0 short sell or cover what is needed to obtain a multiple of the negative z-score value.
             if self.zscore[0] > 0.0:
-                delta = size + self.position.size
-                self.log(f"ADJUSTING POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
-                         f"Position {self.position.size}, Size {size}, Delta {delta}")
-                # Must sell delta to maintain position.
-                if delta < 0:
-                    self.log(f"COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
-                    self.order = self.buy(size=-delta, tradeid=self.get_tradeid())
-                # Must buy delta to maintain position.
-                elif delta > 0:
-                    self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
-                    self.order = self.sell(size=delta, tradeid=self.get_tradeid())
+                if self.position.size > 0:
+                    # Exit Long Position
+                    self.log(f"EXITING LONG POSITION SELL CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
+                    self.order = self.sell(size=self.position.size, tradeid=self.get_tradeid())
+                elif self.position.size < 0:
+                    # Update short position
+                    delta = size + self.position.size
+                    self.log(f"ADJUSTING SHORT POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
+                                f"Position {self.position.size}, Size {size}, Delta {delta}")
+                    if delta < 0:
+                        # Must sell delta to maintain position.
+                        self.log(f"COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
+                        self.order = self.buy(size=-delta, tradeid=self.get_tradeid())
+                    elif delta > 0:
+                        # Must buy delta to maintain position.
+                        self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
+                        self.order = self.sell(size=delta, tradeid=self.get_tradeid())
             # If z-score is < 0.0 Cover position.
             elif self.zscore[0] < 0.0:
-                self.log(f"EXITING POSITION COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
-                self.order = self.buy(size=self.position.size, tradeid=self.get_tradeid())
+                if self.position.size < 0:
+                    # Exit short position
+                    self.log(f"EXITING SHORT POSITION COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
+                    self.order = self.buy(size=self.position.size, tradeid=self.get_tradeid())
+                elif self.position.size > 0:
+                    # Update long position
+                    delta = size - self.position.size
+                    self.log(f"ADJUSTING LONG POSITION, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, " \
+                            f"Position {self.position.size}, Size {size}, Delta {delta}")
+                    if delta < 0:
+                        # Must sell delta to maintain position.
+                        self.log(f"LONG SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {-delta}")
+                        self.order = self.sell(size=-delta, tradeid=self.get_tradeid())
+                    elif delta > 0:
+                        # Must buy delta to maintain position.
+                        self.log(f"LONG BUY CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
+                        self.order = self.buy(size=delta, tradeid=self.get_tradeid())
+
 
 
 if __name__ == '__main__':
-    # Create a cerebro instance
-    cerebro = bt.Cerebro()
+    data = GlyfishStrategy.load_yahoo_finance_data('data/algorithmic_trading/CAD=X.csv', 
+                                                   datetime(2007, 7, 23), 
+                                                   datetime(2012, 3, 28))
 
-    dataname = os.path.abspath('data/algorithmic_trading/CAD=X.csv')
-    data = bt.feeds.YahooFinanceCSVData(
-        dataname=dataname,
-        fromdate = datetime(2007, 7, 23),
-        todate = datetime(2012, 3, 28),
-        reverse=False)
-
-    # Add the Data Feed to Cerebro
-    cerebro.adddata(data)
-
-    # Add a strategy
-    cerebro.addstrategy(LongShortZScore)
-
-    # Set cash start
-    cerebro.broker.setcash(1000.0)
-
-    # Decrease cash and add value when short asset is sold.
-    cerebro.broker.set_shortcash(False)
-
-    # Set the commission - 0.1% ... divide by 100 to remove the %
-    cerebro.broker.setcommission(commission=0.0)
-
-    # Print out the starting conditions
-    print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
-
-    # Run over everything
-    strats = cerebro.run()
-
-    # Print out the final result
-    print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
-
-    # Plot the result
+    cerebro = GlyfishStrategy.backtest(data, LongShortZScore, ensemble_id=ensemble_id)
     cerebro.plot()

@@ -1,4 +1,6 @@
+from typing import Type
 import numpy
+import os.path
 from datetime import datetime
 import random
 
@@ -148,3 +150,46 @@ class GlyfishStrategy(bt.Strategy):
         self.db.insert_broker(self.run_id, self.current_date(), self.broker, self.ensemble_id)
         self.db.insert_yahoo_asset_price(self.run_id, self.datas[0], self.ensemble_id)
 
+
+    @staticmethod
+    def ensemble_id():
+        return shortuuid.ShortUUID().random(length=12)
+    
+
+    @staticmethod
+    def load_yahoo_finance_data(file_path: str, start_date: datetime, end_date: datetime):  
+        dataname = os.path.abspath(file_path)
+        data = bt.feeds.YahooFinanceCSVData(
+            dataname=dataname,
+            fromdate = start_date,
+            todate = end_date,
+            reverse=False)
+        return data
+    
+
+    @staticmethod
+    def backtest(data, strategy: Type[bt.Strategy], ensemble_id: str, cash: float = 1000.0, commission: float = 0.0):
+        cerebro = bt.Cerebro()
+        # Add the Data Feed to Cerebro
+        cerebro.adddata(data)
+
+        # Add a strategy
+        cerebro.addstrategy(strategy)
+
+        # Set cash start
+        cerebro.broker.setcash(cash)
+
+        # Set the commission - 0.1% ... divide by 100 to remove the %
+        cerebro.broker.setcommission(commission=commission)
+
+        # Print out the starting conditions
+        print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
+
+        # Run over everything
+        strats = cerebro.run()
+
+        # Print out the final result
+        print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
+
+        return cerebro
+    

@@ -10,7 +10,7 @@ from lib.trading.indicators import ZScore
 from lib.db.backtest_db import BacktestDb
 from lib.trading.strategy import GlyfishStrategy
 
-ensemble_id = shortuuid.ShortUUID().random(length=12)
+ensemble_id = GlyfishStrategy.ensemble_id()
 
 class LongZScore(GlyfishStrategy):
     """
@@ -87,37 +87,10 @@ class LongZScore(GlyfishStrategy):
 
 
 if __name__ == '__main__':
-    # Create a cerebro instance
-    cerebro = bt.Cerebro()
+    data = GlyfishStrategy.load_yahoo_finance_data('data/algorithmic_trading/CAD=X.csv', 
+                                                   datetime(2007, 7, 23), 
+                                                   datetime(2012, 3, 28))
 
-    dataname = os.path.abspath('data/algorithmic_trading/CAD=X.csv')
-    data = bt.feeds.YahooFinanceCSVData(
-        dataname=dataname,
-        fromdate = datetime(2007, 7, 23),
-        todate = datetime(2012, 3, 28),
-        reverse=False)
-
-    # Add the Data Feed to Cerebro
-    cerebro.adddata(data)
-
-    # Add a strategy
-    cerebro.addstrategy(LongZScore)
-
-    # Set cash start
-    cerebro.broker.setcash(1000.0)
-
-    # Set the commission - 0.1% ... divide by 100 to remove the %
-    cerebro.broker.setcommission(commission=0.0)
-
-    # Print out the starting conditions
-    print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
-
-    # Run over everything
-    strats = cerebro.run()
-
-    # Print out the final result
-    print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
-    
-    # Plot the result
+    cerebro = GlyfishStrategy.backtest(data, LongZScore, ensemble_id=ensemble_id)
     cerebro.plot()
 
