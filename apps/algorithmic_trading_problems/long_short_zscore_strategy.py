@@ -86,8 +86,8 @@ class LongShortZScore(GlyfishStrategy):
                         # Must buy delta to maintain position.
                         self.log(f"SHORT SELL CREATE, {self.dataclose[0]:.2f}, Z-Score {self.zscore[0]:.3f}, Size {delta}")
                         self.order = self.sell(size=delta, tradeid=self.get_tradeid())
-            # If z-score is < 0.0 Cover position.
             elif self.zscore[0] < 0.0:
+                # If z-score is < 0.0 Cover position.
                 if self.position.size < 0:
                     # Exit short position
                     self.log(f"EXITING SHORT POSITION COVER BUY CREATE, {self.dataclose[0]:.2f}, Z-Score, {self.zscore[0]:.3f}, Position {self.position.size}")
