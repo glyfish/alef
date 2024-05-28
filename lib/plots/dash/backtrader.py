@@ -469,8 +469,8 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
                                    bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=alpha, bar_color=size_colors, line_colors=line_colors,
                                    line_ylim=(-max_zscore, max_zscore), bar_ylim=(-position_max, position_max))
 
-    custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=4, alpha=alpha),
-                    Line2D([0], [0], color=bar_colors[1], lw=4, alpha=alpha),
+    custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=2, alpha=alpha),
+                    Line2D([0], [0], color=bar_colors[1], lw=2, alpha=alpha),
                     Line2D([0], [0], color=line_colors[1], lw=2)]
     
     axis.legend(custom_lines, ['Long', 'Short', 'Z-Score'], loc=legend_loc, 
@@ -528,11 +528,15 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
     pnl_date = data.date.to_numpy()
     cumulative_pnl = data.pnl.cumsum().to_numpy()
 
+    max_pnl = numpy.max(numpy.abs(pnl))
+    max_cumulative_pnl = numpy.max(numpy.abs(cumulative_pnl))
+
     bar_colors = numpy.where(pnl > 0, colors[0], colors[1])
 
     comp.twinx_bar_line(axis, pnl, cumulative_pnl, pnl_date, pnl_date, title=title, xlabel="Date", 
                         bar_ylabel="Order PnL", line_ylabel="Cumulative PnL", lw=lw, 
-                        bar_colors=bar_colors, alpha=alpha)
+                        bar_colors=bar_colors, alpha=alpha, line_ylim=(-max_cumulative_pnl, max_cumulative_pnl),
+                        bar_ylim=(-max_pnl, max_pnl))
     
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
                     Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
