@@ -125,12 +125,14 @@ if __name__ == '__main__':
 
     # Write output to file
     cerebro.addwriter(bt.WriterFile, csv=True, out='apps/output/getting_started.csv')
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name = "sharpe")
 
     # Run over everything
-    cerebro.run()
+    back = cerebro.run()
 
     # Print out the final result
     print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
+    back[0].analyzers.sharpe.get_analysis()
     # Plot the result
     cerebro.plot()

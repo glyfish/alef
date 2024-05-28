@@ -182,6 +182,12 @@ class GlyfishStrategy(bt.Strategy):
         # Set the commission - 0.1% ... divide by 100 to remove the %
         cerebro.broker.setcommission(commission=commission)
 
+        # Add analyzers
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name = "sharpe")
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name = "sharpe_a")
+        cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name = "annual_return")
+        cerebro.addanalyzer(bt.analyzers.Returns, _name = "returns")
+
         # Print out the starting conditions
         print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
 
@@ -190,6 +196,10 @@ class GlyfishStrategy(bt.Strategy):
 
         # Print out the final result
         print(f"Final Portfolio Value: {cerebro.broker.getvalue():.2f}, Run ID: {strats[0].run_id}, Ensemble ID: {ensemble_id}")
+        print(f"Sharp Ratio: {strats[0].analyzers.sharpe.get_analysis()}")
+        print(f"Annualized Sharp Ratio: {strats[0].analyzers.sharpe_a.get_analysis()}")
+        print(f"Annual Return: {strats[0].analyzers.annual_return.get_analysis()}")
+        print(f"Returns: {strats[0].analyzers.returns.get_analysis()}")
 
         return cerebro
     

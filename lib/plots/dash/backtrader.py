@@ -290,6 +290,7 @@ def pnl(data: DataFrame, **kwargs):
     __pnl(axis, data, title=title)
 
 
+
 def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     """
     Plot comparing zscore indicator and position time series.
@@ -668,8 +669,8 @@ def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):
     comp.positive_negative_bar(axis, value, date, xlabel="Date", ylabel="Position Value", alpha=alpha,
                                 colors=colors, title=title)
     
-    custom_lines = [Line2D([0], [0], color=colors[0], lw=4, alpha=alpha),
-                    Line2D([0], [0], color=colors[1], lw=4, alpha=alpha)]
+    custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
+                    Line2D([0], [0], color=colors[1], lw=2, alpha=alpha)]
     
     axis.legend(custom_lines, ['Short', 'Long'], loc=legend_loc, 
                 bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
