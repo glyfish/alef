@@ -187,6 +187,9 @@ class GlyfishStrategy(bt.Strategy):
         cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name = "sharpe_a")
         cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name = "annual_return")
         cerebro.addanalyzer(bt.analyzers.Returns, _name = "returns")
+        cerebro.addanalyzer(bt.analyzers.TimeReturn, _name = "time_return")
+        cerebro.addanalyzer(bt.analyzers.VWR, _name = "vwr")
+        cerebro.addanalyzer(bt.analyzers.PositionsValue, _name = "position_value")
 
         # Print out the starting conditions
         print(f"Starting Portfolio Value: {cerebro.broker.getvalue():.2f}")
@@ -200,6 +203,7 @@ class GlyfishStrategy(bt.Strategy):
         print(f"Annualized Sharp Ratio: {strats[0].analyzers.sharpe_a.get_analysis()}")
         print(f"Annual Return: {strats[0].analyzers.annual_return.get_analysis()}")
         print(f"Returns: {strats[0].analyzers.returns.get_analysis()}")
+        print(f"Variable Weight Ratio: {strats[0].analyzers.vwr.get_analysis()}")
 
         return cerebro
     

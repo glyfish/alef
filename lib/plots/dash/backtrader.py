@@ -290,6 +290,29 @@ def pnl(data: DataFrame, **kwargs):
     __pnl(axis, data, title=title)
 
 
+def returns(data: DataFrame, **kwargs):
+    """
+    Returns time series,
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (9,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize, sharex=True, sharey=False)
+
+
+    ticker = data.ticker.iloc[0]
+    run_id = data.run_id.iloc[0]
+    ensemble_id = data.ensemble_id.iloc[0]
+
+    title = f"{ticker} Daily and Cumulative Returns\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+    __returns(axis, data, title=title)
+
 
 def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     """
@@ -537,6 +560,68 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
                         bar_ylabel="Order PnL", line_ylabel="Cumulative PnL", lw=lw, 
                         bar_colors=bar_colors, alpha=alpha, line_ylim=(-max_cumulative_pnl, max_cumulative_pnl),
                         bar_ylim=(-max_pnl, max_pnl))
+    
+    custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
+                    Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
+                    Line2D([0], [0], color='#0067C4', lw=2)]
+    
+    legend = axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
+                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95))
+    legend.set_zorder(102)
+
+
+def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
+    """
+    Daily returns are computed using the method described on page 98 of Algorithmic
+    Trading by Ernest Chan.
+
+    The gross portfolio market value denoted by G is given by,
+        G = abs(order size)
+
+    The daily return is given by,
+
+        r = Daily Profit Loss / G
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : DataFrame
+        Data to plot.
+    title : str
+        Figure title.
+    legend_loc : string
+        Specify legend location. (default best)
+    """
+
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
+    lw               = get_param_default_if_missing("lw", 2, **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
+    alpha            = get_param_default_if_missing("alpha", 0.25, **kwargs)
+
+    completed_orders = orders.query('order_status == "Completed"')
+    pnl_date = completed_orders.date.to_numpy()
+
+    pnl = completed_orders.pnl.to_numpy()
+    cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
+    daily_return = pnl / cost
+
+    cumulative_pnl = completed_orders.pnl.cumsum().to_numpy()
+    cumulative_cost = numpy.cumsum(cost)
+    cumulative_return = cumulative_pnl / cumulative_cost
+
+    max_daily_return = numpy.max(numpy.abs(daily_return))
+    max_cumulative_daily_return = numpy.max(numpy.abs(cumulative_return))
+
+    bar_colors = numpy.where(daily_return > 0, colors[0], colors[1])
+
+    comp.positive_negative_bar(axis, daily_return, pnl_date, xlabel="Date", ylabel="Return", alpha=alpha,
+                               colors=colors, title=title)
+
+    comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
+                        bar_ylabel="Daily Returns", line_ylabel="Cumulative Returns", lw=lw, bar_colors=bar_colors, alpha=alpha, 
+                        line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
     
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
                     Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
