@@ -605,11 +605,11 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
 
     pnl = completed_orders.pnl.to_numpy()
     cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
-    daily_return = pnl / cost
+    daily_return = 100.0 * (pnl / cost)
 
     cumulative_pnl = completed_orders.pnl.cumsum().to_numpy()
     cumulative_cost = numpy.cumsum(cost)
-    cumulative_return = cumulative_pnl / cumulative_cost
+    cumulative_return = 100.0 * (cumulative_pnl / cumulative_cost)
 
     max_daily_return = numpy.max(numpy.abs(daily_return))
     max_cumulative_daily_return = numpy.max(numpy.abs(cumulative_return))
@@ -620,7 +620,7 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
                                colors=colors, title=title)
 
     comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
-                        bar_ylabel="Daily Returns", line_ylabel="Cumulative Returns", lw=lw, bar_colors=bar_colors, alpha=alpha, 
+                        bar_ylabel="Daily Returns (%)", line_ylabel="Cumulative Returns (%)", lw=lw, bar_colors=bar_colors, alpha=alpha, 
                         line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
     
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
