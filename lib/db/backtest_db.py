@@ -560,13 +560,11 @@ class BacktestDb:
         """
 
         query = f"""
-        SELECT date, 
-               run_id,
+        SELECT run_id,
                strategy,
                time_stamp,
                ensemble_id
         FROM backtests WHERE run_id='{run_id}'
-        ORDER BY date ASC
         """
 
         return pandas.read_sql(query, self.engine)

@@ -45,7 +45,9 @@ def bar(axis: pyplot.axis, y: numpy.ndarray[float], x: numpy.ndarray=None, **kwa
     title          = get_param_default_if_missing("title", None, **kwargs)
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
 
-    axis.set_title(title, y=title_offset + 1.0)
+    if title is not None:
+        axis.set_title(title, y=title_offset + 1.0)
+
     __plot_bar(axis, x, y, 0, **kwargs)
 
 
@@ -91,7 +93,9 @@ def positive_negative_bar(axis: pyplot.axis, y: numpy.ndarray[float], x: numpy.n
     title_offset   = get_param_default_if_missing("title_offset", 0.0, **kwargs)
     colors         = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
 
-    axis.set_title(title, y=title_offset + 1.0)
+    if title is not None:
+        axis.set_title(title, y=title_offset + 1.0)
+    
     kwargs["bar_colors"] = numpy.where(y > 0, colors[0], colors[1])
 
     __plot_bar(axis, x, y, 0, **kwargs)
@@ -170,7 +174,8 @@ def twinx_bar_line(axis: pyplot.axis, y_bar: numpy.ndarray[float], y_line: numpy
     if x_line is None:
         x_line = numpy.linspace(0, len(y_line) - 1, len(y_line))
 
-    axis.set_title(title, y=title_offset + 1.0)
+    if title is not None:
+        axis.set_title(title, y=title_offset + 1.0)
     
     list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **dict(kwargs, ylim=bar_ylim, ylabel=bar_ylabel))
     axis2 = __axis_twinx(axis, ylabel=line_ylabel)
@@ -262,7 +267,8 @@ def twinx_bar_line_comparison(axis: pyplot.axis, y_bar: numpy.ndarray, y_line: n
     if x_line is None:
         x_line = numpy.linspace(0, len(y_line) - 1, len(y_line))
 
-    axis.set_title(title, y=title_offset + 1.0)
+    if title is not None:
+        axis.set_title(title, y=title_offset + 1.0)
     
     list1 = __plot_bar(axis, x_bar, y_bar, 0, 10, **dict(kwargs, ylim=bar_ylim, ylabel=bar_ylabel, colors=[bar_color]))
     axis2 = __axis_twinx(axis, ylabel=line_ylabel)

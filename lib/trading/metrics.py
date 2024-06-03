@@ -12,31 +12,6 @@ from typing import Tuple
 
 from lib.utils import verify_condition
 
-def zscore(samples: numpy.ndarray[float]) -> float:
-    """
-    Calculate the z-score using samples to compute the mean and standard deviation
-    and use the last value in samples as the test value.
-
-    Parameters
-    ----------
-    samples : numpy.ndarray
-        The time series.
-
-    Returns
-    -------
-    float
-        The z-score.
-    """
-
-    verify_condition(samples, len(samples) > 0, "No samples to compute z-score")
-
-    mean = numpy.mean(samples)
-    std = numpy.std(samples)
-    val = samples[-1]
-
-    return (val - mean) / std if std > 0 else 0.0
-
-
 def compute_zscore(time: numpy.ndarray[float], data: numpy.ndarray[float], window: int) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Calculate the z-score for a time series using a rolling window. The order of the
@@ -58,7 +33,7 @@ def compute_zscore(time: numpy.ndarray[float], data: numpy.ndarray[float], windo
     """
 
     npts = len(data) - window + 1
-    zscores = [zscore(data[i:i + window]) for i in range(npts)]
+    zscores = [__zscore(data[i:i + window]) for i in range(npts)]
     return time[window - 1:], numpy.array(zscores)
 
 
@@ -103,3 +78,29 @@ def compute_std(time: numpy.ndarray[float], data: numpy.ndarray[float], window: 
     npts = len(data) - window + 1
     stds = [std(numpy.flip(data[i:i + window])) for i in range(npts)]
     return time[window - 1:], numpy.array(stds)
+
+
+def __zscore(samples: numpy.ndarray[float]) -> float:
+    """
+    Calculate the z-score using samples to compute the mean and standard deviation
+    and use the last value in samples as the test value.
+
+    Parameters
+    ----------
+    samples : numpy.ndarray
+        The time series.
+
+    Returns
+    -------
+    float
+        The z-score.
+    """
+
+    verify_condition(samples, len(samples) > 0, "No samples to compute z-score")
+
+    mean = numpy.mean(samples)
+    std = numpy.std(samples)
+    val = samples[-1]
+
+    return (val - mean) / std if std > 0 else 0.0
+

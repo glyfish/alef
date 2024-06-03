@@ -314,6 +314,30 @@ def returns(data: DataFrame, **kwargs):
     __returns(axis, data, title=title)
 
 
+def sharpe_ratio(data: DataFrame, **kwargs):
+    """
+    Returns time series,
+
+    Parameters
+    ----------
+    data : DataFrame
+        Data to plot.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (9,6), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize, sharex=True, sharey=False)
+
+
+    ticker = data.ticker.iloc[0]
+    run_id = data.run_id.iloc[0]
+    ensemble_id = data.ensemble_id.iloc[0]
+
+    title = f"{ticker} Sharpe Ratio\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+    __sharpe_ratio(axis, data, title=title)
+
+
 def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     """
     Plot comparing zscore indicator and position time series.
@@ -412,6 +436,62 @@ def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: Da
     pyplot.setp(ax5.get_xticklabels(), visible=False)
 
 
+def metrics(backtest: DataFrame, orders: DataFrame, **kwargs):
+    """
+    Plot backtest results for long z-score strategy.
+
+    Parameters
+    ----------
+    backtest: DataFrame
+        Backtest data
+    orders : DataFrame
+        Order data.
+    figsize : Tuple[int, int]
+        Figure size.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,8), **kwargs)
+
+    completed_orders = orders.query('order_status == "Completed"')
+
+    fig = pyplot.figure(constrained_layout=True, figsize=figsize)
+
+    spec = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
+
+    ax1 = fig.add_subplot(spec[0:2, 0])
+    ax2 = fig.add_subplot(spec[2:4, 0], sharex=ax1)
+    ax3 = fig.add_subplot(spec[4:, 0], sharex=ax1)
+    # ax4 = fig.add_subplot(spec[5:7, 0], sharex=ax1)
+    # ax5 = fig.add_subplot(spec[7:9, 0], sharex=ax1)
+    # ax6 = fig.add_subplot(spec[9:, 0], sharex=ax1)
+
+    ticker = orders.ticker.iloc[0]
+    strategy = backtest.strategy.iloc[0]
+    run_id = orders.run_id.iloc[0]
+    ensemble_id = orders.ensemble_id.iloc[0]
+    
+    title = f"Strategy Metrics, {ticker}, {strategy}\n" + \
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
+    ax1.set_title(title, y=1.1)
+
+    __pnl(ax1, completed_orders, lw=1)
+    __gross_value(ax2, orders)
+    __returns(ax3, orders)
+
+    ax1.set_xlabel(None)
+    ax2.set_xlabel(None)
+    # ax3.set_xlabel(None)
+    # ax4.set_xlabel(None)
+    # ax5.set_xlabel(None)
+
+    pyplot.setp(ax1.get_xticklabels(), visible=False)
+    pyplot.setp(ax2.get_xticklabels(), visible=False)
+    # pyplot.setp(ax3.get_xticklabels(), visible=False)
+    # pyplot.setp(ax4.get_xticklabels(), visible=False)
+    # pyplot.setp(ax5.get_xticklabels(), visible=False)
+
+
+
 """
 Reusable plot components.
 
@@ -423,6 +503,8 @@ __asset_price
     Plot asset price series.
 __pnl
     Plot profit and loss time series.
+___returns
+    Plot daily and cumulative returns
 __orders
     Plot when orders type occurs compared with asset price.
 __order_value
@@ -467,7 +549,13 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
     zscore : DataFrame
         Z-Score data to plot.
     position : DataFrame
-        .
+        Position data to plot.
+    colors : list[str]
+        Colors to use for positive and negative returns.
+    lw : int
+        plot line width
+    alpha : float
+        bar chart alpha.
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
@@ -535,6 +623,12 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
         Axis used to draw plot.
     data : DataFrame
         Data to plot.
+    colors : list[str]
+        Colors to use for positive and negative returns.
+    lw : int
+        plot line width
+    alpha : float
+        bar chart alpha.
     title : str
         Figure title.
     legend_loc : string
@@ -588,6 +682,80 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
         Axis used to draw plot.
     data : DataFrame
         Data to plot.
+    colors : list[str]
+        Colors to use for positive and negative returns.
+    alpha : float
+        bar chart alpha.
+    lw : int
+        plot line width
+    title : str
+        Figure title.
+    legend_loc : string
+        Specify legend location. (default best)
+    """
+
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
+    legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
+    alpha            = get_param_default_if_missing("alpha", 0.5, **kwargs)
+
+    completed_orders = orders.query('order_status == "Completed"')
+    pnl_date = completed_orders.date.to_numpy()
+
+    pnl = completed_orders.pnl.to_numpy()
+    cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
+    daily_return = 100.0 * (pnl / cost)
+
+    cumulative_pnl = completed_orders.pnl.cumsum().to_numpy()
+    cumulative_cost = numpy.cumsum(cost)
+    cumulative_return = 100.0 * (cumulative_pnl / cumulative_cost)
+    [print(cumulative_pnl[i], cumulative_cost[i], cumulative_return[i]) for i in range(len(cumulative_pnl))]
+
+    max_daily_return = numpy.max(numpy.abs(daily_return))
+    max_cumulative_daily_return = numpy.max(numpy.abs(cumulative_return))
+
+    bar_colors = numpy.where(daily_return > 0, colors[0], colors[1])
+
+    comp.positive_negative_bar(axis, daily_return, pnl_date, xlabel="Date", ylabel="Return", alpha=alpha,
+                               colors=colors, title=title)
+
+    # comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
+    #                     bar_ylabel="Daily Returns (%)", line_ylabel="Cumulative Returns (%)", lw=lw, bar_colors=bar_colors, alpha=alpha, 
+    #                     line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
+    
+    custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
+                    Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
+                    Line2D([0], [0], color='#0067C4', lw=2)]
+    
+    legend = axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
+                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95))
+    legend.set_zorder(102)
+
+
+def __sharpe_ratio(axis, orders: DataFrame, **kwargs):
+    """
+    Plot sharpe ratio and average and daily returns and variance of daily returns
+    
+    The gross portfolio market value denoted by G is given by,
+        G = abs(order size * cost)
+
+    The daily return is given by,
+
+        r = Daily Profit Loss / G
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : DataFrame
+        Data to plot.
+    colors : list[str]
+        Colors to use for positive and negative returns.
+    alpha : float
+        bar chart alpha.
+    lw : int
+        plot line width
     title : str
         Figure title.
     legend_loc : string
@@ -600,36 +768,38 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
     legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
     alpha            = get_param_default_if_missing("alpha", 0.25, **kwargs)
 
-    completed_orders = orders.query('order_status == "Completed"')
-    pnl_date = completed_orders.date.to_numpy()
 
-    pnl = completed_orders.pnl.to_numpy()
+def __gross_value(axis: pyplot.axis, data: DataFrame, **kwargs):
+    """
+    Gross value of buy and sell orders.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    data : DataFrame
+        Data to plot.
+    title : str
+        Figure title.
+    legend_loc : string
+        Specify legend location. (default best)
+    """
+
+    title            = get_param_default_if_missing("title", None, **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
+    alpha            = get_param_default_if_missing("alpha", 0.5, **kwargs)
+
+    completed_orders = data.query('order_status == "Completed"')
     cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
-    daily_return = 100.0 * (pnl / cost)
-
-    cumulative_pnl = completed_orders.pnl.cumsum().to_numpy()
     cumulative_cost = numpy.cumsum(cost)
-    cumulative_return = 100.0 * (cumulative_pnl / cumulative_cost)
 
-    max_daily_return = numpy.max(numpy.abs(daily_return))
-    max_cumulative_daily_return = numpy.max(numpy.abs(cumulative_return))
+    order_date = completed_orders.date.to_numpy()
 
-    bar_colors = numpy.where(daily_return > 0, colors[0], colors[1])
 
-    comp.positive_negative_bar(axis, daily_return, pnl_date, xlabel="Date", ylabel="Return", alpha=alpha,
-                               colors=colors, title=title)
-
-    comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
-                        bar_ylabel="Daily Returns (%)", line_ylabel="Cumulative Returns (%)", lw=lw, bar_colors=bar_colors, alpha=alpha, 
-                        line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
+    comp.twinx_bar_line(axis, cost, cumulative_cost, order_date, order_date, title=title, xlabel="Date", 
+                        bar_ylabel="Gross Value ($)", line_ylabel="Cumulative Cost ($)", lw=lw, alpha=alpha, 
+                        line_ylim=(0, numpy.max(cumulative_cost)), bar_ylim=(0.0, numpy.max(cost)), labels=['Order Value', 'Cumulative Cost'])
     
-    custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
-                    Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
-                    Line2D([0], [0], color='#0067C4', lw=2)]
-    
-    legend = axis.legend(custom_lines, ['Profit', 'Loss', 'Cumulative'], loc=legend_loc, 
-                         bbox_to_anchor=(0.05, 0.05, 0.95, 0.95))
-    legend.set_zorder(102)
 
 
 def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
@@ -650,7 +820,7 @@ def __order_value(axis: pyplot.axis, data: DataFrame, **kwargs):
 
     title            = get_param_default_if_missing("title", None, **kwargs)
     colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
-    lw               = get_param_default_if_missing("lw", 2, **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "best", **kwargs)
     alpha            = get_param_default_if_missing("alpha", 0.5, **kwargs)
 
