@@ -493,6 +493,7 @@ def twinx_comparison(axis: pyplot.axis, left: list[numpy.ndarray], right: list[n
 
     if title is not None:
         axis.set_title(title, y=title_offset + 1.0)
+        
     if left_ylabel is not None:
         axis.set_ylabel(left_ylabel)
     if xlabel is not None:        

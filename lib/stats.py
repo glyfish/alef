@@ -339,7 +339,7 @@ def cumu_mean(samples: numpy.ndarray[float]) -> numpy.ndarray[float]:
         Cumulative mean of samples as a function of time.
     """
 
-    npts = numpy.arange(len(samples)) + 1
+    npts = numpy.arange(1, len(samples) + 1)
     csum = numpy.cumsum(samples)
 
     return csum / npts
@@ -362,7 +362,7 @@ def cumu_var(samples: numpy.ndarray[float], Δt: float=1.0) -> numpy.ndarray[flo
         Cumulative variance of samples as a function of time.
     """
 
-    npts = numpy.arange(len(samples)) + 1
+    npts = numpy.arange(1, len(samples) + 1)
     csum = numpy.cumsum(samples)
     mean = csum / npts
     csum2 = numpy.cumsum(samples**2)
@@ -747,7 +747,7 @@ def lag_var(samples: numpy.ndarray[float], s: int) -> float:
     for i in range(int(s), t+1):
         σ += (samples[i] - samples[i-s] - μ*s)**2
 
-    return σ/m
+    return σ / m
 
 
 def lag_var_scan(samples: numpy.ndarray[float], s_vals: list[int]) -> list[float]:

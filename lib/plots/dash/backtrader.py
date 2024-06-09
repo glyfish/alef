@@ -8,6 +8,8 @@ from pandas import DataFrame
 from lib.utils import get_param_default_if_missing
 from lib.plots import comp
 from typing import Callable
+from lib.data import stats
+from lib.trading.metrics import compute_sharpe_ratio, compute_rate_of_return
 
 
 def price_series(data: DataFrame, **kwargs):
@@ -334,7 +336,9 @@ def sharpe_ratio(data: DataFrame, **kwargs):
     run_id = data.run_id.iloc[0]
     ensemble_id = data.ensemble_id.iloc[0]
 
-    title = f"{ticker} Sharpe Ratio\nRun ID: {run_id}, Ensemble ID: {ensemble_id}"
+    sharpe_ratio = compute_sharpe_ratio(data)
+
+    title = f"{ticker} Sharpe Ratio\nRun ID: {run_id}, Ensemble ID: {ensemble_id}\nSharpe Ratio: {sharpe_ratio:2.2f}"
     __sharpe_ratio(axis, data, title=title)
 
 
@@ -450,46 +454,45 @@ def metrics(backtest: DataFrame, orders: DataFrame, **kwargs):
         Figure size.
     """
 
-    figsize = get_param_default_if_missing("figsize", (10,8), **kwargs)
+    figsize = get_param_default_if_missing("figsize", (10,12), **kwargs)
 
     completed_orders = orders.query('order_status == "Completed"')
 
     fig = pyplot.figure(constrained_layout=True, figsize=figsize)
 
-    spec = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
+    spec = gridspec.GridSpec(ncols=1, nrows=8, figure=fig)
 
     ax1 = fig.add_subplot(spec[0:2, 0])
     ax2 = fig.add_subplot(spec[2:4, 0], sharex=ax1)
-    ax3 = fig.add_subplot(spec[4:, 0], sharex=ax1)
-    # ax4 = fig.add_subplot(spec[5:7, 0], sharex=ax1)
-    # ax5 = fig.add_subplot(spec[7:9, 0], sharex=ax1)
-    # ax6 = fig.add_subplot(spec[9:, 0], sharex=ax1)
+    ax3 = fig.add_subplot(spec[4:6, 0], sharex=ax1)
+    ax4 = fig.add_subplot(spec[6:, 0], sharex=ax1)
 
     ticker = orders.ticker.iloc[0]
     strategy = backtest.strategy.iloc[0]
     run_id = orders.run_id.iloc[0]
     ensemble_id = orders.ensemble_id.iloc[0]
     
+    sharpe_ratio = compute_sharpe_ratio(orders)
+    rate_of_return = compute_rate_of_return(orders)
+
     title = f"Strategy Metrics, {ticker}, {strategy}\n" + \
-            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}\n" + \
+            f"Sharpe Ratio: {sharpe_ratio:2.2f}, Rate of Return: {rate_of_return:2.2f}"
+    
     ax1.set_title(title, y=1.1)
 
     __pnl(ax1, completed_orders, lw=1)
     __gross_value(ax2, orders)
     __returns(ax3, orders)
+    __sharpe_ratio(ax4, orders)
 
     ax1.set_xlabel(None)
     ax2.set_xlabel(None)
-    # ax3.set_xlabel(None)
-    # ax4.set_xlabel(None)
-    # ax5.set_xlabel(None)
+    ax3.set_xlabel(None)
 
     pyplot.setp(ax1.get_xticklabels(), visible=False)
     pyplot.setp(ax2.get_xticklabels(), visible=False)
-    # pyplot.setp(ax3.get_xticklabels(), visible=False)
-    # pyplot.setp(ax4.get_xticklabels(), visible=False)
-    # pyplot.setp(ax5.get_xticklabels(), visible=False)
-
+    pyplot.setp(ax3.get_xticklabels(), visible=False)
 
 
 """
@@ -505,6 +508,8 @@ __pnl
     Plot profit and loss time series.
 ___returns
     Plot daily and cumulative returns
+__sharpe_ratio
+    Plot sharpe ratio and average and daily returns and variance of daily returns
 __orders
     Plot when orders type occurs compared with asset price.
 __order_value
@@ -580,9 +585,9 @@ def __zscore_indicator_position(axis: pyplot.axis, zscore_data: DataFrame, posit
                                    bar_ylabel="Position Size", line_ylabel="Z-Score", lw=lw, alpha=alpha, bar_color=size_colors, line_colors=line_colors,
                                    line_ylim=(-max_zscore, max_zscore), bar_ylim=(-position_max, position_max))
 
-    custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=2, alpha=alpha),
-                    Line2D([0], [0], color=bar_colors[1], lw=2, alpha=alpha),
-                    Line2D([0], [0], color=line_colors[1], lw=2)]
+    custom_lines = [Line2D([0], [0], color=bar_colors[0], lw=1, alpha=alpha),
+                    Line2D([0], [0], color=bar_colors[1], lw=1, alpha=alpha),
+                    Line2D([0], [0], color=line_colors[1], lw=1)]
     
     axis.legend(custom_lines, ['Long', 'Short', 'Z-Score'], loc=legend_loc, 
                 bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
@@ -637,7 +642,7 @@ def __pnl(axis: pyplot.axis, data: DataFrame, **kwargs):
 
     title            = get_param_default_if_missing("title", None, **kwargs)
     colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
-    lw               = get_param_default_if_missing("lw", 2, **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
     legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
     alpha            = get_param_default_if_missing("alpha", 0.5, **kwargs)
 
@@ -710,19 +715,15 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
     cumulative_pnl = completed_orders.pnl.cumsum().to_numpy()
     cumulative_cost = numpy.cumsum(cost)
     cumulative_return = 100.0 * (cumulative_pnl / cumulative_cost)
-    [print(cumulative_pnl[i], cumulative_cost[i], cumulative_return[i]) for i in range(len(cumulative_pnl))]
 
     max_daily_return = numpy.max(numpy.abs(daily_return))
     max_cumulative_daily_return = numpy.max(numpy.abs(cumulative_return))
 
     bar_colors = numpy.where(daily_return > 0, colors[0], colors[1])
 
-    comp.positive_negative_bar(axis, daily_return, pnl_date, xlabel="Date", ylabel="Return", alpha=alpha,
-                               colors=colors, title=title)
-
-    # comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
-    #                     bar_ylabel="Daily Returns (%)", line_ylabel="Cumulative Returns (%)", lw=lw, bar_colors=bar_colors, alpha=alpha, 
-    #                     line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
+    comp.twinx_bar_line(axis, daily_return, cumulative_return, pnl_date, pnl_date, title=title, xlabel="Date", 
+                        bar_ylabel="Daily Returns (%)", line_ylabel="Cumulative Returns (%)", lw=lw, bar_colors=bar_colors, alpha=alpha, 
+                        line_ylim=(-max_cumulative_daily_return, max_cumulative_daily_return), bar_ylim=(-max_daily_return, max_daily_return))
     
     custom_lines = [Line2D([0], [0], color=colors[0], lw=2, alpha=alpha),
                     Line2D([0], [0], color=colors[1], lw=2, alpha=alpha),
@@ -733,7 +734,7 @@ def __returns(axis: pyplot.axis, orders: DataFrame, **kwargs):
     legend.set_zorder(102)
 
 
-def __sharpe_ratio(axis, orders: DataFrame, **kwargs):
+def __sharpe_ratio(axis, orders: DataFrame, risk_free_return: float=0.0, **kwargs):
     """
     Plot sharpe ratio and average and daily returns and variance of daily returns
     
@@ -750,6 +751,8 @@ def __sharpe_ratio(axis, orders: DataFrame, **kwargs):
         Axis used to draw plot.
     data : DataFrame
         Data to plot.
+    risk_free_return: float
+        Risk free return rate.
     colors : list[str]
         Colors to use for positive and negative returns.
     alpha : float
@@ -763,10 +766,25 @@ def __sharpe_ratio(axis, orders: DataFrame, **kwargs):
     """
 
     title            = get_param_default_if_missing("title", None, **kwargs)
-    colors           = get_param_default_if_missing("colors", ('#006600', '#990000'), **kwargs)
-    lw               = get_param_default_if_missing("lw", 2, **kwargs)
-    legend_loc       = get_param_default_if_missing("legend_loc", "lower left", **kwargs)
-    alpha            = get_param_default_if_missing("alpha", 0.25, **kwargs)
+    lw               = get_param_default_if_missing("lw", 1, **kwargs)
+
+    completed_orders = orders.query('order_status == "Completed"')
+    pnl_date = completed_orders.date.to_numpy()
+
+    pnl = completed_orders.pnl.to_numpy()
+    cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
+
+    daily_return = 100.0 * (pnl / cost) - risk_free_return
+    _, cumulative_avg_daily_return = stats.compute_cumu_mean(pnl_date, daily_return)
+    _, cumulative_sd_daily_return = stats.compute_cumu_sd(pnl_date, daily_return)
+
+    vals = cumulative_sd_daily_return != 0
+
+    cumulative_share_ratio = cumulative_avg_daily_return[vals] / cumulative_sd_daily_return[vals]
+
+    comp.twinx_comparison(axis, [cumulative_avg_daily_return, cumulative_sd_daily_return], [cumulative_share_ratio], pnl_date[vals], 
+                          labels=[r"Return $\mu$", r"Return $\sigma$", 'Sharpe Ratio'], title=title, xlabel="Date", 
+                          left_ylabel="Return (%)", right_ylabel="Sharpe Ratio", lw=lw)
 
 
 def __gross_value(axis: pyplot.axis, data: DataFrame, **kwargs):

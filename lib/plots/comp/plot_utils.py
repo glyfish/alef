@@ -43,8 +43,10 @@ def __plot_curve(axis, x, y, n, **kwargs):
     else:
         axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
 
-    axis.set_xlabel(xlabel)
-    axis.set_ylabel(ylabel)
+    if xlabel is not None:
+        axis.set_xlabel(xlabel)
+    if ylabel is not None:
+        axis.set_ylabel(ylabel)
 
     if xlim is not None:
         axis.set_xlim(xlim)
