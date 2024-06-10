@@ -215,6 +215,7 @@ def __plot_bar(axis, x, y, n, zorder=10, **kwargs):
         munits.registry[datetime] = converter 
     else:
         axis.ticklabel_format(style='sci', axis='x', scilimits=scilimits, useMathText=True)
+
     axis.ticklabel_format(style='sci', axis='y', scilimits=scilimits, useMathText=True)
 
     alpha_value = alpha[n] if isinstance(alpha, list) else alpha        

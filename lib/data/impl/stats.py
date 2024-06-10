@@ -526,21 +526,14 @@ def compute_pdf_hist(data: numpy.ndarray[float], **kwargs) -> Tuple[numpy.ndarra
     Returns
     -------
     Tuple[numpy.ndarray[float], numpy.ndarray[float]]
-        PDF histogram.
-
-    Raises
-    ------
-    Exception
-        xmin and xmax are missing.
+        PDF histogram and bin values
 
     """
 
-    xmin = get_param_throw_if_missing("xmin", **kwargs)
-    xmax = get_param_throw_if_missing("xmax", **kwargs)
     nbins = get_param_default_if_missing("nbins", 50, **kwargs)
-    pdf = stats.pdf_hist(data, [xmin, xmax], nbins)
+    pdf, bin_edges = stats.pdf_hist(data, None, nbins)
 
-    return pdf[1][:-1], pdf[0]
+    return pdf, bin_edges[:-1] + (bin_edges[:-1] - bin_edges[1:]) / 2
 
 
 def compute_cdf_hist(x: numpy.ndarray[float], pdf: numpy.ndarray[float]) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:

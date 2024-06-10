@@ -6,6 +6,6 @@ from lib.plots.dash import  (curve, comparison, stack, twinx, twinx_comparison, 
                              fcurve_scatter_comparison, positive_negative_bar)
 
 from lib.plots.dash.backtrader import (price_series, asset_price, zscore_indicator, cash_value, zscore_backtest,
-                                       metrics)
+                                       metrics, daily_returns_distribution)
 
 from lib.plots.comp.axis import (PlotType)

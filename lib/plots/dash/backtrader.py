@@ -9,7 +9,7 @@ from lib.utils import get_param_default_if_missing
 from lib.plots import comp
 from typing import Callable
 from lib.data import stats
-from lib.trading.metrics import compute_sharpe_ratio, compute_rate_of_return
+from lib.trading.metrics import compute_sharpe_ratio, compute_rate_of_return, compute_daily_rate_of_return
 
 
 def price_series(data: DataFrame, **kwargs):
@@ -372,6 +372,35 @@ def zscore_indicator_position(zscore: DataFrame, position: DataFrame, **kwargs):
     __zscore_indicator_position(axis, zscore, position, title=title)
 
 
+def daily_returns_distribution(orders: DataFrame, **kwargs):
+    """
+    Plot daily returns distribution.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    orders : DataFrame
+        Data to plot.
+    title : str
+        Figure title.
+    nbins : iny
+        Number of distribution bins.
+    """
+
+    figsize = get_param_default_if_missing("figsize", (10,5), **kwargs)
+    _, axis = pyplot.subplots(figsize=figsize)
+
+    ticker = orders.ticker.iloc[0]
+    run_id = orders.run_id.iloc[0]
+    ensemble_id = orders.ensemble_id.iloc[0]
+
+    title = f"{ticker}, Distribution of Returns\n" + \
+            f"Run ID: {run_id}, Ensemble ID: {ensemble_id}"
+    
+    __daily_returns_distribution(axis, orders, title=title)
+
+
 def zscore_backtest(broker: DataFrame, zscore_indicator: DataFrame, position: DataFrame, asset: DataFrame, 
                          orders: DataFrame, **kwargs):
     """
@@ -518,6 +547,8 @@ __cash_value
     Plot cash, spend value time series.
 __position_value
     Plot position value time series.
+__daily_returns_distribution
+    Plot daily returns distribution.
 """
 def __zscore_indicator(axis: pyplot.axis, data: DataFrame, **kwargs):
     """
@@ -953,3 +984,28 @@ def __position_value(axis: pyplot.axis, data: DataFrame, **kwargs):
                 bbox_to_anchor=(0.05, 0.05, 0.95, 0.95)).set_zorder(20)
 
 
+def __daily_returns_distribution(axis, orders: DataFrame, **kwargs):
+    """
+    Plot daily returns distribution.
+
+    Parameters
+    ----------
+    axis : matplotlib.pyplot.axis
+        Axis used to draw plot.
+    orders : DataFrame
+        Data to plot.
+    title : str
+        Figure title.
+    nbins : iny
+        Number of distribution bins.
+    """
+
+    title   = get_param_default_if_missing("title", None, **kwargs)
+    nbins   = get_param_default_if_missing("nbins", 20, **kwargs)
+
+    _, daily_returns = compute_daily_rate_of_return(orders)
+
+    pdf, bins = stats.compute_pdf_hist(daily_returns, nbins=nbins)
+    pdf = pdf / numpy.sum(pdf)
+
+    comp.bar(axis, pdf, bins, title=title, xlabel="Daily Returns (%)", ylabel="Frequency", bar_width=0.85, alpha=1.0)

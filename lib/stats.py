@@ -591,7 +591,7 @@ def pspec(x: numpy.ndarray[float]) -> numpy.ndarray[float]:
     return power[1:n].real/(n*energy)
 
 
-def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float], nbins: int=50) -> numpy.ndarray[float]:
+def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float]=None, nbins: int=50) -> numpy.ndarray[float]:
     """
     Compute PDF histogram of provided samples.
 
@@ -610,6 +610,9 @@ def pdf_hist(samples: numpy.ndarray[float], range: Tuple[float, float], nbins: i
         PDF histogram.
     """
     
+    if range is None:
+        range = (numpy.min(samples), numpy.max(samples))
+        
     return numpy.histogram(samples, bins=nbins, range=range, density=True)
 
 

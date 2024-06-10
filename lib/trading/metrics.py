@@ -61,6 +61,31 @@ def compute_rate_of_return(orders: numpy.ndarray[float]) -> float:
     return 100.0 * numpy.sum(pnl) / numpy.sum(cost)
 
 
+def compute_daily_rate_of_return(orders: numpy.ndarray[float]) -> float:
+    """
+    Calculate the rate of return.
+
+    Parameters
+    ----------
+    orders : numpy.ndarray[float]
+        Orders DataFrame.
+
+    Returns
+    -------
+    float
+        The Sharpe ratio.
+    """
+
+    completed_orders = orders.query('order_status == "Completed"')
+
+    pnl = completed_orders.pnl.to_numpy()
+    cost = numpy.abs(completed_orders['size'].to_numpy() * completed_orders.price.to_numpy())
+
+    daily_return = 100.0 * (pnl / cost)
+
+    return completed_orders.date.to_numpy(), daily_return
+
+
 def compute_zscore(time: numpy.ndarray[float], data: numpy.ndarray[float], window: int) -> Tuple[numpy.ndarray[float], numpy.ndarray[float]]:
     """
     Calculate the z-score for a time series using a rolling window. The order of the
