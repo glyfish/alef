@@ -504,7 +504,7 @@ def metrics(backtest: DataFrame, orders: DataFrame, **kwargs):
     sharpe_ratio = compute_sharpe_ratio(orders)
     rate_of_return = compute_rate_of_return(orders)
 
-    title = f"Strategy Metrics, {ticker}, {strategy}\n" + \
+    title = f"Strategy Metrics: {ticker}, {strategy}\n" + \
             f"Run ID: {run_id}, Ensemble ID: {ensemble_id}\n" + \
             f"Sharpe Ratio: {sharpe_ratio:2.2f}, Rate of Return: {rate_of_return:2.2f}"
     
