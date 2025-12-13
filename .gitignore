@@ -12,4 +12,5 @@ logs/*
 *.fls
 *.pyg
 *.bak
+.ipynb_checkpoints
 _minted*
