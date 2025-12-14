@@ -21,3 +21,4 @@ markdown-it-py
 python-language-server[all]
 shortuuid
 tabulate
+psycopg2

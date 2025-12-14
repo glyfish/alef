@@ -1,9 +1,10 @@
 {
     "python.envFile": "${workspaceFolder}/.env",
     "editor.snippetSuggestions": "top",
-    "python.analysis.extraPaths": [
-        "/Users/troy/Develop/gly.fish/alef"
-    ],
+    // "python.analysis.extraPaths": [
+    //     "/Users/troy/Develop/gly.fish/alef",
+    //     "${workspaceFolder}/../navi/lib"
+    // ],
     "cSpell.words": [
         "acov",
         "arange",
