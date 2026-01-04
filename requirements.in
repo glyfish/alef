@@ -22,3 +22,4 @@ python-language-server[all]
 shortuuid
 tabulate
 psycopg2
+httpx
