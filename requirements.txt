@@ -16,10 +16,12 @@ annotated-doc==0.0.4
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
-anyio==3.6.2
+anyio==4.12.0
     # via
     #   httpx
     #   jupyter-server
+    #   mcp
+    #   sse-starlette
     #   starlette
 appnope==0.1.3
     # via
@@ -63,6 +65,8 @@ cffi==1.15.1
     # via argon2-cffi-bindings
 charset-normalizer==3.1.0
     # via requests
+click==8.3.1
+    # via uvicorn
 coloredlogs==15.0.1
     # via -r requirements.in
 comm==0.1.3
@@ -102,13 +106,18 @@ gitdb==4.0.12
 gitpython==3.1.45
     # via -r requirements.in
 h11==0.16.0
-    # via httpcore
+    # via
+    #   httpcore
+    #   uvicorn
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via
     #   -r requirements.in
+    #   mcp
     #   navi
+httpx-sse==0.4.3
+    # via mcp
 humanfriendly==10.0
     # via coloredlogs
 idna==3.4
@@ -248,6 +257,8 @@ mccabe==0.6.1
     #   flake8
     #   pylint
     #   python-language-server
+mcp==1.9.4
+    # via -r requirements.in
 mdurl==0.1.2
     # via markdown-it-py
 mistune==2.0.5
@@ -357,9 +368,13 @@ pycparser==2.21
 pydantic==2.9.2
     # via
     #   fastapi
+    #   mcp
     #   navi
+    #   pydantic-settings
 pydantic-core==2.23.4
     # via pydantic
+pydantic-settings==2.8.1
+    # via mcp
 pydocstyle==6.3.0
     # via python-language-server
 pyflakes==2.2.0
@@ -385,13 +400,17 @@ python-dateutil==2.8.2
     #   matplotlib
     #   pandas
 python-dotenv==1.2.1
-    # via navi
+    # via
+    #   navi
+    #   pydantic-settings
 python-json-logger==2.0.7
     # via jupyter-events
 python-jsonrpc-server==0.4.0
     # via python-language-server
 python-language-server[all]==0.36.2
     # via -r requirements.in
+python-multipart==0.0.21
+    # via mcp
 pytoolconfig[global]==1.2.5
     # via rope
 pytz==2023.3
@@ -441,8 +460,6 @@ six==1.16.0
     #   rfc3339-validator
 smmap==5.0.2
     # via gitdb
-sniffio==1.3.0
-    # via anyio
 snowballstemmer==2.2.0
     # via pydocstyle
 soupsieve==2.4.1
@@ -451,10 +468,14 @@ sqlalchemy==2.0.27
     # via
     #   -r requirements.in
     #   alembic
+sse-starlette==3.0.3
+    # via mcp
 stack-data==0.6.2
     # via ipython
 starlette==0.47.0
-    # via fastapi
+    # via
+    #   fastapi
+    #   mcp
 statsmodels==0.14.0
     # via -r requirements.in
 tabulate==0.9.0
@@ -503,6 +524,7 @@ traitlets==5.9.0
 typing-extensions==4.9.0
     # via
     #   alembic
+    #   anyio
     #   fastapi
     #   pydantic
     #   pydantic-core
@@ -517,6 +539,8 @@ uri-template==1.2.0
     # via jsonschema
 urllib3==2.0.2
     # via requests
+uvicorn==0.40.0
+    # via mcp
 wcwidth==0.2.6
     # via prompt-toolkit
 webcolors==1.13
