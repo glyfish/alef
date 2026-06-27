@@ -32,10 +32,11 @@
         "yticks",
         "zorder"
     ],
+    "python.defaultInterpreterPath": "/Users/troy/.pyenv/versions/3.11.2/envs/alef-3.11.2/bin/python",
     "python-envs.pythonProjects": [
         {
-            "path": "",
-            "envManager": "ms-python.python:system",
+            "path": "${workspaceFolder}",
+            "envManager": "ms-python.python:pyenv",
             "packageManager": "ms-python.python:pip"
         }
     ]

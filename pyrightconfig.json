@@ -1,5 +1,7 @@
 {
   "include": ["."],
   "extraPaths": ["../navi"],
+  "venvPath": "/Users/troy/.pyenv/versions/3.11.2/envs",
+  "venv": "alef-3.11.2",
   "reportMissingModuleSource": "none"
 }
