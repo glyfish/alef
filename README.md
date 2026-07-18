@@ -101,5 +101,14 @@ database.
 
 ## Plot style
 
-`gly.fish.mplstyle` is a Matplotlib style sheet used for figures throughout the
-notebooks.
+Figures use Matplotlib style sheets that ship inside the `navi` package, so they
+resolve from any working directory:
+
+```python
+from lib import config
+pyplot.style.use(config.glyfish_style)
+```
+
+`config.glyfish_style` is the notebook/interactive sheet and is what these
+notebooks use. `config.glyfish_web_style` is the same design with larger fonts,
+for figures rendered to PNG and embedded in web pages at a fixed width.
