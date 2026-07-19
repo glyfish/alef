@@ -341,6 +341,11 @@ would use. Queries reach in with `params->'period'`.
 `price_series` is the one table not scoped to a run: it is a shared cache of
 price history, keyed by ticker and date.
 
+> **`insert_price_series` does not work against a migrated schema.** It writes an
+> `open_interest` column that the ORM declares but the migration never creates,
+> so the insert fails. `insert_yahoo_price_series` calls it, so that path is
+> affected too. See §10 for this and four other ORM/migration mismatches.
+
 The `fetch_*` methods return pandas DataFrames and are the read path for the
 `plots/dash/backtrader.py` dashboards.
 
