@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/troy/.pyenv/versions/alef-3.11.2/bin/python /private/tmp/claude-501/-Users-troy-Develop-gly-fish-alef/3eb364ec-460f-40d2-940c-abec8441dcb7/scratchpad/verify_cdc2.py)"
+    ]
+  }
+}
