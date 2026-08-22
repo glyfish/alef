@@ -9,7 +9,7 @@ graduates into navi. Reference docs live in `sefer/alef/`.
 
 ## Environment & commands
 
-- pyenv env `alef-3.11.2`; deps are pip-compiled (`requirements.in` → `.txt`,
+- pyenv env `alef-3.14.7`; deps are pip-compiled (`requirements.in` → `.txt`,
   includes `-e ../navi`).
 - Development is notebook-driven (`notebooks/random_processes/…`); strategies live
   in `apps/`.

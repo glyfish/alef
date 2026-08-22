@@ -4,4 +4,3 @@ tabulate
 matplotlib
 pandas
 statsmodels
-'python-language-server[all]'

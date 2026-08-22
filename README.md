@@ -47,7 +47,7 @@ portfolio value, and per-trade records).
 
 ## Requirements
 
-- Python 3.11.2 (see `.python-version`; managed with [pyenv](https://github.com/pyenv/pyenv))
+- Python 3.14.7 (see `.python-version`; managed with [pyenv](https://github.com/pyenv/pyenv))
 - PostgreSQL (for persisting backtest results)
 - The companion [`navi`](https://github.com/glyfish/navi) package, checked out
   alongside this repo at `../navi`
@@ -55,9 +55,9 @@ portfolio value, and per-trade records).
 ## Setup
 
 ```sh
-pyenv install 3.11.2
-pyenv virtualenv 3.11.2 alef-3.11.2
-pyenv activate alef-3.11.2
+pyenv install 3.14.7
+pyenv virtualenv 3.14.7 alef-3.14.7
+pyenv activate alef-3.14.7
 
 pip install -r requirements.txt
 ```
