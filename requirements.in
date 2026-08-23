@@ -13,3 +13,4 @@ shortuuid
 tabulate
 httpx
 mcp
+pytest
