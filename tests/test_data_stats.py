@@ -16,7 +16,11 @@ Three kinds of test, in priority order:
 Every simulation draws from numpy's global RNG, which ``conftest.py`` reseeds
 before each test, so the numbers below are reproducible. Tolerances are stated
 as multiples of the estimator's standard error so they also hold for other
-seeds.
+seeds. The Granger tests assert hypothesis-test decisions, for which no
+tolerance argument exists, so they are taken at a critical value far from every
+p-value involved (the driven cell has p = 0, the null cells have p > 1e-3) and
+are decided the same way for every seed rather than at the nominal 5% where a
+null cell flips roughly one seed in ten.
 """
 
 import json
@@ -395,7 +399,27 @@ class TestAggregation:
 
         # bin k holds 3k..3k+2 whose mean is 3k+1
         assert_allclose(a, numpy.array([1.0, 4.0, 7.0, 10.0]))
-        assert_allclose(tv, numpy.linspace(0.0, float(n - 1), n // m))
+        # the times are asserted by their semantics rather than by restating the
+        # library's linspace: one time per bin, the first at the original start
+        assert len(tv) == n // m
+        assert tv[0] == t[0]
+
+    @pytest.mark.xfail(strict=True,
+                       reason="lib.stats.agg_time returns "
+                              "numpy.linspace(t[0], t[n-1], n//m), which spreads the "
+                              "aggregated times over the full original range instead of "
+                              "placing each one inside the bin it labels: for n=12, m=3 it "
+                              "returns 0, 3.67, 7.33, 11 where the bin centres are "
+                              "1, 4, 7, 10")
+    def test_agg_times_label_the_bins_they_summarise(self):
+        n, m = 12, 3
+        t = numpy.arange(n, dtype=float)
+        x = numpy.arange(n, dtype=float)
+
+        tv, _ = dstats.compute_agg(t, x, m=m)
+
+        centres = numpy.array([t[k * m:(k + 1) * m].mean() for k in range(n // m)])
+        assert_allclose(tv, centres)
 
     def test_agg_requires_m(self):
         with pytest.raises(Exception, match="m parameter is required"):
@@ -428,11 +452,27 @@ class TestAggregation:
         assert m_default[0] == 1.0
         assert_allclose(m_default, m_explicit)
 
+    @pytest.mark.xfail(strict=True,
+                       reason="compute_agg_var returns the fractional bin sizes produced "
+                              "by create_space (npts=10, m_max=64, m_min=2 gives 2, "
+                              "8.889, 15.778, ...) while lib.stats.agg_var truncates each "
+                              "one with int(m) before aggregating, so the returned bin "
+                              "sizes are not the bin sizes the variances were computed at")
+    def test_agg_var_returns_the_bin_sizes_it_actually_used(self):
+        x = numpy.random.normal(size=1024)
+
+        m_vals, var = dstats.compute_agg_var(x, npts=10, m_max=64, m_min=2)
+
+        assert len(m_vals) == len(var) == 10
+        assert_allclose(m_vals, numpy.trunc(m_vals))
+
     def test_white_noise_aggregated_variance_scales_as_one_over_m(self):
         # Var(mean of m iid samples) = sigma^2/m, so the log-log slope is -1
         # (i.e. 2H-2 for H=1/2). The aggregated variance at bin size m has
         # relative se sqrt(2m/n) <= 0.13 here, which propagates to roughly
-        # +/-0.05 on the fitted slope; 0.15 is ~3x that.
+        # +/-0.05 on the fitted slope; 0.15 is ~3x that. The regression runs
+        # against the fractional m values the facade returns rather than the
+        # truncated ones it aggregated at, which is the defect xfailed above.
         n = 8192
         x = numpy.random.normal(0.0, 2.0, n)
 
@@ -479,16 +519,48 @@ class TestLagVariance:
         assert s_vals[0] >= 1 and s_vals[-1] <= 16
 
     def test_lag_var_of_white_noise_is_flat_in_s(self):
-        # differencing a random walk gives iid noise, whose lagged variance is
-        # dominated by the s=1 term; here the same estimator applied to the
-        # walk itself is compared across lags to confirm linear growth is not
-        # an artefact of the normalisation.
-        n = 4000
-        x = _bm(n, 1.0)
+        # Differencing a random walk leaves iid increments. For a stationary
+        # series x_i - x_{i-s} has variance 2*sigma^2 at every lag, and the
+        # estimator divides by (t-s+1)(1-s/t) ~ t-s+1, so its lagged variance is
+        # FLAT at 2*sigma^2 rather than growing like s as it does for the walk
+        # itself. Each point has relative se ~sqrt(2/n) = 0.02 plus the drift
+        # correction, so 15% is a wide margin.
+        n, sigma = 4000, 1.0
+        dx = numpy.diff(_bm(n, sigma))
 
-        s_vals, var = dstats.compute_lag_var(x, svals=[2, 4])
+        s_vals, var = dstats.compute_lag_var(dx, svals=[1, 2, 4, 8])
 
-        assert var[1] / var[0] == pytest.approx(2.0, abs=0.4)
+        assert s_vals == [1, 2, 4, 8]
+        assert_allclose(var, numpy.full(4, 2.0 * sigma ** 2), rtol=0.15)
+
+    def test_lag_var_linear_scan_spans_the_requested_range(self):
+        # linear=True routes through create_space, i.e. numpy.linspace(smin,
+        # smax, npts), which does reach smax: linspace(4, 64, 5) is exact.
+        x = _bm(2000)
+
+        s_vals, var = dstats.compute_lag_var(x, npts=5, smax=64, smin=4, linear=True)
+
+        assert s_vals == [4, 19, 34, 49, 64]
+        assert len(var) == 5
+        assert numpy.all(var > 0.0)
+        # the lagged variance of a walk grows with the lag, so the s=64 estimate
+        # is far above the s=4 one (expected ratio 16)
+        assert var[-1] > 4.0 * var[0]
+
+    @pytest.mark.xfail(strict=True,
+                       reason="lib.utils.create_logspace builds "
+                              "numpy.logspace(log10(xmin), log10(xmax/xmin), npts), so a "
+                              "logarithmic scan stops at smax/smin instead of smax; with "
+                              "smin=4 and smax=64 the largest lag returned is 16. The "
+                              "default smin=1 hides it because xmax/xmin == xmax there")
+    def test_lag_var_logarithmic_scan_honours_smin_and_smax(self):
+        x = _bm(2000)
+
+        s_vals, var = dstats.compute_lag_var(x, npts=5, smax=64, smin=4)
+
+        assert len(s_vals) == len(var) == 5
+        assert s_vals[0] == 4
+        assert s_vals[-1] == 64
 
 
 # ---------------------------------------------------------------------------
@@ -537,6 +609,20 @@ class TestEnsembleStatistics:
         with pytest.raises(Exception, match="two dimensional"):
             func(t, numpy.arange(5.0))
 
+    @pytest.mark.parametrize("func", [dstats.compute_ensemble_cov,
+                                      dstats.compute_ensemble_correlation_coefficient])
+    @pytest.mark.xfail(strict=True,
+                       reason="lib.stats.ensemble_cov unpacks 'x_nsim, x_npts = x.shape' "
+                              "without checking the rank first, so a one dimensional "
+                              "sample raises ValueError('not enough values to unpack "
+                              "(expected 2, got 1)') instead of the "
+                              "Exception('Samples are not a two dimensional array') both "
+                              "docstrings promise")
+    def test_one_dimensional_input_is_rejected_by_the_two_sample_functions(self, func):
+        t = numpy.arange(5.0)
+        with pytest.raises(Exception, match="two dimensional"):
+            func(t, numpy.arange(5.0), numpy.arange(5.0))
+
     def test_brownian_ensemble_mean_and_variance(self):
         # BM has E[B_t] = 0 and Var(B_t) = sigma^2*t. The ensemble mean at t has
         # sd sigma*sqrt(t/nsim), so |mean| < 0.25*sigma*sqrt(t) is ~5 sd for
@@ -578,6 +664,23 @@ class TestEnsembleStatistics:
 
         assert len(ac) == npts
         assert len(tv) == npts
+
+    def test_ensemble_acf_returns_the_requested_number_of_lags(self):
+        # nlags <= nsim is the branch lib.stats.ensemble_acf handles correctly
+        # (see the xfail below for nlags > nsim). The ensemble averaged acf of
+        # nsim=30 AR(1) paths of npts=200 estimates phi^k with se
+        # ~sqrt((1+phi^2)/(1-phi^2)/(npts*nsim)) = 0.017 plus the O(1/npts)
+        # small-sample bias, so 0.06 is ~3 se.
+        nsim, npts, nlags, phi = 30, 200, 10, 0.5
+        ensemble = [_ar1(phi, npts) for _ in range(nsim)]
+        t = numpy.arange(npts, dtype=float)
+
+        tv, ac = dstats.compute_ensemble_acf(t, ensemble, nlags=nlags)
+
+        assert len(tv) == len(ac) == nlags
+        assert_array_equal(tv, t[:nlags])
+        assert ac[0] == pytest.approx(1.0)
+        assert_allclose(ac[:4], phi ** numpy.arange(4), atol=0.06)
 
     @pytest.mark.xfail(strict=True,
                        reason="lib.stats.ensemble_acf compares nlags with len(samples) "
@@ -677,25 +780,42 @@ class TestHistograms:
         assert x[0] == pytest.approx(data.min() + width / 2.0)
         assert x[-1] == pytest.approx(data.max() - width / 2.0)
 
-    def test_pdf_hist_ignores_a_half_specified_range(self):
+    @pytest.mark.xfail(strict=True,
+                       reason="compute_pdf_hist discards a one-sided bound: hist_range is "
+                              "None unless BOTH xmin and xmax are supplied, so xmin=-1.0 "
+                              "is silently ignored and the histogram falls back to the "
+                              "data range, contradicting the docstring that documents "
+                              "xmin as required. A supplied bound should be honoured (or "
+                              "the call rejected), never dropped")
+    def test_pdf_hist_honours_a_half_specified_range(self):
         data = numpy.random.normal(size=500)
 
-        x_partial, pdf_partial = dstats.compute_pdf_hist(data, xmin=-1.0, nbins=10)
-        x_none, pdf_none = dstats.compute_pdf_hist(data, nbins=10)
+        x, _ = dstats.compute_pdf_hist(data, xmin=-1.0, nbins=10)
 
-        assert_allclose(x_partial, x_none)
-        assert_allclose(pdf_partial, pdf_none)
+        width = x[1] - x[0]
+        assert x[0] - width / 2.0 == pytest.approx(-1.0)
 
     def test_pdf_hist_of_normal_samples_matches_the_density(self):
-        # 20000 samples in bins of width 0.1: the bin count sd is
-        # sqrt(n*p)/n/width ~ 0.005 near the mode, so 0.02 is ~4 se.
+        # A histogram estimates the AVERAGE of the density over each bin, not
+        # its value at the centre, so the comparison is against
+        # (F(hi) - F(lo))/width. Each bin count is binomial, so the density
+        # estimate has se sqrt(f/(n*width)); near the mode f = 0.199, n = 20000
+        # and width = 10*sigma/100 = 0.2 give 0.0071. The bound is 5 se, which
+        # covers the maximum taken over the ~20 near-mode bins.
         n, mu, sigma = 20000, 1.0, 2.0
         data = numpy.random.normal(mu, sigma, n)
 
         x, pdf = dstats.compute_pdf_hist(data, xmin=mu - 5 * sigma, xmax=mu + 5 * sigma, nbins=100)
 
-        assert_allclose(pdf, norm.pdf(x, mu, sigma), atol=0.02)
-        assert pdf.max() == pytest.approx(1.0 / (sigma * numpy.sqrt(2.0 * numpy.pi)), abs=0.02)
+        width = x[1] - x[0]
+        peak = 1.0 / (sigma * numpy.sqrt(2.0 * numpy.pi))
+        atol = 5.0 * numpy.sqrt(peak / (n * width))
+        assert width == pytest.approx(10.0 * sigma / 100.0)
+        bin_avg = (norm.cdf(x + width / 2.0, mu, sigma)
+                   - norm.cdf(x - width / 2.0, mu, sigma)) / width
+
+        assert_allclose(pdf, bin_avg, atol=atol)
+        assert pdf.max() == pytest.approx(peak, abs=atol)
 
     def test_cdf_hist_is_a_left_riemann_sum(self):
         x = numpy.linspace(0.05, 0.95, 10)
@@ -727,27 +847,63 @@ class TestHistograms:
 
 class TestMultivariateNormal:
 
-    def test_bivariate_pdf_grid_shapes_and_peak(self):
-        n = 50
+    @pytest.mark.parametrize("n", [10, 50, 64])
+    def test_bivariate_pdf_grid_shapes_and_peak(self, n):
         mu = numpy.zeros(2)
         omega = numpy.eye(2)
 
         vals, pdf = dstats.compute_multivariate_normal_pdf(mu, omega, n)
 
-        # the grid runs from -3 sigma to 3 sigma + delta inclusive
-        assert vals.shape == (2, n + 1, n + 1)
-        assert pdf.shape == (n + 1, n + 1)
-        assert pdf.max() == pytest.approx(1.0 / (2.0 * numpy.pi), rel=0.01)
+        # numpy.mgrid[-3s : 3s + delta : delta] with delta = 6s/(n-1) yields n
+        # points, except when the floating point arange overshoots the stop and
+        # appends one more: n=50 does, n=10 and n=64 do not. The contract is the
+        # square grid of coordinate pairs and the pdf laid out over it, not the
+        # exact point count, so both counts are accepted.
+        assert vals.shape[0] == 2
+        assert vals.shape[1] == vals.shape[2]
+        assert vals.shape[1] in (n, n + 1)
+        assert pdf.shape == vals.shape[1:]
+        # the grid need not contain the mode: for n = 10 the nearest lines sit
+        # delta/2 = 1/3 from the origin in each coordinate, so the largest
+        # density on the grid is the standard bivariate normal evaluated there,
+        # exp(-(dx^2 + dy^2)/2)/(2 pi), which is 1/(2 pi) only in the limit
+        dx = numpy.abs(vals[0]).min()
+        dy = numpy.abs(vals[1]).min()
+        expected_peak = numpy.exp(-(dx ** 2 + dy ** 2) / 2.0) / (2.0 * numpy.pi)
+        assert pdf.max() == pytest.approx(expected_peak, rel=1e-9)
+        assert expected_peak <= 1.0 / (2.0 * numpy.pi)
 
     def test_bivariate_pdf_integrates_to_one_over_the_grid(self):
         n = 60
         mu = numpy.zeros(2)
         omega = numpy.eye(2)
 
-        _, pdf = dstats.compute_multivariate_normal_pdf(mu, omega, n)
+        vals, pdf = dstats.compute_multivariate_normal_pdf(mu, omega, n)
 
-        delta = 6.0 / (n - 1)
+        # the spacing is read off the returned grid rather than recomputed, so
+        # the mass is the only quantity under test
+        delta = vals[0][1, 0] - vals[0][0, 0]
         # a +/-3 sigma square holds 0.9973^2 = 0.9946 of the mass
+        assert pdf.sum() * delta ** 2 == pytest.approx(0.9946, abs=0.01)
+
+    @pytest.mark.xfail(strict=True,
+                       reason="compute_multivariate_normal_pdf takes "
+                              "'sigma = min(numpy.diag(omega))', i.e. it uses a VARIANCE "
+                              "as a standard deviation when sizing the grid. For "
+                              "omega = 0.25*I the grid spans +/-0.75 = +/-1.5 true sigma "
+                              "and captures only 0.762 of the distribution instead of the "
+                              "+/-3 sigma and 0.9946 it intends; omega = 4*I spans "
+                              "+/-6 sigma. Every unit variance test hides this because "
+                              "variance == sd there")
+    def test_grid_covers_three_standard_deviations_for_a_non_unit_variance(self):
+        n, variance = 60, 0.25
+        mu = numpy.zeros(2)
+        omega = variance * numpy.eye(2)
+
+        vals, pdf = dstats.compute_multivariate_normal_pdf(mu, omega, n)
+
+        delta = vals[0][1, 0] - vals[0][0, 0]
+        assert vals[0].max() == pytest.approx(3.0 * numpy.sqrt(variance), abs=delta)
         assert pdf.sum() * delta ** 2 == pytest.approx(0.9946, abs=0.01)
 
     def test_correlated_bivariate_peak_scales_with_the_determinant(self):
@@ -760,7 +916,16 @@ class TestMultivariateNormal:
         expected = 1.0 / (2.0 * numpy.pi * numpy.sqrt(1.0 - rho ** 2))
         assert pdf.max() == pytest.approx(expected, rel=0.01)
 
-    @pytest.mark.parametrize("nvars", [1, 4])
+    @pytest.mark.parametrize("nvars", [
+        pytest.param(0, marks=pytest.mark.xfail(
+            strict=True,
+            reason="the guard reads 'nvars == 1 or nvars > 3', so an empty mean falls "
+                   "through it and dies in min(numpy.diag(omega)) with "
+                   "ValueError('min() iterable argument is empty') instead of raising the "
+                   "documented 'Number of variables must be between 2 or 3'")),
+        1,
+        4,
+    ])
     def test_rejects_unsupported_dimensions(self, nvars):
         with pytest.raises(Exception, match="Number of variables"):
             dstats.compute_multivariate_normal_pdf(numpy.zeros(nvars), numpy.eye(nvars), 10)
@@ -845,16 +1010,21 @@ class TestErrorMetrics:
 
     def test_metrics_recover_a_known_noise_level(self):
         # pred = obs + N(shift, sigma^2): bias -> shift, rmse -> sqrt(shift^2 +
-        # sigma^2), mae -> E|N(shift, sigma)|. n=4000 gives a mean se of
+        # sigma^2), and mae -> the folded normal mean
+        #   E|N(m, s)| = s*sqrt(2/pi)*exp(-m^2/(2s^2)) + m*(2*Phi(m/s) - 1),
+        # which is 0.8956 for m=0.5, s=1. n=4000 gives a mean se of
         # sigma/sqrt(n) = 0.008, so 0.05 is comfortable.
         n, shift, sigma = 4000, 0.5, 1.0
         obs = numpy.random.normal(size=n)
         pred = obs + numpy.random.normal(shift, sigma, n)
 
+        folded_mean = (sigma * numpy.sqrt(2.0 / numpy.pi) * numpy.exp(-shift ** 2 / (2.0 * sigma ** 2))
+                       + shift * (2.0 * norm.cdf(shift / sigma) - 1.0))
+        assert folded_mean == pytest.approx(0.8956, abs=1e-4)
+
         assert dstats.compute_bias(pred, obs) == pytest.approx(shift, abs=0.05)
         assert dstats.compute_rmse(pred, obs) == pytest.approx(numpy.sqrt(shift ** 2 + sigma ** 2), abs=0.05)
-        assert dstats.compute_mae(pred, obs) >= abs(float(dstats.compute_bias(pred, obs)))
-        assert dstats.compute_rmse(pred, obs) >= dstats.compute_mae(pred, obs)
+        assert dstats.compute_mae(pred, obs) == pytest.approx(folded_mean, abs=0.05)
 
 
 # ---------------------------------------------------------------------------
@@ -873,11 +1043,17 @@ def _causal_pair(n: int = 300, phi: float = 0.8) -> numpy.ndarray:
 class TestCausalityMatrix:
 
     def test_detects_the_known_driver(self):
+        # The decision is taken at 1e-3, not at the nominal 5%. causality_matrix
+        # reports min(p) over lags 1..nlags, which inflates the per-cell type-I
+        # rate well past 5%, so a null cell is "significant" at 0.05 for roughly
+        # one seed in ten. At 1e-3 the driven cell (p = 0) and the null cell
+        # (smallest p observed across seeds 2.7e-3) fall on opposite sides for
+        # every seed, so the assertions are decisions rather than coin flips.
         samples = _causal_pair()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matrix, report = dstats.compute_causality_matrix(samples, nlags=2)
+            matrix, report = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1e-3)
 
         assert list(matrix.columns) == ["pvalue", "critical_value", "result",
                                         "dependent_var", "causal_var"]
@@ -886,15 +1062,19 @@ class TestCausalityMatrix:
         driven = matrix[(matrix["dependent_var"] == 2) & (matrix["causal_var"] == 1)]
         not_driven = matrix[(matrix["dependent_var"] == 1) & (matrix["causal_var"] == 2)]
         assert bool(driven["result"].iloc[0]) is True
-        assert float(driven["pvalue"].iloc[0]) < 0.05
+        assert float(driven["pvalue"].iloc[0]) < 1e-4
         assert bool(not_driven["result"].iloc[0]) is False
+        assert float(not_driven["pvalue"].iloc[0]) > 1e-3
 
     def test_report_wiring_and_rank(self):
+        # critical_value=1e-3 for the same reason as above: rank counts the
+        # dependent variables with an incoming True, so one null cell decided at
+        # 5% would flip it from 1 to 2.
         samples = _causal_pair()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matrix, report = dstats.compute_causality_matrix(samples, nlags=2)
+            matrix, report = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1e-3)
 
         assert isinstance(report, GrangerCausalityTestReport)
         assert all(isinstance(r, GrangerCausalityTestResult) for r in report.results)
@@ -909,31 +1089,72 @@ class TestCausalityMatrix:
         assert payload["test_id"] == report.test_id
         assert len(payload["results"]) == 4
 
-    @pytest.mark.parametrize("critical_value", [0.05, 0.5])
-    def test_critical_value_default_and_override(self, critical_value):
+    def test_critical_value_defaults_to_five_percent(self):
         samples = _causal_pair()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            if critical_value == 0.05:
-                matrix, _ = dstats.compute_causality_matrix(samples, nlags=2)
-            else:
-                matrix, _ = dstats.compute_causality_matrix(samples, nlags=2,
-                                                            critical_value=critical_value)
+            matrix, _ = dstats.compute_causality_matrix(samples, nlags=2)
 
-        assert set(matrix["critical_value"]) == {critical_value}
-        assert_array_equal(matrix["result"].to_numpy(),
-                           (matrix["pvalue"] <= critical_value).to_numpy())
+        assert set(matrix["critical_value"]) == {0.05}
+
+    def test_critical_value_override_changes_the_decisions(self):
+        # Two thresholds over the SAME samples. No series Granger causes itself,
+        # and the F test of a series against itself returns p = 1.0 exactly, so
+        # the two diagonal cells are rejected at 1e-3 and accepted at 1.0 for
+        # every seed. The driven cell has p = 0 and is accepted at both. The
+        # counts below are therefore deterministic and the loose threshold must
+        # produce strictly more positives than the strict one.
+        samples = _causal_pair()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            strict, _ = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1e-3)
+            loose, _ = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1.0)
+
+        assert set(strict["critical_value"]) == {1e-3}
+        assert set(loose["critical_value"]) == {1.0}
+
+        diagonal = (strict["dependent_var"] == strict["causal_var"]).to_numpy()
+        assert_allclose(strict["pvalue"].to_numpy(dtype=float)[diagonal], numpy.ones(2))
+        assert not strict["result"].to_numpy()[diagonal].any()
+        assert loose["result"].to_numpy()[diagonal].all()
+
+        driven = ((strict["dependent_var"] == 2) & (strict["causal_var"] == 1)).to_numpy()
+        assert bool(strict["result"].to_numpy()[driven][0]) is True
+        assert bool(loose["result"].to_numpy()[driven][0]) is True
+
+        assert int(strict["result"].sum()) == 1
+        assert int(loose["result"].sum()) == 4
+
+    @pytest.mark.xfail(strict=True,
+                       reason="compute_causality_matrix reads the documented add_const "
+                              "kwarg and forwards it to lib.stats.causality_matrix, whose "
+                              "body never references it — grangercausalitytests is always "
+                              "called with its own addconst default — so the parameter is "
+                              "dead and cannot change the model a caller gets")
+    def test_add_const_changes_the_model(self):
+        samples = _causal_pair()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            without, _ = dstats.compute_causality_matrix(samples, nlags=2, add_const=False)
+            with_const, _ = dstats.compute_causality_matrix(samples, nlags=2, add_const=True)
+
+        assert not numpy.allclose(without["pvalue"].to_numpy(dtype=float),
+                                  with_const["pvalue"].to_numpy(dtype=float))
 
     def test_independent_series_show_no_causality(self):
+        # decided at 1e-3, see test_detects_the_known_driver for why
         n = 300
         samples = numpy.array([numpy.random.normal(size=n), numpy.random.normal(size=n)])
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            matrix, report = dstats.compute_causality_matrix(samples, nlags=2)
+            matrix, report = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1e-3)
 
         off_diagonal = matrix[matrix["dependent_var"] != matrix["causal_var"]]
+        assert numpy.all(off_diagonal["pvalue"].to_numpy(dtype=float) > 1e-3)
         assert not off_diagonal["result"].any()
         assert report.rank == 0
 
@@ -1062,13 +1283,80 @@ class TestOLS:
 
     @pytest.mark.parametrize("member", list(OLS))
     def test_every_enum_member_runs_a_regression(self, member):
+        # noisy so the residual variance, and with it every standard error, is
+        # strictly positive whichever branch the member dispatches to
         x = numpy.linspace(1.0, 10.0, 100)
-        y = 2.0 * x + 3.0
+        y = 2.0 * x + 3.0 + numpy.random.normal(0.0, 0.2, 100)
 
         _, result = member.single_variable_estimate(y, x)
 
-        assert isinstance(result.r2, float)
         assert len(result.params) == 1
+        assert 0.0 <= result.r2 <= 1.0
+        assert numpy.isfinite(result.const.est)
+        assert numpy.isfinite(result.params[0].est)
+        assert result.const.err > 0.0
+        assert result.params[0].err > 0.0
+
+    @pytest.mark.parametrize("member", list(OLS))
+    def test_every_enum_member_runs_the_two_and_multi_variable_paths(self, member):
+        # positive regressors and a multiplicative error keep y > 0 so the LOG
+        # branch's log10 is defined for every member
+        n = 200
+        x1 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        x2 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        x3 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        y = (2.0 * x1 ** 1.5 * x2 ** 0.5 * x3 ** 0.25
+             * numpy.exp(numpy.random.normal(0.0, 0.1, n)))
+
+        _, two = member.two_variable_estimate(y, x1, x2)
+        report, multi = member.multi_variable_estimate(y, numpy.array([x1, x2, x3]))
+
+        assert len(two.params) == 2
+        assert [p.column for p in two.params] == [1, 2]
+        assert len(multi.params) == 3
+        assert [p.column for p in multi.params] == [1, 2, 3]
+        assert list(report.params.index) == ["Intercept", "x1", "x2", "x3"]
+        assert 0.0 <= two.r2 <= 1.0
+        assert 0.0 <= multi.r2 <= 1.0
+        assert all(p.err > 0.0 for p in two.params)
+        assert all(p.err > 0.0 for p in multi.params)
+        assert all(numpy.isfinite(p.est) for p in multi.params)
+
+    def test_log_two_variable_estimate_recovers_a_multiplicative_power_law(self):
+        # y = b*x1^a1*x2^a2 is exactly linear in log10, so the LOG branch of
+        # __OLS_fit recovers both exponents from noiseless data to machine
+        # precision. The regressors are independent, so the exponents are
+        # separately identified rather than only their sum.
+        a1, a2, b, n = 1.5, 0.5, 2.0, 200
+        x1 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        x2 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        y = b * x1 ** a1 * x2 ** a2
+
+        _, result = OLS.LOG.two_variable_estimate(y, x1, x2)
+
+        assert result.r2 == pytest.approx(1.0)
+        assert result.params[0].est == pytest.approx(a1, abs=1e-9)
+        assert result.params[1].est == pytest.approx(a2, abs=1e-9)
+        assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
+
+    @pytest.mark.xfail(strict=True,
+                       reason="multi_variable_estimate dispatches to __OLS_formula_fit, "
+                              "which applies no transform for any enum member, so "
+                              "OLS.LOG.multi_variable_estimate silently returns the "
+                              "LINEAR model (byte identical r2, params and const) instead "
+                              "of the log-log fit its enum value documents")
+    def test_log_multi_variable_estimate_recovers_a_multiplicative_power_law(self):
+        a1, a2, b, n = 1.5, 0.5, 2.0, 200
+        x1 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        x2 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
+        y = b * x1 ** a1 * x2 ** a2
+
+        _, result = OLS.LOG.multi_variable_estimate(y, numpy.array([x1, x2]))
+
+        assert result.r2 == pytest.approx(1.0)
+        assert result.params[0].est == pytest.approx(a1, abs=1e-9)
+        assert result.params[1].est == pytest.approx(a2, abs=1e-9)
+        assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
 
     @pytest.mark.xfail(strict=True,
                        reason="OLS.__OLS_fit only transforms the LOG member, so XLOG "

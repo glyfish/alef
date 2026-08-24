@@ -27,23 +27,34 @@ apart at ``φ = 0.2``.  ``lib.models.ou.ou`` is itself the matching first-order
 Euler scheme (``φ = 1 - λΔt``), so a round trip through it cancels the error on
 both sides and is silent about it.  Two tests below make the approximation
 visible instead: ``test_reported_half_life_is_a_first_order_approximation``
-(deterministic, noiseless) and ``TestRoundTrip.test_recovers_an_exactly_
-simulated_ou`` / ``test_exact_ou_exposes_the_discretisation_bias``, which
-simulate the *exact* AR(1) OU (``φ = e^{-λΔt}``) and pin the resulting bias.
+(deterministic, noiseless) and
+``TestRoundTrip.test_exact_ou_exposes_the_discretisation_bias``, which simulates
+the *exact* AR(1) OU (``φ = e^{-λΔt}``) and pins the resulting bias one-sidedly
+at the two ``λ`` where it is larger than the sampling noise.
+
+**The façade removes a constant, never a trend** (``mean_reversion.py:21-22``),
+so a deterministic drift — the cointegration spread the notebooks actually feed
+it — inflates the reported half-life without any other symptom.
+``TestTrendSensitivity`` pins how badly.
 
 The kinds of check below are:
 
 * closed form — a noiseless geometric decay ``X_t = μ + A φ^t`` satisfies
   ``ΔX_t = (φ - 1)(X_{t-1} - μ)`` exactly, so the fit must be perfect and
-  return ``t½ = ln 2 / (1 - φ)``; plus one four-point series whose OLS slope is
-  worked out by hand as an exact fraction;
+  return ``t½ = ln 2 / (1 - φ)``; this holds for ``φ < 0`` (oscillating) and
+  ``|φ| > 1`` (divergent) too, which is where a ``0 < t½ < small`` screen goes
+  wrong; plus one four-point series whose OLS slope is worked out by hand as an
+  exact fraction;
 * round trip — simulate OU paths with a known ``λ`` and recover the half-life
   inside a tolerance built from the AR(1) slope standard error
   ``√((1 - φ²)/n)``, both for the Euler simulator and for an exact OU;
 * contract — tuple shape and types, the transform bookkeeping, translation
   invariance of the demeaning step, ``nobs = n - 1`` from the differencing,
   serialization of the returned result, accepted input containers/dtypes, and
-  the degenerate inputs (no variation, too short, NaN/inf, 2-D).
+  the degenerate inputs (no variation, too short, NaN/inf, 2-D).  Note that
+  non-finite input has *two* contracts, not one: an ndarray raises, while a
+  ``pandas.Series`` carrying a NaN silently fits the rows that survive
+  ``missing='drop'`` (``TestNonFiniteSeries``).
 
 Every stochastic tolerance was checked over 40+ independent seeds (see the
 comment on each) so nothing here is tuned to the seed the autouse conftest
@@ -187,7 +198,12 @@ class TestContract:
         assert result.param_transforms is not None
         assert len(result.param_transforms) == 2
         t_half, λ_est = (t.param for t in result.param_transforms)
-        assert half_life == t_half.est
+        # An ordering pin, not a numeric check: the façade returns
+        # param_transforms[0] verbatim (mean_reversion.py:25), so this is the
+        # same object — what it asserts is that slot 0 is t½ and slot 1 is λ̂.
+        # The numbers are anchored on the statsmodels report below.
+        assert half_life is result.param_transforms[0].param.est
+        assert λ_est is result.param_transforms[1].param
         assert t_half.est_label == r"$t_{1/2}$"
         assert t_half.err_label == r"$\sigma_{t_H}$"
         assert λ_est.est_label == r"$\lambda$"
@@ -296,10 +312,17 @@ class TestContract:
             compute_mean_reversion_halflife(numpy.random.normal(0.0, 1.0, (50, 2)))
 
     def test_dataframe_input_raises(self):
-        # A one-column DataFrame is not a Series: numpy.mean returns a length-1
-        # Series, and numpy.full cannot fill an array with it.
+        # A one-column DataFrame is not a Series, but the failure is *not* in
+        # the mean: numpy.mean(df) on one column returns a numpy.float64 scalar
+        # and numpy.full(len(df), scalar) builds a fine (50,) array. It is the
+        # subtraction on mean_reversion.py:22 that fails — pandas will not
+        # broadcast a length-50 ndarray against a DataFrame's single column and
+        # raises "Unable to coerce to Series, length must be 1: given 50".
+        # Match the message so a different ValueError from elsewhere (a real
+        # guard clause, say) shows up as a failure rather than passing silently.
         df = pandas.DataFrame({"close": numpy.random.normal(0.0, 1.0, 50)})
-        with pytest.raises(ValueError):
+        assert isinstance(numpy.mean(df), numpy.floating)
+        with pytest.raises(ValueError, match="Unable to coerce to Series"):
             compute_mean_reversion_halflife(df)
 
 
@@ -356,12 +379,88 @@ class TestDegenerateInput:
         assert not numpy.isfinite(result.param_transforms[0].param.err)
 
     @pytest.mark.parametrize("bad", [numpy.nan, numpy.inf, -numpy.inf])
-    def test_non_finite_values_raise_value_error(self, bad):
-        # The mean of a series containing NaN/inf is itself non-finite, so the
-        # demeaning poisons *every* observation and statsmodels' missing='drop'
-        # discards the lot — leaving the same empty-reduction ValueError as an
-        # empty input. Utterly opaque for a price series with one gap.
+    def test_non_finite_values_in_an_ndarray_raise_value_error(self, bad):
+        # numpy.mean of an ndarray containing NaN/inf is itself non-finite, so
+        # the demeaning poisons *every* observation and statsmodels'
+        # missing='drop' discards the lot — leaving the same empty-reduction
+        # ValueError as an empty input. Utterly opaque for a price series with
+        # one gap. The container decides: see TestNonFiniteSeries for the
+        # pandas path, which does not raise at all.
         x = numpy.r_[numpy.random.normal(0.0, 1.0, 50), bad]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            with pytest.raises(ValueError, match="zero-size array to reduction"):
+                compute_mean_reversion_halflife(x)
+
+
+class TestNonFiniteSeries:
+    """A NaN in a ``pandas.Series`` does **not** behave like a NaN in an array.
+
+    ``numpy.mean(series)`` dispatches to ``Series.mean()``, which *skips* NaN,
+    so the demeaning is not poisoned; only the one or two regression rows that
+    actually touch the gap are non-finite and statsmodels' ``missing='drop'``
+    quietly discards exactly those.  The call therefore succeeds, with a
+    silently reduced ``nobs`` and no warning.  This is the branch that matters:
+    the notebooks feed Series straight from the price loaders, and a single
+    missing bar changes the answer without changing the return contract.
+
+    ``±inf`` is different again — a Series mean of ``inf`` *is* propagated, so
+    the array behaviour (ValueError) comes back.
+    """
+
+    def test_a_nan_in_a_series_silently_drops_the_affected_rows(self):
+        # x = [0, 2, 1, NaN, 4, 3]: the mean over the finite entries is 2, and
+        # of the five differencing rows the two that touch the gap (lag = 1 and
+        # lag = NaN) are dropped, leaving demeaned lags [-2, 0, 2] against
+        # ΔX = [2, -1, -1].  Hand OLS: Σ(l-l̄)(Δ-Δ̄) = -6, Σ(l-l̄)² = 8, so the
+        # slope is exactly -3/4, t½ = ln2/0.75, the intercept is exactly 0 and
+        # R² = 1 - 1.5/6 = 0.75.  Nothing flags the missing bar.
+        x = [0.0, 2.0, 1.0, numpy.nan, 4.0, 3.0]
+        half_life, report, result = compute_mean_reversion_halflife(pandas.Series(x))
+        assert report.nobs == 3.0
+        assert result.params[0].est == pytest.approx(-0.75, rel=1e-12)
+        assert half_life == pytest.approx(LN2 / 0.75, rel=1e-12)
+        assert result.r2 == pytest.approx(0.75, rel=1e-12)
+        assert abs(result.const.est) < 1e-12
+        assert numpy.isfinite(result.param_transforms[0].param.err)
+        # …and the *identical* data as a bare ndarray raises instead.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            with pytest.raises(ValueError, match="zero-size array to reduction"):
+                compute_mean_reversion_halflife(numpy.array(x))
+
+    def test_one_interior_nan_costs_exactly_two_observations(self):
+        # On a real-sized path: n points give n - 1 rows, and one interior NaN
+        # kills the row that uses it as the lag and the row whose difference
+        # spans it, so nobs = n - 3. The surviving fit is recomputed here from
+        # the finite (lag, ΔX) pairs by the covariance formula — an independent
+        # route to the same slope, so this pins *which* rows were dropped, not
+        # merely how many.
+        n, gap = 400, 137
+        clean = _ou_path(0.5, n)
+        x = clean.copy()
+        x[gap] = numpy.nan
+        half_life, report, result = compute_mean_reversion_halflife(pandas.Series(x))
+        assert report.nobs == n - 3
+
+        centred = x - numpy.nanmean(x)
+        lag, dx = centred[:-1], numpy.diff(centred)
+        keep = numpy.isfinite(lag) & numpy.isfinite(dx)
+        assert keep.sum() == n - 3
+        lag_c = lag[keep] - lag[keep].mean()
+        slope = numpy.dot(lag_c, dx[keep] - dx[keep].mean()) / numpy.dot(lag_c, lag_c)
+        assert result.params[0].est == pytest.approx(slope, rel=1e-9)
+        assert half_life == pytest.approx(-LN2 / slope, rel=1e-9)
+        # The gap moves the answer on the *same* path, but only by ~one
+        # observation's worth — the drop is local, not a wholesale corruption.
+        clean_hl, _, _ = compute_mean_reversion_halflife(clean)
+        assert half_life == pytest.approx(clean_hl, rel=0.05)
+
+    @pytest.mark.parametrize("bad", [numpy.inf, -numpy.inf])
+    def test_an_infinite_value_in_a_series_still_raises(self, bad):
+        # Series.mean() skips NaN but not ±inf, so the mean is infinite, the
+        # demeaning poisons the whole column and every row is dropped.
+        x = pandas.Series(numpy.r_[numpy.random.normal(0.0, 1.0, 50), bad])
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             with pytest.raises(ValueError, match="zero-size array to reduction"):
@@ -407,9 +506,18 @@ class TestClosedForm:
         half_life, _, _ = compute_mean_reversion_halflife(x)
 
         true_halving = LN2 / (-math.log(φ))
-        # verify `true_halving` against the series rather than trusting algebra:
-        # the deviation really is halved after that many steps.
-        assert A * φ**true_halving == pytest.approx(A / 2.0, rel=1e-12)
+        # Verify `true_halving` against the *generated series* rather than
+        # against the φ it was derived from: read the decay ratio back out of x
+        # (the early terms only — 2·0.2^t underflows the 3.0 offset by t ≈ 24),
+        # confirm the constructed series really is that geometric decay, and
+        # halve it with the ratio the data supplies. Writing it as
+        # A·φ**true_halving instead would be pure algebra: exp(-ln2) = ½ for
+        # every φ, touching neither x nor the estimator.
+        dev = x - μ
+        ratios = dev[1:6] / dev[0:5]
+        npt.assert_allclose(ratios, φ, rtol=1e-12)
+        ratio = float(ratios[0])
+        assert dev[0] * ratio**true_halving == pytest.approx(dev[0] / 2.0, rel=1e-12)
 
         assert half_life == pytest.approx(LN2 / (1.0 - φ), rel=1e-9)
         assert half_life / true_halving == pytest.approx(factor, rel=1e-4)
@@ -440,22 +548,68 @@ class TestClosedForm:
         assert result.params[0].est == pytest.approx(0.1, rel=1e-9)
         assert half_life == pytest.approx(-LN2 / 0.1, rel=1e-9)
 
+    @pytest.mark.parametrize("φ", [-0.5, -0.9, -1.5])
+    def test_oscillating_regimes_are_fitted_exactly_too(self, φ):
+        # ΔX_t = (φ - 1)(X_{t-1} - μ) is exact for *any* φ, negative included,
+        # so the same closed form holds when the deviation alternates sign:
+        # slope φ - 1 ∈ (-3, -1), R² = 1 and t½ = ln2/(1 - φ) < ln2. Nothing in
+        # the façade restricts the fitted AR(1) coefficient to (0, 1), so a
+        # rapidly alternating series reports a *shorter* half-life than any
+        # genuinely reverting one — see the divergence trap below.
+        μ, A, n = 3.0, 2.0, 30
+        x = μ + A * φ ** numpy.arange(n)
+        half_life, report, result = compute_mean_reversion_halflife(x)
+        assert result.params[0].est == pytest.approx(φ - 1.0, rel=1e-9)
+        assert half_life == pytest.approx(LN2 / (1.0 - φ), rel=1e-9)
+        assert result.r2 == pytest.approx(1.0, abs=1e-9)
+        assert report.nobs == n - 1
+
+    def test_an_explosive_oscillation_reports_a_short_positive_half_life(self):
+        # The trap the sign convention leaves open: φ = -1.5 diverges — |x - μ|
+        # grows without bound — yet slope = -2.5 < -1 gives t½ = ln2/2.5 ≈ 0.277,
+        # smaller (and just as positive) as the strongly reverting φ = 0.5 case.
+        # A notebook screening on "0 < t½ < small" accepts this series. Only
+        # slope > -2 (i.e. |φ| < 1) is actually stationary, and the façade
+        # reports nothing about that.
+        μ, A, n = 3.0, 2.0, 30
+        x = μ + A * (-1.5) ** numpy.arange(n)
+        half_life, _, result = compute_mean_reversion_halflife(x)
+        assert abs(x[-1] - μ) > 1.0e4 * abs(x[0] - μ)  # it really does explode
+        assert result.params[0].est == pytest.approx(-2.5, rel=1e-9)
+        assert half_life == pytest.approx(LN2 / 2.5, rel=1e-9)
+        assert 0.0 < half_life
+        # …strictly shorter than a genuinely (and fast) mean-reverting series.
+        reverting, _, _ = compute_mean_reversion_halflife(
+            μ + A * 0.5 ** numpy.arange(n)
+        )
+        assert half_life < reverting
+
     def test_no_variation_yields_an_infinite_half_life_and_nan_errors(self):
         # Degenerate contract: with X_{t-1} constant the design is singular,
         # pinv returns slope 0 and t½ = -ln2/0 = -∞ (with numpy warnings)
         # rather than raising. The transformed *error* is 0/0 = NaN, so a
         # caller that only checks isfinite(half_life) still gets a NaN in the
         # error column — pin the whole degenerate tuple, not just t½.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
+        #
+        # The RuntimeWarnings are *asserted*, not suppressed: the divide-by-zero
+        # out of ou.py's __half_life_transform (-ln2/λ with λ = 0) is the only
+        # signal a caller gets that the fit was singular, so a change that stops
+        # emitting it — or moves it — must fail here. pytest.warns swallows the
+        # rest of the batch (two more RuntimeWarnings from the 1/λ² error
+        # transform) the way catch_warnings did.
+        with pytest.warns(RuntimeWarning, match="divide by zero"):
             half_life, _, result = compute_mean_reversion_halflife(numpy.full(50, 3.0))
         assert result.params[0].est == 0.0
         assert numpy.isneginf(half_life)
+        # Errors: the OLS slope error is an exact zero (the design column has no
+        # variation at all), and only the t½ transform is NaN, via 0/0² · 0.
+        assert result.params[0].err == 0.0
+        assert result.const.err == 0.0
         assert numpy.isnan(result.param_transforms[0].param.err)
-        assert (
-            numpy.isnan(result.param_transforms[1].param.err)
-            or result.param_transforms[1].param.err == 0.0
-        )
+        assert result.param_transforms[1].param.err == 0.0
+        # R² of the singular fit is NaN, not 0 or 1 — a caller screening a fit
+        # on r2 gets neither a pass nor a fail out of any ordinary comparison.
+        assert numpy.isnan(result.r2)
 
     @pytest.mark.parametrize("n", [20, 50, 101, 200])
     def test_constant_drift_yields_no_reversion(self, n):
@@ -520,6 +674,78 @@ class TestDemeaning:
 
 
 # ---------------------------------------------------------------------------
+# Trend sensitivity: a constant is removed, a trend is not
+# ---------------------------------------------------------------------------
+
+
+class TestTrendSensitivity:
+    """``mean_reversion.py:21-22`` subtracts the sample *mean* and nothing else.
+
+    A deterministic drift therefore survives into the regressor, where it looks
+    like persistence: ΔX picks up a constant the intercept absorbs while
+    X_{t-1} carries a ramp uncorrelated with the reverting part, so the fitted
+    slope shrinks toward zero and t½ blows up. This is exactly the case the
+    mean-reversion notebooks live on — a cointegration spread whose hedge ratio
+    is slightly off leaves a small drift in the residual — and it degrades
+    silently: R² stays sane, the errors stay finite, only the number is wrong.
+    """
+
+    λ, n = 0.5, 4000
+
+    @pytest.fixture
+    def path(self):
+        return _ou_path(self.λ, self.n), numpy.arange(self.n, dtype=float)
+
+    def test_a_small_drift_inflates_the_half_life(self, path):
+        # λ = 0.5 ⇒ truth 1.386 steps, per-step innovation σΔt = 1.0. A drift of
+        # 0.002 per step — 0.2% of that innovation, invisible on a plot —
+        # returns ≈ 7 (5× too long); 0.01 per step returns ≈ 147 (>100×).
+        # Bounds measured over 41 seeds: driftless [1.31, 1.48], 0.002 →
+        # [6.45, 7.32], 0.010 → [132, 148], so nothing here is seed specific.
+        x, t = path
+        truth = ou.mean_halflife(self.λ)
+        hl = [compute_mean_reversion_halflife(x + drift * t)[0]
+              for drift in (0.0, 0.002, 0.01)]
+
+        assert hl[0] == pytest.approx(truth, rel=0.15)
+        assert 4.0 < hl[1] < 10.0
+        assert hl[1] > 4.0 * truth
+        assert 60.0 < hl[2] < 250.0
+        assert hl[0] < hl[1] < hl[2]
+
+    def test_the_drift_shrinks_the_slope_without_spoiling_the_fit(self, path):
+        # Why it is silent: the reported slope collapses from ≈ -0.5 toward 0
+        # (t½ = -ln2/slope is what explodes), yet every quality signal a caller
+        # might screen on stays perfectly healthy — R² in the same ballpark as
+        # the clean fit, a finite and *smaller* standard error, and a positive,
+        # finite, ordinary-looking half-life.
+        x, t = path
+        _, _, clean = compute_mean_reversion_halflife(x)
+        half_life, report, drifted = compute_mean_reversion_halflife(x + 0.01 * t)
+
+        assert clean.params[0].est == pytest.approx(-self.λ, rel=0.15)
+        assert -0.02 < drifted.params[0].est < 0.0
+        assert abs(drifted.params[0].est) < 0.1 * abs(clean.params[0].est)
+        assert numpy.isfinite(half_life) and half_life > 0.0
+        assert numpy.isfinite(drifted.params[0].err)
+        assert 0.0 < drifted.r2 < 1.0
+        assert report.nobs == self.n - 1
+
+    def test_removing_the_trend_restores_the_estimate(self, path):
+        # Confirms the drift is the whole story: subtracting an OLS line in t
+        # (the demeaning the façade does *not* do) recovers the driftless
+        # answer to well under a percent. Over 5 seeds the worst gap was 0.2%.
+        x, t = path
+        baseline, _, _ = compute_mean_reversion_halflife(x)
+        y = x + 0.01 * t
+        design = numpy.column_stack([numpy.ones_like(t), t])
+        coef, *_ = numpy.linalg.lstsq(design, y, rcond=None)
+        detrended, _, _ = compute_mean_reversion_halflife(y - design @ coef)
+        assert detrended == pytest.approx(baseline, rel=0.02)
+        assert detrended == pytest.approx(ou.mean_halflife(self.λ), rel=0.15)
+
+
+# ---------------------------------------------------------------------------
 # Round trip: simulate with known λ, estimate it back
 # ---------------------------------------------------------------------------
 
@@ -553,38 +779,49 @@ class TestRoundTrip:
         "λ, n, rtol", [(0.8, 4000, 0.128), (0.3, 4000, 0.205), (0.1, 8000, 0.250)]
     )
     def test_recovers_an_exactly_simulated_ou(self, λ, n, rtol):
-        # The exact OU transition (φ = e^{-λΔt}) shares no approximation with
-        # the estimator. What comes back is the first-order inversion of the
-        # true φ, i.e. ln2/(1 - e^{-λ}) — NOT ln2/λ.
+        # Plain round trip against the AR(1) target. The exact OU transition
+        # (φ = e^{-λΔt}) shares no approximation with the estimator, so what
+        # must come back is the first-order inversion of the *true* φ, i.e.
+        # slope = φ - 1 and t½ = ln2/(1 - e^{-λ}).
         # rtol = 5·SE(λ̂)/|φ - 1| with SE = √((1 - φ²)/n): 12.8%, 20.5%, 25.0%.
-        # Over 60 seeds the worst deviation from the target was 6.8%, 10.3% and
-        # 9.8% (and 7.3%, 9.3%, 8.9% on the slope), so each bound carries
-        # roughly a factor-of-two margin.
+        # Over 41 seeds the worst deviation from the target was 6.7%, 13.9% and
+        # 22.3% (slope: 6.3%, 12.2%, 18.3%), so every bound holds with margin.
+        #
+        # Deliberately NOT a claim about ln2/λ: at λ = 0.3 and λ = 0.1 the two
+        # candidate targets differ by only 15.7% and 5.1%, well inside these
+        # tolerances — and at λ = 0.1 inside the sampling noise itself (the
+        # measured ratio to ln2/λ ranged over [0.977, 1.286] across those
+        # seeds, i.e. it lands below 1 as readily as above). Discriminating the
+        # two is test_exact_ou_exposes_the_discretisation_bias' job, at the λ
+        # and n where it can actually be done.
         φ = math.exp(-λ)
         target = LN2 / (1.0 - φ)
         x = _exact_ou_path(λ, n)
         half_life, _, result = compute_mean_reversion_halflife(x)
         assert result.params[0].est == pytest.approx(φ - 1.0, rel=rtol)
         assert half_life == pytest.approx(target, rel=rtol)
-        # …and the same statement as an explicit bias against continuous-time
-        # truth: the reported half-life is high by λ/(1 - e^{-λ}), which is
-        # +45%, +16% and +5% for these three λ.
-        assert half_life / ou.mean_halflife(λ) == pytest.approx(
-            λ / (1.0 - φ), rel=rtol
-        )
 
-    def test_exact_ou_exposes_the_discretisation_bias(self):
-        # The λ = 0.8 case sharply: on a path that genuinely halves in
-        # ln2/0.8 = 0.866 steps the façade reports ≈ 1.26, and the error is far
-        # larger than the sampling noise (rel SE ≈ 2.6% at n = 4000; over 60
-        # seeds the ratio below stayed in [1.354, 1.536] against a bound of
-        # 1.25). This is the failure the Euler round trip cancels out.
-        λ, n = 0.8, 4000
+    @pytest.mark.parametrize(
+        "λ, n, floor, rtol", [(0.8, 4000, 1.25, 0.128), (0.3, 34000, 1.09, 0.071)]
+    )
+    def test_exact_ou_exposes_the_discretisation_bias(self, λ, n, floor, rtol):
+        # The discriminating cases, stated one-sidedly against continuous-time
+        # truth: on a path that genuinely halves in ln2/λ the façade reports
+        # ln2/(1 - e^{-λ}), high by the factor λ/(1 - e^{-λ}) = 1.453 at
+        # λ = 0.8 and 1.157 at λ = 0.3. An estimator "fixed" to -ln2/ln(1 +
+        # slope) returns the truth and fails these floors, which is the point.
+        #
+        # n is chosen so the bias clears the sampling noise. Over 41 seeds the
+        # ratio below stayed in [1.376, 1.550] at λ = 0.8, n = 4000 and in
+        # [1.128, 1.191] at λ = 0.3, n = 34000 — the floors sit ~10% and ~3.5%
+        # under those minima. λ = 0.3 needs the long path: at n = 4000 the same
+        # ratio ranged over [1.049, 1.318] and a 1.09 floor would be a coin
+        # toss. λ = 0.1 is left out entirely (bias 5% vs a spread of ±25%);
+        # test_recovers_an_exactly_simulated_ou covers it as a round trip only.
         x = _exact_ou_path(λ, n)
         half_life, _, _ = compute_mean_reversion_halflife(x)
-        truth = ou.mean_halflife(λ)
-        assert half_life / truth > 1.25
-        assert half_life == pytest.approx(LN2 / (1.0 - math.exp(-λ)), rel=0.128)
+        assert half_life / ou.mean_halflife(λ) > floor
+        assert half_life == pytest.approx(LN2 / (1.0 - math.exp(-λ)), rel=rtol)
 
     def test_half_life_is_measured_in_sample_steps(self):
         # dt is hard-coded to 1, so a path sampled at Δt = 0.25 reports the
@@ -622,16 +859,19 @@ class TestRoundTrip:
         )
 
     def test_reported_error_is_calibrated_over_an_ensemble(self):
-        # 80 independent paths at λ = 0.5, n = 1000 (σ_λ̂ ≈ 0.027, 5.5%): the
+        # 150 independent paths at λ = 0.5, n = 1000 (σ_λ̂ ≈ 0.027, 5.5%): the
         # z-scores (t½ - ln2/λ)/σ_{t½} should look standard normal. The sd of a
-        # sample sd of 80 draws is 1/√158 = 0.080, so ±3 SE is [0.76, 1.24];
-        # over 30 independent ensembles the observed sd stayed in [0.81, 1.16],
-        # the mean in [-0.38, 0.09] (its own SE is 1/√80 = 0.11) and the ±2σ
-        # coverage never fell below 0.90. The window matters: at nsim = 40 the
-        # old [0.6, 1.55] bound was ±4–5 SE and a reported error 1.5× too small
-        # (z.sd ≈ 1.5, coverage ≈ 0.82) sailed through both it and a 0.8
-        # coverage floor. Both are now inside the rejection region.
-        λ, n, nsim = 0.5, 1000, 80
+        # sample sd of 150 draws is 1/√298 = 0.058, so ±3 SE is [0.83, 1.17];
+        # over 21 independent ensembles the observed sd stayed in [0.94, 1.09],
+        # the mean in [-0.29, 0.03] (its own SE is 1/√150 = 0.082), the ±2σ
+        # coverage never fell below 0.93 and the last assertion's margin never
+        # exceeded 0.61 of its bound. nsim was raised from 80 precisely to
+        # afford this window: at 80 the same ±3 SE window is [0.76, 1.24], and
+        # a sd bound that wide self-rejects ≈0.3% of runs while catching less.
+        # The constraint still bites — a reported error 1.5× too small
+        # (z.sd ≈ 1.5, coverage ≈ 0.82) fails both the sd window and the 0.85
+        # coverage floor.
+        λ, n, nsim = 0.5, 1000, 150
         truth = ou.mean_halflife(λ)
         est = numpy.empty(nsim)
         err = numpy.empty(nsim)
@@ -641,7 +881,7 @@ class TestRoundTrip:
             err[i] = result.param_transforms[0].param.err
         z = (est - truth) / err
         assert abs(z.mean()) < 0.75
-        assert 0.76 < z.std(ddof=1) < 1.24
+        assert 0.83 < z.std(ddof=1) < 1.17
         assert numpy.mean(numpy.abs(z) < 2.0) >= 0.85
         # the ensemble mean is 9× more precise than a single estimate
         assert est.mean() == pytest.approx(truth, abs=4.0 * err.mean() / math.sqrt(nsim))

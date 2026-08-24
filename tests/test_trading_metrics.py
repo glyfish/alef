@@ -14,9 +14,30 @@ Three kinds of test, in priority order:
    whose mean reversion must show up as a negative correlation between the
    z-score and the next increment).
 3. CONTRACT: the ``(t, values)`` tuple shape and time alignment, the
-   ``std == 0`` branch, the empty-input guard, return types, package
-   re-exports, and agreement with the independent ``pandas`` and
-   ``lib.stats`` (cumulative-sum) rolling implementations.
+   ``std == 0`` branch, the empty-input guard, return types, aliasing of the
+   returned time array, package re-exports, and agreement with the independent
+   ``pandas`` and ``lib.stats`` (cumulative-sum) rolling implementations.
+
+Known library defects are pinned with ``@pytest.mark.xfail(strict=True)``
+asserting the CORRECT behaviour, so the marker turns into an XPASS failure the
+day the defect is fixed. They are, with the fix that would flip each one:
+
+* ``zscore`` swallows non-finite windows: ``std`` is NaN, ``std > 0`` is False,
+  so the degenerate branch returns ``0.0`` — "the price sits exactly on its
+  rolling mean", a tradeable flat signal — instead of propagating NaN. (Fix at
+  ``metrics.py:88``: return NaN when ``std`` is not finite, keeping ``0.0`` for
+  the genuinely constant window where ``std == 0``.)
+* ``zscore`` returns ``numpy.float64`` from the dividing branch though it is
+  annotated and documented ``-> float``; the sibling ``std`` already wraps its
+  return in ``float()``.
+* ``zscore``/``compute_zscore`` cannot take a ``pandas.Series`` — ``samples[-1]``
+  is label lookup on a ``RangeIndex`` and raises ``KeyError: -1`` — although
+  quotes reach the strategies from the CSV/DB loaders as Series, and
+  ``compute_std`` accepts them happily.
+* neither ``compute_`` facade validates ``len(time) == len(data)`` or
+  ``window > 0``: ``values`` is sized from ``len(data)`` while ``time`` is
+  sliced from the ``time`` argument, so a mismatched ``(t, values)`` pair is
+  returned silently.
 
 Every simulation draws from numpy's global RNG, which ``conftest.py`` reseeds
 before each test.
@@ -126,10 +147,9 @@ class TestZscore:
         # std == 0 branch: must not divide by zero.
         result = zscore(numpy.full(n, value))
         assert result == 0.0
-        # Strict type check, not isinstance: numpy.float64 subclasses float, so
-        # isinstance cannot see that this degenerate branch returns the Python
-        # literal 0.0 while the normal branch returns numpy.float64 (pinned in
-        # test_return_type_is_branch_dependent below).
+        # This branch returns the Python literal 0.0 and would keep returning a
+        # Python float if the dividing branch were wrapped in float(), so the
+        # strict type check here is safe in both worlds.
         assert type(result) is float
 
     def test_empty_samples_raise(self):
@@ -138,17 +158,28 @@ class TestZscore:
             zscore(numpy.array([]))
 
     @pytest.mark.parametrize("bad", [numpy.inf, -numpy.inf])
-    def test_infinite_sample_is_silently_zero(self, bad):
-        # Same swallow as the NaN case below: mean is ±inf, std is NaN
-        # (inf - inf), and `std > 0` is False for NaN, so the degenerate branch
-        # fires and returns 0.0 — "the price sits exactly on its rolling mean",
-        # a tradeable signal — instead of propagating the non-finite input.
+    def test_std_propagates_an_infinite_sample(self, bad):
+        # The half of the divergence that is already correct: std of a window
+        # holding ±inf is NaN (inf - inf) and the facade hands that straight back.
+        samples = numpy.array([1.0, 2.0, bad])
+        with numpy.errstate(invalid="ignore"):
+            result = std(samples)
+        assert math.isnan(result)
+        assert type(result) is float
+
+    @pytest.mark.parametrize("bad", [numpy.inf, -numpy.inf])
+    @pytest.mark.xfail(strict=True,
+                       reason="zscore swallows non-finite samples: mean is ±inf, std is NaN "
+                              "(inf - inf), and `std > 0` is False for NaN, so metrics.py:88 takes "
+                              "the degenerate branch and returns 0.0 — 'the price sits exactly on "
+                              "its rolling mean', a tradeable flat signal — instead of propagating "
+                              "the non-finite input the way std() does. Fix: return NaN when std "
+                              "is not finite, reserving the 0.0 branch for std == 0")
+    def test_infinite_sample_should_propagate_not_be_silently_zero(self, bad):
         samples = numpy.array([1.0, 2.0, bad])
         with numpy.errstate(invalid="ignore"):
             result = zscore(samples)
-            assert math.isnan(std(samples))     # the std facade does propagate
-        assert result == 0.0
-        assert type(result) is float
+        assert math.isnan(result)
 
     def test_affine_invariance_and_sign_flip(self):
         # z is invariant under x -> a*x + b for a > 0 and odd under a < 0.
@@ -157,14 +188,32 @@ class TestZscore:
         assert zscore(3.0 * x + 7.0) == pytest.approx(z)
         assert zscore(-x) == pytest.approx(-z)
 
-    def test_return_type_is_branch_dependent(self):
-        # The docstring promises `float`. The dividing branch actually returns
-        # numpy.float64 (a float subclass, so isinstance is blind to it) while
-        # the std == 0 guard returns a Python float. Pinned strictly so that
-        # wrapping the return in float() in the library shows up as a
-        # deliberate test change rather than passing silently.
-        assert type(zscore(numpy.array([1.0, 2.0, 4.0]))) is numpy.float64
+    def test_return_is_a_float_in_both_branches(self):
+        # The contract from the signature and docstring (metrics.py:66 `-> float`)
+        # — true today (numpy.float64 subclasses float) and after the library is
+        # made to return a Python float.
+        assert isinstance(zscore(numpy.array([1.0, 2.0, 4.0])), float)
+        assert isinstance(zscore(numpy.array([1.0, 1.0])), float)
+
+    @pytest.mark.xfail(strict=True,
+                       reason="zscore is annotated and documented `-> float` (metrics.py:66) but "
+                              "the dividing branch returns numpy.float64; only the std == 0 guard "
+                              "returns a Python float. The sibling std() already wraps its return "
+                              "in float() (metrics.py:106). Fix: `return float((val - mean) / std)`")
+    def test_return_type_should_be_python_float_in_both_branches(self):
+        assert type(zscore(numpy.array([1.0, 2.0, 4.0]))) is float
         assert type(zscore(numpy.array([1.0, 1.0]))) is float
+
+    @pytest.mark.xfail(strict=True,
+                       reason="zscore cannot take a pandas.Series: samples[-1] (metrics.py:86) is "
+                              "label-based lookup on a default RangeIndex and raises KeyError: -1. "
+                              "Quotes reach the strategies from the CSV/DB loaders as Series, and "
+                              "std() handles them fine. Fix: use samples.iloc[-1] / "
+                              "numpy.asarray(samples)[-1]")
+    def test_pandas_series_input(self):
+        # mean 3, population std sqrt(2), last value 5 -> sqrt(2), the same
+        # closed form as test_ramp_closed_form on the numpy array.
+        assert zscore(pandas.Series([1.0, 2.0, 3.0, 4.0, 5.0])) == pytest.approx(math.sqrt(2.0))
 
     @pytest.mark.parametrize("n", [2, 5, 30])
     def test_bounded_by_population_maximum(self, n):
@@ -234,20 +283,23 @@ class TestStd:
     def test_empty_samples_return_nan_while_zscore_raises(self):
         # The two scalar facades guard their empty input asymmetrically: zscore
         # has an explicit verify_condition, std has none and degrades to
-        # numpy's nan (with a RuntimeWarning) — a silent nan into the strategies
-        # rather than a raise. Both halves are pinned here.
-        with numpy.errstate(invalid="ignore"):
-            with pytest.warns(RuntimeWarning):
-                result = std(numpy.array([]))
+        # numpy's nan — a silent nan into the strategies rather than a raise.
+        # Both halves are pinned here. Whether numpy also emits a RuntimeWarning
+        # for the empty slice is numpy's business, not part of this module's
+        # contract, so the warning is silenced rather than asserted.
+        with numpy.errstate(invalid="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            result = std(numpy.array([]))
         assert math.isnan(result)
         assert type(result) is float
         with pytest.raises(Exception, match="No samples to compute z-score"):
             zscore(numpy.array([]))
 
-    def test_order_invariance(self):
-        x = numpy.random.normal(0.0, 1.0, 50)
-        assert std(numpy.flip(x)) == pytest.approx(std(x))
-        assert std(numpy.random.permutation(x)) == pytest.approx(std(x))
+    def test_pandas_series_input(self):
+        # std takes a Series (numpy.std handles it) where zscore raises
+        # KeyError: -1 — see TestZscore.test_pandas_series_input. Quote data
+        # arrives from the loaders as a Series, so this asymmetry is load bearing.
+        assert std(pandas.Series([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0])) == pytest.approx(2.0)
 
     def test_scale_and_shift(self):
         x = numpy.random.normal(0.0, 1.0, 100)
@@ -292,6 +344,35 @@ class TestComputeZscore:
         assert t[0] == numpy.datetime64("2024-01-04")
         assert t[-1] == numpy.datetime64("2024-01-12")
         assert len(z) == n - w + 1
+        # the datetime stamps must not disturb the values themselves
+        assert_allclose(z, _pandas_rolling_zscore(data, w), rtol=1e-10)
+
+    def test_returned_time_aliases_the_input_time_array(self):
+        # `time[window - 1:]` is a numpy view, not a copy, so the returned stamps
+        # track later mutations of the caller's array while the values array is
+        # freshly built and does not. Pinned as the current (plain numpy slice)
+        # semantics: if the library ever starts copying defensively, this is the
+        # test that says so.
+        n, w = 12, 3
+        time = numpy.arange(n, dtype=float)
+        data = numpy.random.normal(0.0, 1.0, n)
+        t, z = compute_zscore(time, data, w)
+        assert numpy.shares_memory(t, time)
+        assert not numpy.shares_memory(z, data)
+        time[w - 1] = -999.0
+        assert t[0] == -999.0
+
+    @pytest.mark.xfail(strict=True,
+                       reason="compute_zscore cannot take a pandas.Series: the per-window slice is "
+                              "still a Series and zscore's samples[-1] (metrics.py:86) is label "
+                              "lookup on a RangeIndex, so it raises KeyError: -1. compute_std "
+                              "accepts the same input. Fix: samples.iloc[-1] / numpy.asarray()")
+    def test_pandas_series_data(self):
+        n, w = 40, 6
+        time = numpy.arange(n, dtype=float)
+        values = numpy.random.normal(0.0, 1.0, n)
+        _, z = compute_zscore(time, pandas.Series(values), w)
+        assert_allclose(numpy.asarray(z), _pandas_rolling_zscore(values, w), rtol=1e-10)
 
     @pytest.mark.parametrize("window", [2, 5, 10, 25])
     def test_linear_ramp_closed_form(self, window):
@@ -397,17 +478,28 @@ class TestComputeZscore:
         assert t.shape == (0,)
         assert z.shape == (0,)
 
-    def test_zero_window_raises_from_the_empty_sample_guard(self):
-        with pytest.raises(Exception, match="No samples to compute z-score"):
-            compute_zscore(numpy.arange(5, dtype=float), numpy.ones(5), 0)
+    def test_window_one_longer_than_series_is_the_exact_npts_zero_boundary(self):
+        # len(data) == window - 1 makes npts exactly 0 — the last window size
+        # that still produces no output, one step from the single-window case in
+        # test_window_equal_to_length_gives_single_value. The tests above only
+        # exercise npts < 0, where range() is empty for a different reason.
+        t, z = compute_zscore(numpy.arange(5, dtype=float), numpy.arange(5, dtype=float), 6)
+        assert t.shape == (0,)
+        assert z.shape == (0,)
+        assert z.dtype == numpy.float64
 
-    def test_negative_window_raises_from_the_empty_sample_guard(self):
-        # window = -1 makes npts = len(data)+2 and every slice data[i:i-1] empty
-        # from i = 1 on, so the empty-sample guard fires on the second window.
-        # compute_std, which has no such guard, silently returns mismatched
-        # (t, values) lengths for the same input — see the xfail below.
-        with pytest.raises(Exception, match="No samples to compute z-score"):
-            compute_zscore(numpy.arange(10, dtype=float), numpy.random.normal(0.0, 1.0, 10), -1)
+    @pytest.mark.parametrize("window", [0, -1], ids=["zero", "negative"])
+    def test_non_positive_window_raises(self, window):
+        # compute_zscore rejects a non-positive window, though only by accident:
+        # nothing validates `window`, but the slices data[i:i+window] go empty
+        # (immediately for 0, from the second window for -1) and zscore's
+        # verify_condition guard fires. The raise is asserted without matching
+        # the message — "No samples to compute z-score" today — so that adding a
+        # real window check with its own message keeps this test green.
+        # compute_std, which has no such guard, silently returns a mismatched
+        # (t, values) pair of NaNs for the same input; see its xfail below.
+        with pytest.raises(Exception):
+            compute_zscore(numpy.arange(10, dtype=float), numpy.random.normal(0.0, 1.0, 10), window)
 
     def test_empty_data_returns_empty_instead_of_raising(self):
         # n = 0 drives npts negative, range() is then empty and the function
@@ -488,16 +580,30 @@ class TestComputeStd:
         assert_array_equal(t_loop, t_vec)
         assert_allclose(s_loop, s_vec, rtol=1e-8, atol=1e-8)
 
-    def test_reversal_symmetry(self):
-        # The implementation flips each window before taking std; std is
-        # order-invariant, so reversing the whole series must simply reverse
-        # the result.
+    def test_reversed_series_matches_the_reversed_pandas_reference(self):
+        # Self-symmetry (compute_std(data[::-1]) == compute_std(data)[::-1]) is
+        # an identity of numpy.std's order invariance and cannot fail for any
+        # implementation, so the reversed series is checked against an OUTSIDE
+        # rolling reference instead: that does catch a window-alignment error,
+        # which reverses into a different offset. The self-symmetry is asserted
+        # alongside only because it is free once the reference is in hand.
         n, w = 200, 12
         time = numpy.arange(n, dtype=float)
         data = numpy.random.normal(0.0, 1.0, n)
         _, forward = compute_std(time, data, w)
         _, backward = compute_std(time, data[::-1], w)
+        assert_allclose(backward, _pandas_rolling_std(data[::-1], w), rtol=1e-10, atol=1e-12)
         assert_allclose(backward, forward[::-1], rtol=1e-12)
+
+    def test_pandas_series_data(self):
+        # compute_std accepts a Series (numpy.flip/numpy.std cope with it) where
+        # compute_zscore raises KeyError: -1 — see TestComputeZscore's xfail.
+        n, w = 40, 6
+        time = numpy.arange(n, dtype=float)
+        values = numpy.random.normal(0.0, 1.0, n)
+        t, s = compute_std(time, pandas.Series(values), w)
+        assert_array_equal(t, time[w - 1:])
+        assert_allclose(numpy.asarray(s), _pandas_rolling_std(values, w), rtol=1e-10, atol=1e-12)
 
     def test_window_one_is_identically_zero(self):
         n = 30
@@ -511,31 +617,35 @@ class TestComputeStd:
         assert t.shape == (0,)
         assert s.shape == (0,)
 
-    def test_zero_window_gives_empty_windows(self):
-        # numpy.std of an empty slice is nan (with a RuntimeWarning), so a zero
-        # window degrades to nan rather than raising the way compute_zscore does.
-        with numpy.errstate(invalid="ignore"):
-            with pytest.warns(RuntimeWarning):
-                _, s = compute_std(numpy.arange(5, dtype=float), numpy.ones(5), 0)
-        assert numpy.all(numpy.isnan(s))
+    def test_window_one_longer_than_series_is_the_exact_npts_zero_boundary(self):
+        # len(data) == window - 1: npts is exactly 0, the boundary between the
+        # single-window case and the negative-npts cases covered above.
+        t, s = compute_std(numpy.arange(5, dtype=float), numpy.arange(5, dtype=float), 6)
+        assert t.shape == (0,)
+        assert s.shape == (0,)
+        assert s.dtype == numpy.float64
 
+    @pytest.mark.parametrize("window", [0, -1], ids=["zero", "negative"])
     @pytest.mark.xfail(strict=True,
-                       reason="compute_std does not validate window > 0: for window = -1 on n "
-                              "points npts becomes n+2 while time[window-1:] keeps only the last "
-                              "2 stamps, so the returned (t, values) pair has mismatched lengths "
-                              "(2 vs n+2) instead of raising")
-    def test_negative_window_keeps_time_and_values_paired(self):
-        # The documented return is a (t, values) pair, so the two arrays must
-        # have the same length for every accepted input. compute_zscore raises
-        # on this input; compute_std corrupts the pairing silently.
+                       reason="compute_std does not validate window > 0: numpy.std of the empty "
+                              "slices is NaN, so on n points window = 0 yields n+1 NaNs against "
+                              "the 1 stamp in time[-1:] and window = -1 yields n+2 NaNs against 2 "
+                              "stamps — a (t, values) pair with mismatched lengths returned "
+                              "silently instead of a raise. compute_zscore rejects both inputs, "
+                              "but only by accident, from its empty-sample guard")
+    def test_non_positive_window_is_rejected(self, window):
+        # There is no sane (t, values) pair to return for a non-positive window,
+        # so the fix is to validate and raise — which is what is asserted, so
+        # that the marker XPASSes once the guard lands. (Asserting
+        # len(t) == len(s) instead would keep xfailing forever: a raise inside
+        # an xfail body still counts as an xfail.)
         n = 10
         time = numpy.arange(n, dtype=float)
         data = numpy.random.normal(0.0, 1.0, n)
-        with numpy.errstate(invalid="ignore"):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
-                t, s = compute_std(time, data, -1)
-        assert len(t) == len(s)
+        with numpy.errstate(invalid="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            with pytest.raises(Exception):
+                compute_std(time, data, window)
 
     def test_empty_data_returns_empty_instead_of_raising(self):
         # n = 0 drives npts negative, so the loop never runs and empty arrays
@@ -611,8 +721,7 @@ def test_zscore_times_std_recovers_deviation_from_window_mean():
     # deviation is built from pandas: rebuilding it with numpy.mean over the
     # same slice would just restate (val-mean)/std · std, an identity of the
     # library's own arithmetic. Against an outside reference this pins that the
-    # two facades share a window convention (including compute_std's
-    # numpy.flip, which must leave the value unchanged) and stamp the same times.
+    # two facades share a window convention and stamp the same times.
     n, w = 300, 20
     time = numpy.arange(n, dtype=float)
     data = numpy.cumsum(numpy.random.normal(0.0, 1.0, n))
@@ -647,11 +756,11 @@ def test_zscore_predicts_mean_reversion_of_a_stationary_ar1():
     assert abs(corr_rw) < 0.15
 
 
-def test_nan_window_zscore_is_silently_zero_while_std_is_nan():
-    # Documented divergence: numpy.std of a window containing NaN is NaN, and
-    # `std > 0` is False for NaN, so zscore() takes the degenerate branch and
-    # emits 0.0 — i.e. "at the mean", a tradeable signal — whereas compute_std
-    # propagates NaN for the same windows.
+def test_compute_std_propagates_a_nan_window():
+    # The correct half of the NaN divergence: numpy.std of a window containing
+    # NaN is NaN and compute_std hands that on, so the strategies see a missing
+    # value rather than a number. Windows clear of the NaN are untouched by
+    # either facade.
     n, w = 20, 5
     data = numpy.random.normal(0.0, 1.0, n)
     data[9] = numpy.nan
@@ -659,26 +768,63 @@ def test_nan_window_zscore_is_silently_zero_while_std_is_nan():
         _, z = compute_zscore(numpy.arange(n, dtype=float), data, w)
         _, s = compute_std(numpy.arange(n, dtype=float), data, w)
     contaminated = slice(9 - w + 1, 10)     # the w windows containing index 9
-    assert_array_equal(z[contaminated], numpy.zeros(w))
     assert numpy.all(numpy.isnan(s[contaminated]))
-    # windows clear of the NaN are unaffected
     assert numpy.all(numpy.isfinite(z[10:]))
     assert numpy.all(numpy.isfinite(s[10:]))
 
 
+@pytest.mark.xfail(strict=True,
+                   reason="compute_zscore emits 0.0 for windows containing NaN instead of "
+                          "propagating it: numpy.std of the window is NaN, `std > 0` is False for "
+                          "NaN, so metrics.py:88 takes the degenerate branch. A 0.0 z-score means "
+                          "'the price is exactly at its rolling mean' — a tradeable flat signal "
+                          "manufactured out of missing data, while compute_std correctly reports "
+                          "NaN for the very same windows. Fix: return NaN when std is not finite, "
+                          "reserving the 0.0 branch for std == 0")
+def test_compute_zscore_should_propagate_a_nan_window():
+    n, w = 20, 5
+    data = numpy.random.normal(0.0, 1.0, n)
+    data[9] = numpy.nan
+    with numpy.errstate(invalid="ignore"):
+        _, z = compute_zscore(numpy.arange(n, dtype=float), data, w)
+    contaminated = slice(9 - w + 1, 10)     # the w windows containing index 9
+    assert numpy.all(numpy.isnan(z[contaminated]))
+
+
 @pytest.mark.parametrize("compute", [compute_zscore, compute_std], ids=["zscore", "std"])
+@pytest.mark.parametrize("ntime, ndata", [(4, 10), (20, 10)], ids=["time-shorter", "time-longer"])
 @pytest.mark.xfail(strict=True,
                    reason="neither compute_ facade validates len(time) == len(data): the values "
                           "array is sized from len(data) while the time array is sliced from the "
-                          "shorter time input, so a (t, values) pair with mismatched lengths is "
-                          "returned silently (2 vs 8 here)")
-def test_mismatched_time_and_data_lengths_keep_the_pair_aligned(compute):
-    # The strategies index the returned pair positionally, so a shorter time
-    # array than data array must not be accepted quietly.
-    time = numpy.arange(4.0)
-    data = numpy.random.normal(0.0, 1.0, 10)
-    t, values = compute(time, data, 3)
-    assert len(t) == len(values)
+                          "time argument, so a (t, values) pair with mismatched lengths is returned "
+                          "silently — 2 vs 8 when time is shorter, 18 vs 8 when it is longer")
+def test_mismatched_time_and_data_lengths_are_rejected(compute, ntime, ndata):
+    # The strategies index the returned pair positionally, so a time array of a
+    # different length from the data array must not be accepted quietly. There
+    # is no aligned pair to hand back, so the fix is to raise — asserted here
+    # rather than `len(t) == len(values)`, which would keep xfailing after the
+    # fix because a raise inside an xfail body is still an xfail.
+    time = numpy.arange(float(ntime))
+    data = numpy.random.normal(0.0, 1.0, ndata)
+    with pytest.raises(Exception):
+        compute(time, data, 3)
+
+
+@pytest.mark.parametrize("compute", [compute_zscore, compute_std], ids=["zscore", "std"])
+def test_non_integer_window_is_not_silently_accepted(compute):
+    # The mean-reversion notebooks estimate a half life as a float and feed it
+    # in as the lookback, surviving only because they wrap it in int() by hand.
+    # A caller who forgets gets a raise rather than a silently truncated (or
+    # rounded) window — today an opaque TypeError from range(npts) inside the
+    # facade, "'float' object cannot be interpreted as an integer", rather than
+    # a message naming the window argument.
+    time = numpy.arange(30.0)
+    data = numpy.random.normal(0.0, 1.0, 30)
+    with pytest.raises(Exception):
+        compute(time, data, 20.0)
+    # a fractional window is no different: nothing rounds or coerces it
+    with pytest.raises(Exception):
+        compute(time, data, 20.5)
 
 
 def test_price_like_series_matches_pandas_rolling():
@@ -692,11 +838,20 @@ def test_price_like_series_matches_pandas_rolling():
     prices = 1.0e5 + numpy.cumsum(numpy.random.normal(0.0, 0.5, n))
     _, s = compute_std(time, prices, w)
     _, z = compute_zscore(time, prices, w)
-    assert_allclose(s, _pandas_rolling_std(prices, w), rtol=1e-8, atol=1e-12)
+    # rtol is 1e-6, not machine precision: the reference side is pandas' ONLINE
+    # rolling variance, which itself loses digits on the 1e5 offset. Measured
+    # over 500 seeds the two disagree by up to 2e-8 relative on the std and 4e-8
+    # absolute on the z-score — so rtol=1e-8 fails on roughly 3 % of seeds
+    # (a false alarm: it is the reference degrading, not the two-pass numpy.std
+    # in metrics). The catastrophic cancellation this test exists to rule out —
+    # the cumulative-sum path in lib.stats, xfailed below — is 2e-5 median and
+    # 6e-4 max relative on the same data, two to three orders of magnitude
+    # coarser, so 1e-6 keeps every bit of the discriminating power.
+    assert_allclose(s, _pandas_rolling_std(prices, w), rtol=1e-6, atol=1e-9)
     # atol matters only for the rare window whose last price sits almost exactly
-    # on its rolling mean: |z| ~ 1e-3 there, where a 1e-11 absolute difference
+    # on its rolling mean: |z| ~ 1e-3 there, where a tiny absolute difference
     # between two float64 orderings is not a real disagreement.
-    assert_allclose(z, _pandas_rolling_zscore(prices, w), rtol=1e-8, atol=1e-9)
+    assert_allclose(z, _pandas_rolling_zscore(prices, w), rtol=1e-6, atol=1e-9)
 
 
 @pytest.mark.xfail(strict=True,

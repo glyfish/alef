@@ -8,11 +8,44 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
+            "python": "/Users/troy/.pyenv/versions/3.14.7/envs/alef-3.14.7/bin/python",
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            // Whole suite. -o addopts= clears the -q in pytest.ini so the
+            // pass/xfail summary is visible; justMyCode=false lets breakpoints
+            // land inside navi (lib/) as well as in the tests.
+            "name": "Pytest: All Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/Users/troy/.pyenv/versions/3.14.7/envs/alef-3.14.7/bin/python",
+            "module": "pytest",
+            "args": ["-v", "-o", "addopts="],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            // Just the test file in the active editor.
+            "name": "Pytest: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/Users/troy/.pyenv/versions/3.14.7/envs/alef-3.14.7/bin/python",
+            "module": "pytest",
+            "args": ["${file}", "-v", "-o", "addopts="],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
             }
         }
     ]

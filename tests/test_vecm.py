@@ -34,6 +34,7 @@ fixed seed conftest installs.
 """
 import io
 import json
+import re
 from contextlib import redirect_stdout
 
 import numpy
@@ -51,7 +52,7 @@ from lib.data.hyp_test import (
     VAROrderTestReport,
 )
 from lib.data.impl import vecm as facade
-from lib.data.param_est import EstModel, ParamEst, VECMEst, VECMParamType
+from lib.data.param_est import EstModel, ParamEst, VARParamType, VECMEst, VECMParamType
 from lib.data.reports import JohansenTestReport
 from lib.models import vecm as model
 from lib.utils import create_ensemble
@@ -135,6 +136,14 @@ def fit_vecm1(sim_vecm1):
 
 
 @pytest.fixture(scope="module")
+def sim_rank_two():
+    """Three series with a single common stochastic trend: Π = λ₂β₂ has rank 2,
+    so two independent combinations error correct and one random walk remains."""
+    numpy.random.seed(4477)
+    return facade.create_vecm1_source(LAMBDA2, BETA2, A2_ZERO, npts=4000)
+
+
+@pytest.fixture(scope="module")
 def sim_random_walks():
     """Two independent random walks: Π = 0, so nothing is cointegrated."""
     zeros_λ = numpy.matrix(numpy.zeros((2, 1)))
@@ -195,7 +204,11 @@ class TestVecm1Simulator:
         """Δx₂ = ε₂ and Δx₁ = -κ z_{t-1} + ε₁ with z_{t-1} ⟂ ε_t, so
         Var(Δx₂) = Ω₂₂, Cov(Δx₁, Δx₂) = Ω₁₂ and
         Var(Δx₁) = κ²Var(z) + Ω₁₁.  n = 4000 gives the variance of an iid
-        estimate a relative spread of √(2/n) ≈ 2.2%; 10% is ~4.5σ."""
+        estimate a relative spread of √(2/n) ≈ 2.2%; 10% is ~4.5σ.  The off
+        diagonal is the noisier of the three: over 150 unrelated seeds its
+        relative error averaged 3.7% with p95 8.7% and a maximum of 12.4%, so
+        15% clears the observed maximum while still rejecting a simulator whose
+        cross covariance is a quarter off — which the old 25% did not."""
         numpy.random.seed(2718)
         _, xt = facade.create_vecm1_source(LAMBDA, BETA, A_ZERO, npts=4000, Ω=OMEGA)
         Δ = numpy.diff(xt, axis=1)[:, 2:]
@@ -205,7 +218,7 @@ class TestVecm1Simulator:
         var_z = βΩβ / (1.0 - (1.0 - KAPPA) ** 2)
 
         assert cov[1, 1] == pytest.approx(OMEGA[1, 1], rel=0.10)
-        assert cov[0, 1] == pytest.approx(OMEGA[0, 1], rel=0.25)
+        assert cov[0, 1] == pytest.approx(OMEGA[0, 1], rel=0.15)
         assert cov[0, 0] == pytest.approx(KAPPA**2 * var_z + OMEGA[0, 0], rel=0.10)
 
     def test_cointegrating_combination_is_ar1(self):
@@ -241,13 +254,14 @@ class TestVecm1Simulator:
             expected[i] = (numpy.eye(2) + Π + a) @ expected[i - 1] - a @ expected[i - 2] + εt[i]
         assert_allclose(xt.T, expected, rtol=1e-9, atol=1e-9)
 
-    def test_rank_two_cointegration_has_lyapunov_covariance(self):
+    def test_rank_two_cointegration_has_lyapunov_covariance(self, sim_rank_two):
         """Three series, rank 2: z = βx is a stationary VAR(1) with matrix
-        I + βλ, and Cov(z) solves the discrete Lyapunov equation.  Off diagonal
-        entries are compared on an absolute scale — their sampling spread,
-        √((σ₁₁σ₂₂ + σ₁₂²)/n_eff) ≈ 0.16, dwarfs their size."""
-        numpy.random.seed(4477)
-        _, xt = facade.create_vecm1_source(LAMBDA2, BETA2, A2_ZERO, npts=4000)
+        I + βλ, and Cov(z) solves the discrete Lyapunov equation.  The off
+        diagonal, expected at -0.346, is compared on an absolute scale because
+        its sampling spread (0.105 over 150 unrelated seeds) is a third of its
+        size; atol = 0.32 is ~3σ and the acceptance window stays clear of zero,
+        so two uncorrelated combinations would be rejected."""
+        _, xt = sim_rank_two
         z = numpy.array(BETA2) @ xt
 
         A = numpy.eye(2) + numpy.array(BETA2) @ numpy.array(LAMBDA2)
@@ -256,7 +270,7 @@ class TestVecm1Simulator:
         sample = numpy.cov(z[:, 2:])
 
         assert_allclose(numpy.diag(sample), numpy.diag(expected), rtol=0.20)
-        assert_allclose(sample[0, 1], expected[0, 1], atol=0.6)
+        assert_allclose(sample[0, 1], expected[0, 1], atol=0.32)
 
     @pytest.mark.xfail(
         strict=True,
@@ -311,7 +325,9 @@ class TestVecmSimulator:
         numpy.random.seed(17)
         xt = numpy.array(model.vecm(LAMBDA, BETA, a, OMEGA_I, 40))
         assert_allclose(xt[:, :4], numpy.zeros((2, 4)), atol=0.0)
-        assert numpy.abs(xt[:, 4]).min() > 0.0
+        # a = 0 and every lag pinned to zero leave Δx₄ = ε₄, so the first
+        # computed sample is exactly the shock drawn for it
+        assert_allclose(xt[:, 4], redraw_noise(17, OMEGA_I, 40)[4], rtol=1e-12)
 
 
 # ############################################################################
@@ -321,9 +337,10 @@ class TestVecmSimulator:
 class TestFit:
 
     def test_recovers_known_parameters(self, sim_vecm1):
-        """Round trip on 2000 points. Over seven unrelated seeds the largest
-        deviations were λ 0.021, β 0.004, a 0.037, Ω 0.062, const 0.052, so the
-        tolerances below sit at roughly three times the observed spread."""
+        """Round trip on 2000 points. Over 200 unrelated seeds the largest
+        deviations seen were λ 0.021, β 0.004, a 0.093, Ω 0.135 and const 0.052;
+        the tolerances below clear those maxima rather than the p95, because a
+        blanket atol over a whole matrix takes the worst entry of four."""
         _, xt = sim_vecm1
         result = model.fit(xt.T, maxlags=1, rank=1, trend="co")
 
@@ -333,8 +350,8 @@ class TestFit:
         # statsmodels normalises β so its first `rank` rows are the identity
         assert_allclose(result.beta[:, 0], [1.0, -1.0], atol=0.02)
         assert_allclose(result.alpha[:, 0], [-KAPPA, 0.0], atol=0.06)
-        assert_allclose(result.gamma, numpy.array(A_ONE), atol=0.09)
-        assert_allclose(result.sigma_u, numpy.eye(2), atol=0.12)
+        assert_allclose(result.gamma, numpy.array(A_ONE), atol=0.14)
+        assert_allclose(result.sigma_u, numpy.eye(2), atol=0.18)
         assert_allclose(result.det_coef[:, 0], [0.0, 0.0], atol=0.15)
 
     def test_long_run_impact_matrix_is_recovered(self, sim_vecm1):
@@ -344,11 +361,10 @@ class TestFit:
         Π = numpy.array(LAMBDA) @ numpy.array(BETA)
         assert_allclose(result.alpha @ result.beta.T, Π, atol=0.06)
 
-    def test_rank_two_recovers_the_cointegration_space(self):
+    def test_rank_two_recovers_the_cointegration_space(self, sim_rank_two):
         """β normalised on its leading 2×2 block spans the same space as
         [1,-1,0] and [0,1,-1], i.e. it is [[1,0],[0,1],[-1,-1]]."""
-        numpy.random.seed(4477)
-        _, xt = facade.create_vecm1_source(LAMBDA2, BETA2, A2_ZERO, npts=4000)
+        _, xt = sim_rank_two
         result = model.fit(xt.T, maxlags=1, rank=2, trend="co")
 
         assert result.coint_rank == 2
@@ -368,6 +384,18 @@ class TestFit:
         assert result.det_coef.shape == (2, outside_columns)
         assert result.det_coef_coint.shape == (inside_rows, 1)
 
+    def test_default_trend_is_a_constant_outside_the_relation(self, sim_vecm1):
+        """fit's trend defaults to "co": one deterministic column outside the
+        cointegration relation, none inside, and the same fit as passing it."""
+        _, xt = sim_vecm1
+        default = model.fit(xt.T, maxlags=1, rank=1)
+        explicit = model.fit(xt.T, maxlags=1, rank=1, trend="co")
+        assert default.det_coef.shape == (2, 1)
+        assert default.det_coef_coint.shape == (0, 1)
+        assert_allclose(default.alpha, explicit.alpha, rtol=1e-12)
+        assert_allclose(default.det_coef, explicit.det_coef, rtol=1e-12)
+        assert not numpy.allclose(default.alpha, model.fit(xt.T, maxlags=1, rank=1, trend="n").alpha)
+
     def test_maxlags_sets_the_number_of_lagged_differences(self, sim_vecm1):
         _, xt = sim_vecm1
         result = model.fit(xt.T, maxlags=3, rank=1, trend="co")
@@ -378,22 +406,25 @@ class TestFit:
 class TestOrderEstimate:
 
     def test_selects_the_true_number_of_lagged_differences(self, sim_vecm1):
-        """The simulated process has one lagged difference. BIC and HQIC picked
-        1 on all seven seeds tried; AIC over-selected on one of them, which is
-        its documented small sample behaviour, so it is not asserted."""
+        """The simulated process has one lagged difference. BIC picked 1 on all
+        200 seeds tried; HQIC missed on 0.5% of them and AIC over-selects far
+        more often, which is its documented small sample behaviour, so only BIC
+        is pinned exactly and HQIC is held to a bound."""
         _, xt = sim_vecm1
         result = model.order_estimate(xt.T, 6, "co")
         assert isinstance(result, LagOrderResults)
         assert result.bic == 1
-        assert result.hqic == 1
+        assert result.hqic <= 1
 
     def test_selects_zero_lags_for_a_pure_var1(self):
-        """a = 0 leaves no lagged differences to fit."""
+        """a = 0 leaves no lagged differences to fit. BIC selected 0 on all 200
+        seeds tried; HQIC over-selected on 1% of them, so it is held to a bound
+        the same way AIC is elsewhere."""
         numpy.random.seed(5309)
         _, xt = facade.create_vecm1_source(LAMBDA, BETA, A_ZERO, npts=2000)
         result = model.order_estimate(xt.T, 6, "co")
         assert result.bic == 0
-        assert result.hqic == 0
+        assert result.hqic <= 1
 
     def test_criteria_are_reported_for_every_candidate_order(self, sim_vecm1):
         """select_order scores VAR orders 1…maxlags+1, reported as the
@@ -456,11 +487,14 @@ class TestJohansenTest:
         assert_allclose(leading / leading[0], [1.0, -1.0], atol=0.05)
 
     def test_finds_no_cointegration_between_independent_walks(self, sim_random_walks):
-        """Π = 0, so the r = 0 null holds; judged at 99% to keep the test's own
-        false rejection rate at 1% across seeds."""
+        """Π = 0, so the r = 0 null holds. The 99% critical value on its own is
+        not a safe bound: the trace test's finite sample over rejection puts
+        lr1[0] above it on ~4% of seeds (measured over 400 draws, and the same
+        4% shows up for unpinned random walks), so the bound carries a factor of
+        two, which 400 draws never violated."""
         _, xt = sim_random_walks
         result = model.johansen_test_coint(xt.T, 1)
-        assert result.lr1[0] < result.cvt[0, 2]
+        assert result.lr1[0] < 2.0 * result.cvt[0, 2]
 
     def test_trend_argument_switches_critical_value_table(self, sim_vecm1):
         """det_order -1/0/1 (no trend / constant / linear trend) selects three
@@ -520,6 +554,31 @@ class TestPredict:
         assert_allclose((upper_05 - forecast_05)[0],
                         norm.ppf(0.975) * numpy.sqrt(numpy.diag(result.sigma_u)), rtol=1e-10)
 
+    def test_multi_step_interval_follows_the_vma_expansion(self, fit_vecm1):
+        """The h step forecast error is Σ_{i<h} Φ_i ε_{h-i}, for the VMA weights
+        of the fitted levels VAR(2): Φ₀ = I and Φ_i = A₁Φ_{i-1} + A₂Φ_{i-2} with
+        A₁ = I + Π̂ + Γ̂ and A₂ = -Γ̂.  So the half width at step h is
+        z_{1-α/2}·√diag(Σ_{i<h} Φ_iΩ̂Φ_iᵀ), which is checked here at every step
+        rather than only at h = 1, where it collapses to √diag(Ω̂)."""
+        result, _ = fit_vecm1
+        steps = 5
+        forecast, lower, upper = model.predict(result, steps)
+
+        A1 = numpy.eye(2) + result.alpha @ result.beta.T + result.gamma
+        A2 = -result.gamma
+        phi = [numpy.eye(2), A1]
+        for i in range(2, steps):
+            phi.append(A1 @ phi[i - 1] + A2 @ phi[i - 2])
+
+        covariance = numpy.zeros((2, 2))
+        for step in range(steps):
+            covariance = covariance + phi[step] @ result.sigma_u @ phi[step].T
+            half_width = norm.ppf(0.975) * numpy.sqrt(numpy.diag(covariance))
+            assert_allclose(upper[step] - forecast[step], half_width, rtol=1e-10)
+            assert_allclose(forecast[step] - lower[step], half_width, rtol=1e-10)
+        # uncertainty accumulates: every step is wider than the one before it
+        assert numpy.all(numpy.diff(upper - forecast, axis=0) > 0.0)
+
     def test_default_alpha_is_five_percent(self, fit_vecm1):
         result, _ = fit_vecm1
         assert_allclose(model.predict(result, 3), model.predict(result, 3, alpha=0.05), rtol=1e-12)
@@ -570,6 +629,24 @@ class TestSourceFacade:
         assert t.shape == (80,)
         assert xt.shape == (2, 80)
         assert_allclose(t, numpy.arange(80.0))
+
+    def test_vecm_source_defaults_to_1000_points_and_unit_noise(self):
+        """create_vecm_source sizes its identity Ω default from ``_, n, _ =
+        a.shape`` — the (m, n, n) unpack, a different code path from
+        create_vecm1_source's (n, n) — so m ≠ n pins which axis is the series
+        count. Ω = I leaves Δx₂ = ε₂ with unit variance."""
+        a = numpy.zeros((3, 2, 2))       # three lags, two series
+        numpy.random.seed(909)
+        t, xt = facade.create_vecm_source(LAMBDA, BETA, a)
+        assert isinstance(xt, numpy.ndarray)
+        assert not isinstance(xt, numpy.matrix)      # unwrapped for the notebooks
+        assert t.shape == (1000,)
+        assert xt.shape == (2, 1000)
+        assert xt.dtype == numpy.float64
+        assert_allclose(t, numpy.arange(1000.0))
+        # the recursion starts at i = m + 1 = 4; 996 increments give the variance
+        # a √(2/996) ≈ 4.5% spread, so 18% is ~4σ
+        assert numpy.diff(xt, axis=1)[1, 4:].var() == pytest.approx(1.0, rel=0.18)
 
     def test_vecm_source_agrees_with_the_model_layer(self):
         a = numpy.array([[[0.4, 0.0], [0.0, 0.3]], [[-0.2, 0.0], [0.0, 0.1]]])
@@ -664,6 +741,70 @@ class TestEstimateFacade:
                 assert ω.est == result.sigma_u[i, j] and ω.err == 0.0
                 assert ω.param_type == VECMParamType.VECM_OMEGA.value
 
+    def test_rank_two_reports_every_column_of_lambda_and_beta(self, sim_rank_two):
+        """Three series at rank 2: the λ/β loop has to walk 3×2 entries rather
+        than the single column every other estimation test exercises, and Γ̂,
+        Ω̂ and the constant grow with the series count."""
+        _, xt = sim_rank_two
+        result, est = facade.compute_estimate(xt, maxlags=1, rank=2, trend="co")
+
+        assert est.rank == 2 and est.order == 1
+        assert len(est.lambda_est) == 6 and len(est.beta_est) == 6
+        assert len(est.a_est) == 9 and len(est.omega) == 9
+        assert len(est.const) == 3
+        assert {(p.row, p.column) for p in est.lambda_est} == {(i, j) for i in range(3) for j in range(2)}
+
+        for i in range(3):
+            for j in range(2):
+                λ = find_param(est.lambda_est, i, j)
+                assert λ.est == result.alpha[i, j] and λ.err == result.stderr_alpha[i, j]
+                β = find_param(est.beta_est, i, j)
+                assert β.est == result.beta[i, j] and β.err == result.stderr_beta[i, j]
+            for j in range(3):
+                ω = find_param(est.omega, i, j)
+                assert ω.est == result.sigma_u[i, j]
+                a = find_param(est.a_est, i, j, order=1)
+                assert a.est == result.gamma[i, j]
+
+        # the second cointegration vector is not a copy of the first, so the
+        # column index really is being read
+        assert [p.est for p in est.beta_est if p.column == 1] != [p.est for p in est.beta_est if p.column == 0]
+
+    def test_supports_a_linear_trend_outside_the_relation(self, sim_vecm1):
+        """"lo" is the one documented trend besides "co" that compute_estimate
+        survives: det_coef keeps shape (neqs, 1), but it now holds the linear
+        trend slope rather than an intercept. The slope multiplies t, so its
+        standard error falls like n^{-3/2} against the intercept's n^{-1/2} —
+        three orders of magnitude apart on 2000 points."""
+        _, xt = sim_vecm1
+        result, est = facade.compute_estimate(xt, maxlags=1, rank=1, trend="lo")
+        constant, _ = facade.compute_estimate(xt, maxlags=1, rank=1, trend="co")
+
+        assert result.det_coef.shape == (2, 1)
+        assert result.det_coef_coint.shape == (0, 1)
+        assert est.rank == 1 and est.order == 1 and len(est.const) == 2
+        for i in range(2):
+            c = find_param(est.const, i, 0)
+            assert c.est == result.det_coef[i, 0]
+            assert c.err == result.stderr_det_coef[i, 0]
+        assert numpy.abs(result.stderr_det_coef).max() < 0.01 * numpy.abs(constant.stderr_det_coef).max()
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason="with trend 'lo' det_coef holds the linear trend slope, but "
+               "__vecm_estimate_from_result files it as VECMParamType.VECM_CONST "
+               "labelled '$\\hat{M}$' — exactly the type and label it gives the "
+               "trend 'co' intercept, so a persisted estimate cannot tell a trend "
+               "slope from the model constant",
+    )
+    def test_linear_trend_coefficient_is_not_labelled_as_the_constant(self, sim_vecm1):
+        _, xt = sim_vecm1
+        _, trend_est = facade.compute_estimate(xt, maxlags=1, rank=1, trend="lo")
+        _, const_est = facade.compute_estimate(xt, maxlags=1, rank=1, trend="co")
+        assert ({(p.param_type, p.est_label) for p in trend_est.const}
+                != {(p.param_type, p.est_label) for p in const_est.const})
+
     def test_estimate_report_labels_are_latex(self, fit_vecm1):
         _, est = fit_vecm1
         labels = {(p.est_label, p.err_label) for p in est.lambda_est}
@@ -695,6 +836,25 @@ class TestEstimateFacade:
         assert restored.est_id == original.est_id
         assert restored.param_type == original.param_type
         assert json.loads(est.to_json(pretty=True)) == payload
+
+    def test_omega_estimates_serialise_with_the_var_omega_literal(self, fit_vecm1):
+        """Recorded, not endorsed: VECMParamType.VECM_OMEGA's *value* is the
+        string "VAR_OMEGA", so that is the discriminator a persisted VECM noise
+        covariance estimate carries."""
+        _, est = fit_vecm1
+        payload = json.loads(est.to_json())
+        assert {p["param_type"] for p in payload["omega"]} == {"VAR_OMEGA"}
+        assert {p["param_type"] for p in payload["lambda_est"]} == {"VECM_LAMBDA"}
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason="VECMParamType.VECM_OMEGA is defined as the literal 'VAR_OMEGA', "
+               "the same value as VARParamType.VAR_OMEGA, so a persisted VECM "
+               "noise covariance estimate is indistinguishable from a VAR one",
+    )
+    def test_omega_param_type_is_distinct_from_the_var_one(self):
+        assert VECMParamType.VECM_OMEGA.value != VARParamType.VAR_OMEGA.value
 
     def test_estimate_repr_names_the_model(self, fit_vecm1):
         _, est = fit_vecm1
@@ -740,11 +900,14 @@ class TestEstimateFacade:
 class TestOrderFacade:
 
     def test_returns_result_and_report(self, sim_vecm1):
+        """BIC recovers the one lagged difference the process was simulated
+        with; HQIC is held to a bound for the reason given on
+        ``TestOrderEstimate.test_selects_the_true_number_of_lagged_differences``."""
         _, xt = sim_vecm1
         result, report = facade.compute_order(xt, maxlags=6)
         assert isinstance(result, LagOrderResults)
         assert isinstance(report, VAROrderTestReport)
-        assert result.bic == 1 and result.hqic == 1
+        assert result.bic == 1 and result.hqic <= 1
 
     def test_agrees_with_the_model_layer_on_transposed_samples(self, sim_vecm1):
         _, xt = sim_vecm1
@@ -752,6 +915,17 @@ class TestOrderFacade:
         direct = model.order_estimate(xt.T, 6, "co")
         assert (result.aic, result.bic, result.fpe, result.hqic) == (direct.aic, direct.bic, direct.fpe, direct.hqic)
         assert_allclose(result.ics["aic"], direct.ics["aic"], rtol=1e-12)
+
+    def test_default_trend_is_a_constant_outside_the_relation(self, sim_vecm1):
+        """compute_order defaults to trend "co" where the model layer's
+        order_estimate defaults to "n"; the two score every candidate order
+        differently, so the façade default is not a pass through of the model
+        default."""
+        _, xt = sim_vecm1
+        result, _ = facade.compute_order(xt, maxlags=6)
+        assert_allclose(result.ics["aic"], model.order_estimate(xt.T, 6, "co").ics["aic"], rtol=1e-12)
+        assert_allclose(result.ics["bic"], model.order_estimate(xt.T, 6, "co").ics["bic"], rtol=1e-12)
+        assert not numpy.allclose(result.ics["aic"], model.order_estimate(xt.T, 6, "n").ics["aic"])
 
     def test_default_maxlags_scores_thirteen_orders(self, sim_vecm1):
         _, xt = sim_vecm1
@@ -820,42 +994,111 @@ class TestJohansenFacade:
         assert_allclose(numpy.real(no_trend.eig), numpy.real(direct.eig), rtol=1e-12)
         assert not numpy.allclose(no_trend.cvt, model.johansen_test_coint(xt.T, 2, 0).cvt)
 
+    def test_statistic_flags_every_critical_value_it_exceeds(self):
+        """JohansenCointTestStatistic on hand picked numbers, so the comparison
+        rule is pinned without re-deriving it from a test result: the flag is a
+        strict inequality, so a statistic equal to its critical value does not
+        reject."""
+        stat = JohansenCointTestStatistic("id", 3, 10.0, numpy.array([5.0, 10.0, 15.0]))
+        assert stat.test_rank == 3
+        assert stat.null_hypothesis == "r<=3"
+        assert stat.test_stat == 10.0
+        assert stat.critical_values == [5.0, 10.0, 15.0]
+        assert stat.test_result == [True, False, False]
+        assert stat.significance_levels == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+        assert repr(stat).startswith("JohansenCointTestStatistic(")
+
+    def test_report_rank_is_the_most_conservative_per_level_rank(self):
+        """JohansenCointTestReport reduces the per level ranks to one headline
+        rank, the one the strictest level still supports."""
+        ranks = JohansenCointTestRank("id", [3, 2, 1])
+        report = JohansenCointTestReport("id", [], [], ranks, [])
+        assert report.rank == 1
+        assert report.ranks.significance_levels == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+
     def test_statistics_report_mirrors_the_raw_result(self, coint_test):
+        """Index wiring: entry i carries row i of lr1/cvt for the trace test and
+        of lr2/cvm for the maximum eigenvalue test. The critical values are
+        pinned against Osterwald-Lenum's published table rather than against the
+        result object, and the flags against the structural invariant that a
+        stricter level can only be harder to reject."""
         _, report, result = coint_test
         assert len(report.trace_test) == 2
         assert len(report.eigen_test) == 2
+        # two series with a constant; the r <= 1 row is the χ²(1) quantile set
+        assert report.trace_test[0].critical_values == pytest.approx([13.4294, 15.4943, 19.9349])
+        assert report.trace_test[1].critical_values == pytest.approx([2.7055, 3.8415, 6.6349])
+        assert report.eigen_test[0].critical_values == pytest.approx([12.2971, 14.2639, 18.52])
+        assert report.eigen_test[1].critical_values == pytest.approx([2.7055, 3.8415, 6.6349])
+
         for i, stat in enumerate(report.trace_test):
             assert stat.test_rank == i
             assert stat.null_hypothesis == f"r<={i}"
             assert stat.test_stat == result.lr1[i]
             assert stat.critical_values == result.cvt[i].tolist()
-            assert stat.test_result == [bool(result.lr1[i] > cv) for cv in result.cvt[i]]
-            assert len(stat.significance_levels) == 3
+            assert stat.significance_levels == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+            assert stat.critical_values == sorted(stat.critical_values)
+            assert stat.test_result == sorted(stat.test_result, reverse=True)
         for i, stat in enumerate(report.eigen_test):
+            assert stat.test_rank == i
             assert stat.test_stat == result.lr2[i]
             assert stat.critical_values == result.cvm[i].tolist()
+            assert stat.significance_levels == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+            assert stat.test_result == sorted(stat.test_result, reverse=True)
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason="the façade builds the maximum eigenvalue statistics with "
+               "JohansenCointTestStatistic, whose null_hypothesis is hardcoded to "
+               "f'r<={test_rank}'. The maximum eigenvalue null is r = i tested "
+               "against r = i+1, not r <= i, so every eigen_test entry is "
+               "labelled with the trace test's null",
+    )
+    def test_eigen_test_null_hypothesis_is_not_the_trace_null(self, coint_test):
+        _, report, _ = coint_test
+        assert ([s.null_hypothesis for s in report.eigen_test]
+                != [s.null_hypothesis for s in report.trace_test])
 
     def test_rank_report_counts_the_rejected_nulls(self, coint_test):
-        """The rank at a significance level is how many trace nulls it rejects,
-        and the headline rank is the most conservative of those.
+        """The rank at a significance level is how many trace nulls that level
+        rejects.
 
         The counter in the façade and the per statistic ``test_result`` flags
         compare statistic to critical value independently of each other, so they
         have to agree. Only the r = 0 rejection is asserted outright — it holds
         by an order of magnitude — because the χ²(1) values statsmodels
         tabulates for the r ≤ 1 row are rejected on a sizeable share of seeds.
+        The headline rank's own reduction rule is pinned separately in
+        ``test_report_rank_is_the_most_conservative_per_level_rank``.
         """
-        text_report, report, _ = coint_test
+        _, report, _ = coint_test
         ranks = report.ranks.test_ranks
 
         assert report.trace_test[0].test_result == [True, True, True]
-        assert report.rank == min(ranks)
+        counted = [sum(stat.test_result[level] for stat in report.trace_test)
+                   for level in range(len(ranks))]
+        assert list(ranks) == counted
+        # every level rejects the r = 0 null, so no level can report rank 0
         assert report.rank >= 1
-        for level, rank in enumerate(ranks):
-            assert rank == sum(stat.test_result[level] for stat in report.trace_test)
-        # the text report counts the same rejections, taking the index of the
-        # last rejected null rather than the total
-        assert [int(r) for r in text_report.compute_rank()] == list(ranks)
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason="JohansenTestReport.compute_rank iterates its output over "
+               "range(len(trace_statistic)) — the number of series — while the "
+               "columns it indexes are the three significance levels, so a two "
+               "series test reports two ranks instead of three. It is the same "
+               "defect as in the façade's counter, and both have to be fixed "
+               "together",
+    )
+    def test_text_report_ranks_every_significance_level(self, coint_test):
+        """The text report's rank is the index of the last rejected null plus
+        one, computed here from the raw statistics for all three levels."""
+        text_report, _, result = coint_test
+        rejected = [numpy.nonzero(result.lr1 > result.cvt[:, level])[0] for level in range(3)]
+        expected = [int(hits.max()) + 1 if len(hits) > 0 else 0 for hits in rejected]
+        assert [int(r) for r in text_report.compute_rank()] == expected
 
     def test_eigenvalues_are_reported_as_reals(self, coint_test):
         _, report, result = coint_test
@@ -867,7 +1110,10 @@ class TestJohansenFacade:
         _, report, _ = coint_test
         payload = json.loads(report.to_json())
         assert set(payload) == {"test_id", "trace_test", "eigen_test", "ranks", "eigen_vectors", "rank"}
-        assert payload["rank"] == min(payload["ranks"]["test_ranks"]) == report.rank
+        assert payload["rank"] == report.rank
+        assert payload["ranks"]["test_ranks"] == list(report.ranks.test_ranks)
+        assert payload["ranks"]["significance_levels"] == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
+        assert payload["trace_test"][0]["test_result"] == [True, True, True]
         assert len(payload["trace_test"]) == 2
         assert payload["trace_test"][0]["null_hypothesis"] == "r<=0"
         assert payload["eigen_vectors"][0]["eigen_value"] == pytest.approx(report.eigen_vectors[0].eigen_value)
@@ -883,6 +1129,22 @@ class TestJohansenFacade:
             assert heading in printed
         assert "r <= 0" in printed and "r <= 1" in printed
         assert f"{result.lr1[0]:.3f}" in printed
+
+    def test_text_report_summary_prints_the_eigenvector_columns(self, coint_test):
+        """The eigenvectors are the *columns* of evec, and reports.py prints
+        ``evec[:, i]`` — the code path the data report gets wrong (xfailed
+        below). The printed leading vector is parsed back out of the table and
+        checked against the simulated β = [1, -1]."""
+        text_report, _, _ = coint_test
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            text_report.summary()
+        section = buffer.getvalue().split("Eigenvalues and Eigenvectors")[1]
+        vectors = re.findall(r"\[([^\]]*)\]", section)
+        assert len(vectors) == 2
+        leading = [complex(token).real for token in vectors[0].split()]
+        assert len(leading) == 2
+        assert_allclose([v / leading[0] for v in leading], [1.0, -1.0], atol=0.05)
 
     @pytest.mark.xfail(
         strict=True,

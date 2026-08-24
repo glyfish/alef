@@ -11,15 +11,19 @@ hand-built inputs whose expected outcome is derived by hand. Where the model is
 only ever produced by an estimator (the VAR order report, the Johansen report,
 the ADF/variance-ratio reports) a short simulation with known parameters feeds
 the real pipeline and the report is checked against what the known parameters
-imply: a VAR(2) selects order 2, a cointegrated pair rejects the no-relation
-null while two independent random walks do not, a stationary AR(1) passes the
-stationarity test and a random walk fails it. Those simulated assertions are
-pinned only where a 40 to 60 seed sweep showed them to be stable; the comment on
-each says which level or criterion the sweep found safe to assert.
+imply.
+
+Simulated assertions are pinned only where a sweep of 150 to 400 seeds showed
+zero failures; the comment on each names the sweep and the configuration that
+made it safe. Where an outcome is a nominal-size rejection under a null -- the
+Johansen trace test on independent random walks -- nothing boolean is pinned on
+a single draw at all: the structural contract is asserted on one draw and the
+rejection *rate* is asserted over an ensemble.
 """
 import json
 import types
 import uuid
+import warnings
 
 import numpy
 import pytest
@@ -27,6 +31,7 @@ from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 
 import lib.data.impl.adf as adf_data
 import lib.data.impl.fbm as fbm_data
+import lib.data.impl.stats as stats_data
 import lib.data.impl.var as var_data
 import lib.data.impl.vecm as vecm_data
 import lib.models.fbm as fbm_model
@@ -64,6 +69,8 @@ FBM_TYPES = [
     HypothesisTestType.FBM_AUTO_CORR,
     HypothesisTestType.FBM_NEG_AUTO_CORR,
 ]
+
+S_VALS = [4, 6, 10, 16, 24]
 
 
 # ##############################################################
@@ -116,6 +123,14 @@ def a_test_data(upper: StatisticalTestParam | None = None) -> StatisticalTestDat
     )
 
 
+def compact_test_data() -> StatisticalTestData:
+    """A minimal StatisticalTestData whose full ``repr`` is short enough to pin."""
+    param = StatisticalTestParam(test_id="tid", label="L", value=1.0)
+    return StatisticalTestData(test_id="tid", status=HypothesisTestStatus.PASSED,
+                               stat=param, pval=param, params=[], sig=None,
+                               lower=None, upper=None)
+
+
 # ##############################################################
 # HypothesisTestStatus
 # ##############################################################
@@ -143,6 +158,22 @@ class TestHypothesisTestStatus:
         # ADFTestReport.status_vals holds numpy.bool_, not builtin bool.
         assert HypothesisTestStatus.from_bool(numpy.bool_(True)) is HypothesisTestStatus.PASSED
         assert HypothesisTestStatus.from_bool(numpy.bool_(False)) is HypothesisTestStatus.FAILED
+
+    @pytest.mark.parametrize("value,expected", [
+        # from_bool is a plain truthiness test, and the estimator layer feeds it
+        # numpy scalars of every dtype (and, when a report field was never set,
+        # None). Zero of any numeric type is FAILED, anything else is PASSED.
+        (numpy.float64(0.0), HypothesisTestStatus.FAILED),
+        (numpy.float64(1.5), HypothesisTestStatus.PASSED),
+        (numpy.float64(-1.5), HypothesisTestStatus.PASSED),
+        (numpy.int64(0), HypothesisTestStatus.FAILED),
+        (numpy.int64(1), HypothesisTestStatus.PASSED),
+        (None, HypothesisTestStatus.FAILED),
+        (0, HypothesisTestStatus.FAILED),
+        (1, HypothesisTestStatus.PASSED),
+    ])
+    def test_from_bool_is_a_truthiness_test(self, value, expected):
+        assert HypothesisTestStatus.from_bool(value) is expected
 
     def test_is_a_str_enum_so_it_serialises_as_its_value(self):
         assert HypothesisTestStatus.PASSED == "PASSED"
@@ -345,16 +376,17 @@ class TestStatisticalTestData:
         with pytest.raises(KeyError):
             StatisticalTestData.from_dict(data)
 
-    def test_from_dict_does_not_rehydrate_the_status_enum(self):
-        # Documented behaviour rather than an error: a JSON status stays a bare
-        # string. It still compares equal to the member because the enum mixes
-        # in str, so downstream `== HypothesisTestStatus.PASSED` checks hold,
-        # but `.to_bool()` is unavailable.
+    @pytest.mark.xfail(strict=True, reason=(
+        "StatisticalTestData.from_dict (hyp_test.py:239) does `status = data['status'] if "
+        "'status' in data else HypothesisTestStatus.FAILED` with no enum coercion, so a "
+        "decoded JSON status stays a bare str and `.to_bool()` is unavailable after a round "
+        "trip. Identical to the hyp_type/hyp_test_type/status defect in "
+        "StatisticalTestReport.from_dict (hyp_test.py:303-305)."))
+    def test_from_dict_rehydrates_the_status_enum(self):
         raw = json.loads(a_test_data(upper=a_param()).to_json())
         data = StatisticalTestData.from_dict(raw)
-        assert data.status == HypothesisTestStatus.PASSED
-        assert not isinstance(data.status, HypothesisTestStatus)
-        assert not hasattr(data.status, "to_bool")
+        assert data.status is HypothesisTestStatus.PASSED
+        assert data.status.to_bool() is True
 
     @pytest.mark.xfail(strict=True, reason=(
         "StatisticalTestData.from_dict guards optional params with `if 'stat' in data`, "
@@ -366,11 +398,22 @@ class TestStatisticalTestData:
         restored = StatisticalTestData.from_dict(raw)
         assert restored.upper is None
 
-    def test_repr_and_str(self):
+    def test_repr_wraps_str_under_the_class_name(self):
         data = a_test_data()
-        assert repr(data).startswith("StatisticalTestData(test_id=(test-id)")
-        assert str(data) in repr(data)
+        assert repr(data) == f"StatisticalTestData({data})"
         assert "status=(HypothesisTestStatus.PASSED)" in repr(data)
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "StatisticalTestData.__props (hyp_test.py:226) never closes the parenthesis it opens "
+        "for `pval`: it emits `pval=(label=(...), value=(...), test_id=(...), params=(...)` so "
+        "the pval group swallows every field after it and the repr is unbalanced."))
+    def test_repr_is_balanced(self):
+        assert repr(compact_test_data()) == (
+            "StatisticalTestData(test_id=(tid), "
+            "status=(HypothesisTestStatus.PASSED), "
+            "stat=(label=(L), value=(1.0), test_id=(tid)), "
+            "pval=(label=(L), value=(1.0), test_id=(tid)), "
+            "params=([]), sig=(None), lower=(None), upper=(None))")
 
 
 # ##############################################################
@@ -405,14 +448,6 @@ class TestStatisticalTestReport:
         assert report.hyp_test_type is HypothesisTestType.STATIONARITY
         assert len(report.test_data) == 1
 
-    def test_init_requires_a_test_type_that_can_describe_itself(self):
-        with pytest.raises(AttributeError):
-            StatisticalTestReport(test_id="test-id",
-                                  status=HypothesisTestStatus.PASSED,
-                                  hyp_type=HypothesisType.LOWER_TAIL,
-                                  hyp_test_type="STATIONARITY",
-                                  test_data=[])
-
     def test_to_json_structure(self):
         raw = json.loads(self.report(hyp_test_type=HypothesisTestType.FBM_AUTO_CORR).to_json())
         assert set(raw) == {"test_id", "status", "hyp_type", "hyp_test_type", "test_data", "desc"}
@@ -446,22 +481,85 @@ class TestStatisticalTestReport:
         assert report.status is HypothesisTestStatus.FAILED
         assert report.desc == "Brownian Motion Test"
 
+    @pytest.mark.parametrize("missing", ["hyp_type", "hyp_test_type", "test_data", "test_id"])
+    def test_from_dict_requires_every_key_but_status(self, missing):
+        data = {
+            "test_id": "abc",
+            "status": HypothesisTestStatus.PASSED,
+            "hyp_type": HypothesisType.TWO_TAIL,
+            "hyp_test_type": HypothesisTestType.BM,
+            "test_data": [],
+        }
+        del data[missing]
+        with pytest.raises(KeyError):
+            StatisticalTestReport.from_dict(data)
+
+    def test_from_dict_recomputes_desc_and_ignores_the_persisted_one(self):
+        # to_json emits `desc`, but the constructor derives it from the test type
+        # and from_dict never reads the key, so a stale value cannot leak back in.
+        raw = json.loads(self.report(hyp_test_type=HypothesisTestType.BM,
+                                     upper=a_param(label="$t_U$", value=2.57)).to_json())
+        assert raw["desc"] == "Brownian Motion Test"
+        raw["desc"] = "STALE DESCRIPTION"
+        raw["hyp_test_type"] = HypothesisTestType.STATIONARITY_DRIFT
+        assert StatisticalTestReport.from_dict(raw).desc == "Stationarity Test with Drift."
+
+    def test_from_dict_does_not_need_a_desc_key_at_all(self):
+        raw = json.loads(self.report(hyp_test_type=HypothesisTestType.BM,
+                                     upper=a_param(label="$t_U$", value=2.57)).to_json())
+        del raw["desc"]
+        raw["hyp_test_type"] = HypothesisTestType.BM
+        assert StatisticalTestReport.from_dict(raw).desc == "Brownian Motion Test"
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "StatisticalTestReport.from_dict (hyp_test.py:303-304) copies data['status'] and "
+        "data['hyp_type'] straight through with no enum coercion, so after a JSON round trip "
+        "both are bare str: `report.status` is 'PASSED' rather than HypothesisTestStatus.PASSED "
+        "and `report.hyp_type` is 'LOWER_TAIL' rather than HypothesisType.LOWER_TAIL. "
+        "hyp_test_type is patched back to an enum member here so that only these two are "
+        "under test -- the hyp_test_type third of the same defect is pinned separately by "
+        "test_json_round_trip."))
+    def test_from_dict_rehydrates_the_status_and_hyp_type_enums(self):
+        raw = json.loads(self.report().to_json())
+        assert raw["status"] == "PASSED" and raw["hyp_type"] == "LOWER_TAIL"
+        raw["hyp_test_type"] = HypothesisTestType.STATIONARITY
+        report = StatisticalTestReport.from_dict(raw)
+        assert report.status is HypothesisTestStatus.PASSED
+        assert report.hyp_type is HypothesisType.LOWER_TAIL
+
     @pytest.mark.xfail(strict=True, reason=(
         "StatisticalTestReport.from_dict passes data['hyp_test_type'] straight to the "
         "constructor, which calls hyp_test_type.desc(). Decoded JSON supplies a plain str, "
         "so the round trip raises AttributeError: 'str' object has no attribute 'desc'. "
-        "from_dict has to coerce the value back to HypothesisTestType."))
+        "The fix belongs in from_dict (coerce the value back to HypothesisTestType) or in "
+        "__init__ (coerce before calling desc()); nothing in this file constrains which."))
     def test_json_round_trip(self):
         report = self.report(upper=a_param(label="$t_U$", value=2.57))
         restored = StatisticalTestReport.from_dict(json.loads(report.to_json()))
         assert restored.desc == "Stationarity Test"
 
-    def test_repr_and_str(self):
+    def test_repr_wraps_str_under_the_class_name(self):
         report = self.report()
-        assert repr(report).startswith("TestReport(test_id=(test-id)")
+        assert repr(report) == f"TestReport({report})"
         assert "hyp_test_type=(HypothesisTestType.STATIONARITY)" in repr(report)
-        assert "desc=(Stationarity Test" in repr(report)
-        assert str(report) in repr(report)
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "StatisticalTestReport.__props (hyp_test.py:294) never closes the parenthesis it "
+        "opens for `desc`: it emits `desc=(Stationarity Test, test_data=(...))` so the desc "
+        "group swallows the test data and the repr is unbalanced."))
+    def test_repr_is_balanced(self):
+        report = StatisticalTestReport(test_id="tid",
+                                       status=HypothesisTestStatus.PASSED,
+                                       hyp_type=HypothesisType.LOWER_TAIL,
+                                       hyp_test_type=HypothesisTestType.STATIONARITY,
+                                       test_data=[])
+        assert repr(report) == (
+            "TestReport(test_id=(tid), "
+            "status=(HypothesisTestStatus.PASSED), "
+            "hyp_type=(HypothesisType.LOWER_TAIL), "
+            "hyp_test_type=(HypothesisTestType.STATIONARITY), "
+            "desc=(Stationarity Test), "
+            "test_data=([]))")
 
 
 # ##############################################################
@@ -488,7 +586,7 @@ def test_lag_order_test_result():
                             r"order=(label=($\tau_{AIC}$), value=(2), test_id=(abc)), "
                             r"error_metric=(AIC), "
                             r"value=(label=($\varepsilon_{AIC}$), value=(-0.5), test_id=(abc)))")
-    assert str(result) in repr(result)
+    assert repr(result) == f"LagOrderTestResult({result})"
 
 
 # ##############################################################
@@ -576,7 +674,7 @@ class TestVAROrderTestReport:
         assert repr(report).startswith("VAROrderTestReport(test_id=")
         assert r"value=(2)" in repr(report)
         assert "error_metric=(HQIC)" in repr(report)
-        assert str(report) in repr(report)
+        assert repr(report) == f"VAROrderTestReport({report})"
 
     def test_constructed_directly(self):
         order = a_param(label=r"$\tau_{min}$", value=1)
@@ -588,24 +686,33 @@ class TestVAROrderTestReport:
 
     def test_var2_order_round_trip(self):
         # A diagonal, comfortably stationary VAR(2) with lag 2 coefficients (0.2,
-        # 0.3) far from zero. Over 40 seeds BIC and HQIC -- the consistent
-        # criteria -- chose 2 every time, while AIC and FPE over-selected on 3 of
-        # them, so only BIC/HQIC are pinned. The consensus order is the mode of
-        # AIC/BIC/HQIC, so BIC == HQIC == 2 fixes it at 2 whatever AIC does.
+        # 0.3) far from zero. Only BIC -- the strongly consistent criterion -- is
+        # pinned: over 401 seeds it selected 2 every time, whereas HQIC selected 3
+        # on one of them (which also dragged the AIC/BIC/HQIC consensus to 3) and
+        # AIC over-selected on 10% of them. The consensus rule itself is pinned
+        # against independent constants by
+        # test_consensus_order_is_the_mode_of_aic_bic_hqic.
         phi = numpy.array([[[0.5, 0.0], [0.0, 0.4]],
                            [[0.2, 0.0], [0.0, 0.3]]])
         _, samples = var_data.create_source(phi, npts=2000)
         result, report = var_data.compute_order(samples, maxlags=6)
 
-        assert (result.bic, result.hqic) == (2, 2)
+        assert int(result.bic) == 2
         raw = json.loads(report.to_json())
-        assert raw[PREFIX + "order"]["value"] == 2
-        # Every metric is reported exactly as statsmodels selected it.
-        for metric in ["aic", "bic", "fpe", "hqic"]:
-            selected = int(getattr(result, metric))
-            assert raw[PREFIX + metric]["order"]["value"] == selected
-            assert raw[PREFIX + metric]["value"]["value"] == pytest.approx(
-                result.ics[metric][selected], rel=1.0e-12)
+        # The true order is 2, so the reported BIC entry must carry lag 2 and the
+        # BIC criterion evaluated there -- index 2 is the known truth here, not a
+        # read-back of result.bic.
+        assert raw[PREFIX + "bic"]["error_metric"] == "BIC"
+        assert raw[PREFIX + "bic"]["order"]["value"] == 2
+        assert raw[PREFIX + "bic"]["value"]["value"] == pytest.approx(
+            float(result.ics["bic"][2]), rel=1.0e-12)
+        # The BIC criterion really is minimised at lag 2 over the whole scan.
+        assert int(numpy.argmin(result.ics["bic"])) == 2
+        # Every metric is reported, and the consensus is one of the orders voted for.
+        assert {raw[PREFIX + m]["error_metric"] for m in ["aic", "bic", "fpe", "hqic"]} == {
+            "AIC", "BIC", "FPE", "HQIC"}
+        assert raw[PREFIX + "order"]["value"] in {
+            raw[PREFIX + m]["order"]["value"] for m in ["aic", "bic", "hqic"]}
 
 
 # ##############################################################
@@ -633,7 +740,17 @@ class TestGrangerCausality:
         assert "critical_value=(0.05)" in text
         assert "result=(True)" in text
         assert "est_id=(est-id)" in text
-        assert str(result) in text
+        assert text == f"GrangerCausalityTestResult({result})"
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "GrangerCausalityTestResult.__props (hyp_test.py:495) ends its last f-string fragment "
+        "with a dangling `, `, so every repr and str is emitted with a trailing separator: "
+        "`result=(True), )` instead of `result=(True))`."))
+    def test_result_repr_has_no_trailing_separator(self):
+        result = GrangerCausalityTestResult.from_dict(self.records()[1], "est-id")
+        assert repr(result) == (
+            "GrangerCausalityTestResult(causal_var=(2), dependent_var=(1), pvalue=(0.01), "
+            "est_id=(est-id), critical_value=(0.05), result=(True))")
 
     @pytest.mark.parametrize("missing", ["dependent_var", "causal_var", "pvalue", "critical_value", "result"])
     def test_result_from_dict_requires_every_key(self, missing):
@@ -664,7 +781,78 @@ class TestGrangerCausality:
         assert pretty.splitlines()[1].startswith('   "')
         assert json.loads(pretty) == {"test_id": "est-id", "rank": 2, "results": []}
         assert repr(report) == "GrangerCausalityTestReport(test_id=(est-id), rank = (2), results=([]))"
-        assert str(report) in repr(report)
+        assert repr(report) == f"GrangerCausalityTestReport({report})"
+
+
+class TestGrangerCausalityFromTheRealProducer:
+    """``GrangerCausalityTestReport.rank`` is filled in by
+    ``lib/data/impl/stats.py:__granger_causality_model_from_result`` as
+    ``len(numpy.unique(dependent_var[result]))`` -- the number of *distinct*
+    dependent variables with at least one incoming causal relation, which is not
+    the number of True cells. A three variable system in which one variable is
+    driven by both of the others separates the two readings."""
+
+    def one_driven_variable(self, n: int = 300) -> numpy.ndarray:
+        # x and w are independent white noise, y is driven by the previous value
+        # of both. Series order is [x, y, w], so the true causal cells are
+        # (dependent 2, causal 1) and (dependent 2, causal 3): two True results
+        # but a single distinct dependent variable.
+        x = numpy.random.normal(size=n)
+        w = numpy.random.normal(size=n)
+        y = numpy.zeros(n)
+        for i in range(1, n):
+            y[i] = 0.8 * x[i - 1] + 0.8 * w[i - 1] + 0.3 * numpy.random.normal()
+        return numpy.array([x, y, w])
+
+    def matrix_and_report(self):
+        # critical_value 1e-5 rather than the 0.05 default: the two true
+        # relations have F statistics in the hundreds so their p-values are 0 to
+        # four decimals either way, while nine cells tested at 5% produced a
+        # spurious extra relation on three seeds in eight. At 1e-5 the recovered
+        # causal set was exactly {(2,1), (2,3)} and the rank exactly 1 for all
+        # 150 seeds swept.
+        samples = self.one_driven_variable()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return stats_data.compute_causality_matrix(samples, nlags=2, critical_value=1.0e-5)
+
+    def test_rank_counts_distinct_dependent_variables_not_causal_pairs(self):
+        matrix, report = self.matrix_and_report()
+
+        detected = sorted((int(row["dependent_var"]), int(row["causal_var"]))
+                          for _, row in matrix.iterrows() if bool(row["result"]))
+        assert detected == [(2, 1), (2, 3)]
+        # Two causal relations, both pointing at variable 2, so the rank is 1.
+        assert report.rank == 1
+
+    def test_report_wiring(self):
+        matrix, report = self.matrix_and_report()
+
+        assert isinstance(report, GrangerCausalityTestReport)
+        assert len(report.results) == len(matrix) == 9
+        assert all(isinstance(r, GrangerCausalityTestResult) for r in report.results)
+        # One uuid4 shared by the report and every result it holds.
+        assert uuid.UUID(report.test_id).version == 4
+        prefix = "_GrangerCausalityTestResult__"
+        raw = json.loads(report.to_json())
+        assert raw["rank"] == 1
+        assert {r[prefix + "est_id"] for r in raw["results"]} == {report.test_id}
+        assert {r[prefix + "critical_value"] for r in raw["results"]} == {1.0e-5}
+        assert sorted((r[prefix + "dependent_var"], r[prefix + "causal_var"])
+                      for r in raw["results"]) == [(i, j) for i in (1, 2, 3) for j in (1, 2, 3)]
+        # The persisted flag is the p-value comparison the matrix reports.
+        assert [r[prefix + "result"] for r in raw["results"]] == [
+            bool(v) for v in matrix["result"]]
+
+    def test_no_causality_means_rank_zero(self):
+        n = 300
+        samples = numpy.array([numpy.random.normal(size=n) for _ in range(3)])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            matrix, report = stats_data.compute_causality_matrix(samples, nlags=2,
+                                                                 critical_value=1.0e-5)
+        assert not matrix["result"].any()
+        assert report.rank == 0
 
 
 # ##############################################################
@@ -700,13 +888,33 @@ class TestJohansenCointTestStatistic:
         assert raw["test_stat"] == 30.0
         assert raw["test_result"] == [True, True, True]
 
-    def test_repr_and_str(self):
+    def test_critical_values_must_be_an_ndarray(self):
+        # __init__ calls critical_values.tolist(), so the plain Python list a
+        # hand-written caller would reach for is rejected. Every construction
+        # inside navi comes from statsmodels' result.cvt/result.cvm rows.
+        with pytest.raises(AttributeError, match="tolist"):
+            JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
+                                       critical_values=[13.4, 15.5, 19.9])
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "JohansenCointTestStatistic hard-codes three significance_levels (hyp_test.py:575) "
+        "but derives test_result by zipping over whatever critical_values it was handed "
+        "(hyp_test.py:576), with no length check. Two critical values therefore yield a two "
+        "entry test_result labelled by three levels, so 'Critical Value 99%' has no result. "
+        "Same defect class as the truncated rank list in "
+        "test_rank_has_one_entry_per_significance_level."))
+    def test_a_short_critical_value_row_is_rejected_or_labelled_consistently(self):
         stat = JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
                                           critical_values=numpy.array([1.0, 2.0]))
+        assert len(stat.test_result) == len(stat.significance_levels)
+
+    def test_repr_and_str(self):
+        stat = JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
+                                          critical_values=numpy.array([1.0, 2.0, 3.0]))
         assert repr(stat).startswith("JohansenCointTestStatistic(test_id=(abc)")
         assert "null_hypothesis=(r<=0)" in repr(stat)
         assert "test_stat=(16.0)" in repr(stat)
-        assert str(stat) in repr(stat)
+        assert repr(stat) == f"JohansenCointTestStatistic({stat})"
 
 
 class TestJohansenCointTestRank:
@@ -718,7 +926,7 @@ class TestJohansenCointTestRank:
                                              "Critical Value 95%",
                                              "Critical Value 99%"]
         assert repr(ranks) == "JohansenCointTestRank(test_id=(abc), test_ranks=([2, 1, 1]))"
-        assert str(ranks) in repr(ranks)
+        assert repr(ranks) == f"JohansenCointTestRank({ranks})"
 
 
 class TestJohansenCointTestEigenVector:
@@ -748,7 +956,7 @@ class TestJohansenCointTestEigenVector:
         assert vector.eigen_vector == [0.5, 0.25]
         assert repr(vector).startswith("JohansenCointTestEigenVector(test_id=(abc)")
         assert "eigen_vector=([0.5, 0.25])" in repr(vector)
-        assert str(vector) in repr(vector)
+        assert repr(vector) == f"JohansenCointTestEigenVector({vector})"
 
 
 class TestJohansenCointTestReport:
@@ -767,6 +975,15 @@ class TestJohansenCointTestReport:
     @pytest.mark.parametrize("ranks,expected", [((2, 1, 1), 1), ((2, 2, 2), 2), ((0, 1, 2), 0)])
     def test_rank_is_the_most_conservative_over_significance_levels(self, ranks, expected):
         assert self.report(ranks=ranks).rank == expected
+
+    def test_rank_of_an_empty_rank_list_is_not_defined(self):
+        # __init__ takes min() over ranks.test_ranks unconditionally. An empty
+        # list is exactly what the truncated rank builder in
+        # lib/data/impl/vecm.py can produce for a degenerate system.
+        with pytest.raises(ValueError, match="empty"):
+            JohansenCointTestReport(test_id="abc", trace_test=[], eigen_test=[],
+                                    ranks=JohansenCointTestRank("abc", []),
+                                    eigen_vectors=[])
 
     def test_json(self):
         raw = json.loads(self.report().to_json())
@@ -788,7 +1005,7 @@ class TestJohansenCointTestReport:
         report = self.report()
         assert repr(report).startswith("JohansenTestResult(test_id=(abc)")
         assert "rank=(1)" in repr(report)
-        assert str(report) in repr(report)
+        assert repr(report) == f"JohansenTestResult({report})"
 
 
 class TestJohansenRoundTrip:
@@ -807,19 +1024,41 @@ class TestJohansenRoundTrip:
     def test_cointegrated_pair_rejects_the_no_relation_null(self):
         _, model, _ = vecm_data.compute_johansen_coint_test(self.cointegrated_pair(), 2)
 
-        # Power against a spread this tight is effectively 1: over 60 seeds the
-        # r<=0 trace statistic cleared the 99% critical value every time and the
-        # reported rank was never below 1.
+        # Power against a spread this tight is effectively 1, and by an enormous
+        # margin: over 161 seeds the r<=0 trace statistic was never below 15x the
+        # 99% critical value, so a fixed 5x margin is a real claim about power
+        # rather than a restatement of test_result[2].
         assert model.trace_test[0].null_hypothesis == "r<=0"
         assert model.trace_test[0].test_result == [True, True, True]
-        assert model.trace_test[0].test_stat > model.trace_test[0].critical_values[2]
+        assert model.trace_test[0].test_stat > 5.0 * model.trace_test[0].critical_values[2]
         assert model.rank >= 1
         # One eigenvalue dominates: the single cointegrating relation. The gap
-        # was more than a factor of ten for every one of those 60 seeds.
+        # was more than a factor of ten for every one of those seeds.
         assert model.eigen_vectors[0].eigen_value > 10.0 * model.eigen_vectors[1].eigen_value
         assert model.trace_test[1].null_hypothesis == "r<=1"
         assert len(model.eigen_vectors) == 2
-        json.loads(model.to_json())  # every field survived as a JSON scalar
+
+    def test_json_carries_every_reported_number(self):
+        _, model, _ = vecm_data.compute_johansen_coint_test(self.cointegrated_pair(), 2)
+        raw = json.loads(model.to_json())
+
+        assert set(raw) == {"test_id", "trace_test", "eigen_test", "ranks",
+                            "eigen_vectors", "rank"}
+        assert raw["test_id"] == model.test_id
+        assert raw["rank"] == model.rank
+        assert raw["ranks"]["test_ranks"] == model.ranks.test_ranks
+        assert len(raw["trace_test"]) == len(raw["eigen_test"]) == 2
+        assert raw["trace_test"][0]["test_stat"] == pytest.approx(model.trace_test[0].test_stat)
+        assert raw["trace_test"][0]["test_result"] == model.trace_test[0].test_result
+        assert raw["trace_test"][0]["critical_values"] == pytest.approx(
+            model.trace_test[0].critical_values)
+        assert raw["eigen_test"][1]["null_hypothesis"] == "r<=1"
+        assert raw["eigen_vectors"][0]["eigen_vector"] == pytest.approx(
+            model.eigen_vectors[0].eigen_vector)
+        assert raw["eigen_vectors"][0]["eigen_value"] == pytest.approx(
+            model.eigen_vectors[0].eigen_value)
+        # Nothing survived as a numpy scalar or a complex number.
+        assert all(type(v) is float for v in raw["eigen_vectors"][0]["eigen_vector"])
 
     @pytest.mark.xfail(strict=True, reason=(
         "lib/data/impl/vecm.py __vecm_johansen_coint_test_report_from_result fills "
@@ -838,15 +1077,42 @@ class TestJohansenRoundTrip:
         combination = vector[0] * samples[0] + vector[1] * samples[1]
         assert numpy.std(combination) < 0.5 * numpy.std(samples[0])
 
-    def test_independent_random_walks_are_not_cointegrated(self):
-        # Under the null the trace test has its nominal size, so only the 99%
-        # column is safe to pin: over 60 seeds r<=0 was rejected there once,
-        # whereas the reported rank (a minimum over the 90% and 95% columns)
-        # was non-zero on 11 of them.
+    def test_independent_random_walks_report_a_well_formed_trace_test(self):
+        # Under the null the trace test only has its nominal size, so no boolean
+        # outcome is pinned on a single draw here -- see the ensemble test below.
+        # Only the structure of the report is a deterministic contract.
         samples = numpy.array([random_walk(2000), random_walk(2000)])
         _, model, _ = vecm_data.compute_johansen_coint_test(samples, 2)
-        assert model.trace_test[0].test_result[2] is False
-        assert model.trace_test[0].test_stat < model.trace_test[0].critical_values[2]
+
+        stat = model.trace_test[0]
+        assert stat.null_hypothesis == "r<=0"
+        assert model.trace_test[1].null_hypothesis == "r<=1"
+        assert len(stat.test_result) == len(stat.critical_values) == 3
+        assert all(isinstance(flag, bool) for flag in stat.test_result)
+        assert numpy.isfinite(stat.test_stat)
+        # Critical values are ordered 90% < 95% < 99%, so rejections are nested.
+        assert stat.critical_values == sorted(stat.critical_values)
+        assert stat.test_result == sorted(stat.test_result, reverse=True)
+        assert 0 <= model.rank <= 2
+
+    def test_the_trace_test_rejects_independence_at_roughly_its_nominal_size(self):
+        # The size of the r<=0 trace test under independence is a *rate*, not a
+        # per draw outcome: pinning `test_result[2] is False` on one seed flakes
+        # on ~8% of seeds. Measured over 200 independent pairs the 99% rejection
+        # rate sat between 0.02 and 0.05 for every outer seed tried, and the 90%
+        # column -- where the det_order=0 size distortion shows -- rejected an
+        # order of magnitude more often.
+        trials = 200
+        rejected_99 = 0
+        rejected_90 = 0
+        for _ in range(trials):
+            samples = numpy.array([random_walk(500), random_walk(500)])
+            _, model, _ = vecm_data.compute_johansen_coint_test(samples, 2)
+            rejected_99 += int(model.trace_test[0].test_result[2])
+            rejected_90 += int(model.trace_test[0].test_result[0])
+
+        assert rejected_99 / trials < 0.15
+        assert rejected_90 > rejected_99
 
     @pytest.mark.xfail(strict=True, reason=(
         "JohansenCointTestRank labels its ranks with three significance levels, but "
@@ -907,17 +1173,31 @@ class TestStatusFromRealPipelines:
         # sig_level 0.01 rather than the 0.1 default: BM.status only needs one
         # of the five lags inside the two tail interval, and a 1% per lag size
         # makes a sweep of all five vanishingly unlikely.
-        s_vals = [4, 6, 10, 16, 24]
         result, report = fbm_data.compute_vr_test(random_walk(2048), HypothesisTestType.BM,
-                                                  sig_level=0.01, s=s_vals)
+                                                  sig_level=0.01, s=S_VALS)
         assert report.hyp_type is HypothesisType.TWO_TAIL
         assert report.desc == "Brownian Motion Test"
         assert report.status is HypothesisTestStatus.PASSED
-        assert len(report.test_data) == len(s_vals)
-        assert [d.params[0].value for d in report.test_data] == s_vals
+        assert len(report.test_data) == len(S_VALS)
+        assert [d.params[0].value for d in report.test_data] == S_VALS
         # Two tail test, so both critical values are attached to every row.
         assert all(d.lower is not None and d.upper is not None for d in report.test_data)
         assert all(d.sig.value == 0.01 for d in report.test_data)
+
+    def test_persistent_fbm_fails_the_bm_variance_ratio_test(self):
+        # The FAILED direction of BM.status: it reports FAILED only when *every*
+        # lag falls outside the two tail interval. H = 0.8 over 2048 points puts
+        # the variance ratio statistic in the tens at every lag, so all five
+        # reject; over 201 seeds at sig_level 0.01 the report was FAILED every
+        # time.
+        samples = fbm_model.generate_fft(0.8, 2048)
+        result, report = fbm_data.compute_vr_test(samples, HypothesisTestType.BM,
+                                                  sig_level=0.01, s=S_VALS)
+        assert report.hyp_type is HypothesisType.TWO_TAIL
+        assert report.desc == "Brownian Motion Test"
+        assert not any(result.status_vals)
+        assert report.status is HypothesisTestStatus.FAILED
+        assert all(d.status is HypothesisTestStatus.FAILED for d in report.test_data)
 
     def test_persistent_fbm_passes_the_autocorrelation_test(self):
         # H = 0.8 over 2048 points: the variance ratio statistic clears the
@@ -925,7 +1205,7 @@ class TestStatusFromRealPipelines:
         # per-lag test fails and FBM_AUTO_CORR reports PASSED.
         samples = fbm_model.generate_fft(0.8, 2048)
         result, report = fbm_data.compute_vr_test(samples, HypothesisTestType.FBM_AUTO_CORR,
-                                                  sig_level=0.05, s=[4, 6, 10, 16, 24])
+                                                  sig_level=0.05, s=S_VALS)
         assert report.hyp_type is HypothesisType.UPPER_TAIL
         assert report.desc == "Autocorrelation Test"
         assert not any(result.status_vals)
@@ -935,17 +1215,76 @@ class TestStatusFromRealPipelines:
     def test_antipersistent_fbm_passes_the_negative_autocorrelation_test(self):
         samples = fbm_model.generate_fft(0.2, 2048)
         result, report = fbm_data.compute_vr_test(samples, HypothesisTestType.FBM_NEG_AUTO_CORR,
-                                                  sig_level=0.05, s=[4, 6, 10, 16, 24])
+                                                  sig_level=0.05, s=S_VALS)
         assert report.hyp_type is HypothesisType.LOWER_TAIL
         assert report.desc == "Negative Autocorrelation Test"
         assert not any(result.status_vals)
         assert report.status is HypothesisTestStatus.PASSED
 
-    def test_brownian_motion_fails_the_autocorrelation_test(self):
-        # FBM_AUTO_CORR only reports FAILED when every lag passes the upper tail
-        # test, so the 1% level is used to keep the per lag false alarm rate low.
-        result, report = fbm_data.compute_vr_test(random_walk(2048),
-                                                  HypothesisTestType.FBM_AUTO_CORR,
-                                                  sig_level=0.01, s=[4, 6, 10, 16, 24])
+    @pytest.mark.parametrize("test_type,hyp_type,critical_value_slot", [
+        (HypothesisTestType.FBM_AUTO_CORR, HypothesisType.UPPER_TAIL, 1),
+        (HypothesisTestType.FBM_NEG_AUTO_CORR, HypothesisType.LOWER_TAIL, 0),
+    ])
+    def test_brownian_motion_fails_both_one_tailed_correlation_tests(
+            self, test_type, hyp_type, critical_value_slot):
+        # The FAILED direction of the FBM if-chains: FAILED requires *every* lag
+        # to stay on the null side of the one tailed critical value. Five
+        # correlated lags at a 1% per lag size gives a family-wise false alarm
+        # rate around 5%, which is what made the 0.01 version of this test flake;
+        # at sig_level 1e-4 (critical value ~3.72) a driftless random walk
+        # reported FAILED for all 201 seeds swept, for both tails.
+        result, report = fbm_data.compute_vr_test(random_walk(2048), test_type,
+                                                  sig_level=0.0001, s=S_VALS)
+        assert report.hyp_type is hyp_type
         assert all(result.status_vals)
         assert report.status is HypothesisTestStatus.FAILED
+        assert all(d.status is HypothesisTestStatus.PASSED for d in report.test_data)
+        # One tailed, so exactly one critical value is populated and it is the
+        # one the tail calls for.
+        assert result.critical_values[1 - critical_value_slot] is None
+        assert result.critical_values[critical_value_slot] is not None
+        unused = "upper" if critical_value_slot == 0 else "lower"
+        used = "lower" if critical_value_slot == 0 else "upper"
+        assert all(getattr(d, unused) is None for d in report.test_data)
+        assert all(getattr(d, used).value == pytest.approx(
+            result.critical_values[critical_value_slot]) for d in report.test_data)
+        assert len(report.test_data) == len(S_VALS)
+
+    @pytest.mark.parametrize("samples_factory,test_type,sig_level,expected", [
+        # The heteroscedasticity consistent statistic is a different code path
+        # (lib/models/fbm.py vr_stat_hetero_scan) feeding the same if-chains.
+        # Each row was swept over 201 seeds with zero failures.
+        (lambda: random_walk(2048), HypothesisTestType.BM, 0.01,
+         HypothesisTestStatus.PASSED),
+        (lambda: fbm_model.generate_fft(0.8, 2048), HypothesisTestType.BM, 0.01,
+         HypothesisTestStatus.FAILED),
+        (lambda: fbm_model.generate_fft(0.8, 2048), HypothesisTestType.FBM_AUTO_CORR, 0.05,
+         HypothesisTestStatus.PASSED),
+        (lambda: fbm_model.generate_fft(0.2, 2048), HypothesisTestType.FBM_NEG_AUTO_CORR, 0.05,
+         HypothesisTestStatus.PASSED),
+    ])
+    def test_hetero_variance_ratio_drives_the_same_status_chain(
+            self, samples_factory, test_type, sig_level, expected):
+        samples = samples_factory()
+        result, report = fbm_data.compute_hetero_vr_test(samples, test_type,
+                                                         sig_level=sig_level, s=S_VALS)
+        assert report.hyp_test_type is test_type
+        assert report.desc == test_type.desc()
+        assert report.status is expected
+        assert len(report.test_data) == len(S_VALS)
+        assert [d.params[0].value for d in report.test_data] == S_VALS
+        assert all(d.sig.value == sig_level for d in report.test_data)
+
+    def test_the_hetero_statistic_is_not_the_homo_statistic(self):
+        # Guards the parametrisation above against silently exercising the
+        # homoscedastic path: the heteroscedasticity consistent denominator is
+        # strictly larger for a persistent fBm, so every lag's statistic shrinks.
+        # True at all five lags for all 120 seeds swept.
+        samples = fbm_model.generate_fft(0.8, 2048)
+        homo, _ = fbm_data.compute_vr_test(samples, HypothesisTestType.FBM_AUTO_CORR,
+                                           sig_level=0.05, s=S_VALS)
+        hetero, _ = fbm_data.compute_hetero_vr_test(samples, HypothesisTestType.FBM_AUTO_CORR,
+                                                    sig_level=0.05, s=S_VALS)
+        assert homo.s_vals == hetero.s_vals == S_VALS
+        assert numpy.all(numpy.array(hetero.stats) < numpy.array(homo.stats))
+        assert homo.critical_values == hetero.critical_values

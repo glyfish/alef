@@ -38,6 +38,11 @@
             "path": "${workspaceFolder}",
             "envManager": "ms-python.python:pyenv",
             "packageManager": "ms-python.python:pip"
+        },
+        {
+            "path": ".",
+            "envManager": "ms-python.python:pyenv",
+            "packageManager": "ms-python.python:pip"
         }
     ]
 }

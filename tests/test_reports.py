@@ -12,14 +12,17 @@ navi's model layer returns to the notebooks.
                               derives the cointegration rank.
 
 The classes are pure presentation/derivation code, so most tests feed in
-hand-picked inputs and check hand-computed outputs. Three tests close the loop
-with real estimator output: ``adfuller`` on a random walk and on a stationary
-AR(1), an OLS AR(1) fit of a simulated OU process, and ``coint_johansen`` on a
-simulated cointegrated pair.
+hand-picked inputs and check hand-computed outputs. The rest close the loop with
+real estimator output: ``adfuller`` on a random walk and on a stationary AR(1),
+an OLS AR(1) fit and navi's own ``arima.ar_offset_fit`` of a simulated OU
+process, and ``coint_johansen`` on a simulated cointegrated pair - the two
+variable shape whose rank table ``compute_rank`` truncates.
 
 Every simulation draws from numpy's global RNG, which tests/conftest.py reseeds
 before each test.
 """
+import warnings
+
 import numpy
 import pandas
 import pytest
@@ -30,6 +33,7 @@ from statsmodels.tsa.vector_ar.vecm import coint_johansen
 from lib.data.hyp_test import HypothesisTestType, HypothesisType
 from lib.data.reports import (ADFTestReport, JohansenTestReport, OUEstReport,
                               VarianceRatioTestReport)
+from lib.models import arima
 
 # statsmodels' Johansen trace/max-eigenvalue critical values for a system of
 # three variables with no deterministic term (det_order=0), one row per null
@@ -128,6 +132,22 @@ def cointegrated_pair(n=1000, beta=2.0, phi=0.5):
     for i in range(1, n):
         z[i] = phi*z[i-1] + eps[i]
     return numpy.column_stack([y1, beta*y1 + z])
+
+
+def real_pair_report(n=1000, beta=2.0):
+    """
+    JohansenTestReport over a real ``coint_johansen`` result for a two variable
+    system - the shape the notebooks actually use, and the one whose rank table
+    the (nvars vs. three significance levels) slice in compute_rank truncates.
+
+    coint_johansen itself emits ComplexWarning while building lr1/lr2, which is
+    unrelated to the report; suppress it so tests can pin the report's own
+    warnings.
+    """
+    data = cointegrated_pair(n=n, beta=beta)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", numpy.exceptions.ComplexWarning)
+        return JohansenTestReport(coint_johansen(data, 0, 1))
 
 
 # ===========================================================================
@@ -241,6 +261,28 @@ class TestVarianceRatioTestReport:
         assert "╒" not in out and "|" not in out
         assert "Significance          10%" in out
 
+    def test_hyp_type_does_not_select_the_tail(self):
+        # __init__ never reads hyp_type: the tail is chosen by which critical
+        # value is None. Passing UPPER_TAIL together with two critical values
+        # therefore yields two tail decisions - a genuine upper tail test would
+        # accept -2.5, this one rejects it - while the header still prints
+        # UPPER_TAIL. The two arguments are free to disagree.
+        report = vr_report([-2.5, 0.0, 2.5], [-1.96, 1.96],
+                           hyp_type=HypothesisType.UPPER_TAIL,
+                           hyp_test_type=HypothesisTestType.FBM_AUTO_CORR)
+        assert [bool(s) for s in report.status_vals] == [False, True, False]
+        header, _ = report._table("plain")
+        assert "Hypothesis Type       HypothesisType.UPPER_TAIL" in header
+        assert "Lower Critical Value  -1.960" in header
+        assert "Upper Critical Value  1.960" in header
+
+    def test_two_missing_critical_values_are_unguarded(self):
+        # lib.models.fbm only ever emits [lo, hi], [None, hi] or [lo, None], so
+        # the [None, None] combination is unreachable in production; it falls
+        # into the first branch and compares a float against None.
+        with pytest.raises(TypeError):
+            vr_report([1.0], [None, None])
+
 
 # ===========================================================================
 # ADFTestReport
@@ -288,6 +330,15 @@ class TestADFTestReport:
         assert rows[6] == ["5%", "-2.86", "Passed"]
         assert rows[7] == ["10%", "-2.57", "Failed"]
 
+    def test_summary_default_tablefmt_is_fancy_grid(self, capsys):
+        ADFTestReport(adf_result(-2.7, pval=0.073, lags=2, nobs=997)).summary()
+        out = capsys.readouterr().out
+        # both tables are boxed: header table then the per significance results
+        assert out.count("╒") == 2 and out.count("╘") == 2
+        assert "│" in out
+        assert "Significance" in out and "Critical Value" in out and "Result" in out
+        assert out.index("Test Statistic") < out.index("Significance")
+
     def test_random_walk_fails_to_reject_unit_root(self):
         # A random walk has a unit root, so the ADF null holds and the test
         # "passes" at every level except on the size of the test: at 10% that
@@ -298,14 +349,26 @@ class TestADFTestReport:
         npass = 0
         for _ in range(20):
             x = numpy.cumsum(numpy.random.normal(0.0, 1.0, 400))
-            report = ADFTestReport(sm.tsa.stattools.adfuller(x, regression="c", maxlag=6))
+            res = sm.tsa.stattools.adfuller(x, regression="c", maxlag=6)
+            report = ADFTestReport(res)
             assert report.nobs + report.lags + 1 == 400
-            assert report.status_vals[0] >= report.status_vals[1] >= report.status_vals[2]
-            assert all(report.status_vals) == (report.stat > max(report.critical_vals))
+            # the critical values are pulled out of statsmodels' unordered dict
+            # by label and re-ordered 1%, 5%, 10% (increasing)
+            assert report.critical_vals == [res[4]["1%"], res[4]["5%"], res[4]["10%"]]
+            assert report.critical_vals[0] < report.critical_vals[1] < report.critical_vals[2]
             if all(report.status_vals):
                 assert report.status_str == ["Passed"]*3
                 npass += 1
         assert npass >= 12
+
+        # the status of each level flips exactly at its own critical value:
+        # a statistic a hair below the 5% value of the last fitted report
+        # passes at 1% only
+        criticals = tuple(report.critical_vals)
+        nudged = ADFTestReport(adf_result(criticals[1] - 1e-9, criticals=criticals))
+        assert [bool(s) for s in nudged.status_vals] == [True, False, False]
+        nudged = ADFTestReport(adf_result(criticals[1], criticals=criticals))
+        assert [bool(s) for s in nudged.status_vals] == [True, True, False]
 
     def test_stationary_ar1_rejects_unit_root(self):
         # AR(1) with phi = 0.5 over 1000 points: the ADF statistic is around
@@ -374,6 +437,12 @@ class TestOUEstReport:
         #                              = (0.01 + 0.4*0.02/0.2)/0.2 = 0.25
         assert ou_stub_report().mu_error() == pytest.approx(0.25)
 
+    def test_mu_error_current_value(self):
+        # documents what the shipped formula returns, so a change to the
+        # propagation shows up here even while test_mu_error_propagation keeps
+        # xfailing: (a*delta_phi + delta_a)/(1 - phi) = (0.008 + 0.01)/0.2
+        assert ou_stub_report().mu_error() == pytest.approx(0.09)
+
     @pytest.mark.xfail(strict=True, raises=AssertionError,
                        reason="lambda_error returns the signed derivative "
                               "d(lambda)/d(phi)*delta_phi = -delta_phi/(phi dt), so the error "
@@ -396,13 +465,37 @@ class TestOUEstReport:
         # 2*2.2314355131420974*0.25/(1 - 0.64)
         assert ou_stub_report().sigma2_est() == pytest.approx(3.0992159904751354)
 
+    def test_sigma2_est_body_is_correct(self):
+        # only the binding is broken, not the arithmetic: called off the class
+        # (so the instance attribute cannot shadow it) the method body reads the
+        # stored AR innovation variance and rescales it correctly
+        assert OUEstReport.sigma2_est(ou_stub_report()) == pytest.approx(3.0992159904751354)
+
     @pytest.mark.xfail(strict=True, raises=TypeError,
                        reason="__init__ assigns self.sigma2_error = result.bse.iloc[2], shadowing "
                               "the sigma2_error method with a float, so calling it raises "
-                              "TypeError: 'numpy.float64' object is not callable")
+                              "TypeError: 'numpy.float64' object is not callable before any value "
+                              "can be checked")
     def test_sigma2_error(self):
-        report = ou_stub_report()
-        assert report.sigma2_error() > 0.0
+        # sigma^2 = 2 lambda s2/(1 - phi^2), so the propagated uncertainty is
+        #   4 lambda phi s2 delta_phi/(1 - phi^2)^2  = 0.275486
+        # + 2 s2 |delta_lambda|/(1 - phi^2)          = 0.347222
+        # + 2 lambda delta_s2/(1 - phi^2)            = 0.061984
+        assert ou_stub_report().sigma2_error() == pytest.approx(0.6846924078517371)
+
+    @pytest.mark.xfail(strict=True, raises=AssertionError,
+                       reason="second, independent defect: sigma2_error adds the SIGNED "
+                              "lambda_error (-delta_phi/(phi dt)), so its middle term is negative "
+                              "and cancels the other two - the propagated error evaluates to "
+                              "-0.009752 instead of 0.684692. Called off the class to step around "
+                              "the sigma2_error attribute shadowing")
+    def test_sigma2_error_sign_cancellation(self):
+        assert OUEstReport.sigma2_error(ou_stub_report()) == pytest.approx(0.6846924078517371)
+
+    def test_sigma2_error_current_value(self):
+        # pins the cancelled sum the shipped expression produces, so fixing the
+        # shadowing alone (without fixing the sign) cannot pass unnoticed
+        assert OUEstReport.sigma2_error(ou_stub_report()) == pytest.approx(-0.00975203659270732)
 
     def test_shadowing_leaves_the_raw_fit_values_on_the_instance(self):
         # what the shadowed names actually hold: the AR innovation variance and
@@ -421,6 +514,43 @@ class TestOUEstReport:
         assert "Parameter" in out and "Estimate" in out and "Error" in out
         assert "μ" in out and "λ" in out and "σ2" in out
 
+    # An AR(1) fit of a slowly mean reverting series can land outside (0, 1),
+    # and nothing in OUEstReport guards against it: the estimates degenerate
+    # silently (inf/nan) rather than raising.
+    def test_unit_root_coefficient_blows_up_mu(self):
+        report = OUEstReport(ARFitStub([0.4, 1.0, 0.25], STUB_ERRORS), STUB_DT, 0.0)
+        with pytest.warns(RuntimeWarning, match="divide by zero"):
+            mu = report.mu_est()
+        assert numpy.isinf(mu)                    # a/(1 - phi) with phi = 1
+        with pytest.warns(RuntimeWarning, match="divide by zero"):
+            assert numpy.isinf(report.mu_error())
+        assert report.lambda_est() == 0.0         # -ln(1)/dt: no mean reversion
+        assert report.lambda_error() == pytest.approx(-0.2)
+
+    def test_explosive_coefficient_gives_negative_lambda(self):
+        # phi > 1 is a mean averting fit: lambda = -ln(phi)/dt < 0 and mu falls
+        # on the wrong side of the data, both without any warning
+        report = OUEstReport(ARFitStub([0.4, 1.05, 0.25], STUB_ERRORS), STUB_DT, 0.0)
+        assert report.lambda_est() == pytest.approx(-numpy.log(1.05)/STUB_DT)
+        assert report.lambda_est() < 0.0
+        assert report.mu_est() == pytest.approx(-8.0)
+
+    def test_negative_coefficient_makes_lambda_nan(self):
+        # phi <= 0 (an oscillating fit) puts numpy.log outside its domain
+        report = OUEstReport(ARFitStub([0.4, -0.5, 0.25], STUB_ERRORS), STUB_DT, 0.0)
+        with pytest.warns(RuntimeWarning, match="invalid value encountered in log"):
+            assert numpy.isnan(report.lambda_est())
+        # and the error divides by a negative phi, so the sign of lambda_error
+        # flips relative to the phi > 0 case tested above
+        assert report.lambda_error() == pytest.approx(0.4)
+
+    def test_zero_coefficient_makes_lambda_infinite(self):
+        report = OUEstReport(ARFitStub([0.4, 0.0, 0.25], STUB_ERRORS), STUB_DT, 0.0)
+        with pytest.warns(RuntimeWarning, match="divide by zero encountered in log"):
+            assert numpy.isinf(report.lambda_est())
+        with pytest.warns(RuntimeWarning, match="divide by zero"):
+            assert numpy.isneginf(report.lambda_error())
+
     def test_round_trip_recovers_ou_parameters(self):
         # Simulate an exactly discretised OU path, fit AR(1) by OLS and read the
         # continuous parameters back. Tolerances are ~5 standard errors of the
@@ -436,15 +566,76 @@ class TestOUEstReport:
         assert report.offset_est == pytest.approx(mu*(1.0 - phi), abs=0.08)
         assert report.mu_est() == pytest.approx(mu, abs=0.25)
         assert report.lambda_est() == pytest.approx(lam, abs=0.4)
-        assert report.mu_error() > 0.0
+        # the propagated error is the OLS se scale, ~0.15 here: bracket it well
+        # inside an order of magnitude either side rather than just > 0
+        assert 0.05 < report.mu_error() < 0.5
 
-        # sigma2_est() is shadowed, so apply its formula to the stored fields:
+        # sigma2_est() is shadowed, so apply its formula to the innovation
+        # variance read back through the fit object (not through the shadowing
+        # attribute, which the fix to that bug will remove):
         # sigma^2 = 2 lambda var(eps)/(1 - phi^2) recovers the continuous
-        # diffusion coefficient to a few percent.
-        sigma2 = 2.0*report.lambda_est()*report.sigma2_est/(1.0 - report.coeff_est**2)
-        assert sigma2 == pytest.approx(sigma**2, abs=0.08)
+        # diffusion coefficient. Tolerance is 5 sd of the recovered value
+        # (sd ~ 0.024 over seeds), matching the other tolerances here.
+        ar_var = report.ar_result.params.iloc[2]
+        sigma2 = 2.0*report.lambda_est()*ar_var/(1.0 - report.coeff_est**2)
+        assert sigma2 == pytest.approx(sigma**2, abs=0.12)
         # the AR innovation variance itself is a factor (1 - phi^2)/(2 lambda) smaller
-        assert report.sigma2_est == pytest.approx(sigma**2*(1.0 - phi**2)/(2.0*lam), rel=0.1)
+        assert ar_var == pytest.approx(sigma**2*(1.0 - phi**2)/(2.0*lam), rel=0.1)
+
+    def test_ar_offset_fit_supplies_the_positional_layout(self):
+        # OUEstReport addresses params/bse as [offset, AR coefficient,
+        # innovation variance] via .iloc, an assumption no navi caller
+        # validates (the class has no producer). navi's own AR(1) with offset
+        # estimator is the only fit of that shape: check the layout against it.
+        # Tolerances are ~3x the largest deviation seen over 60 seeds for
+        # n = 4000 (max |phi err| 0.017, |lambda err| 0.19, |const err| 0.14,
+        # |sigma2 rel err| 0.07), the maximum likelihood fit being noisier than
+        # the OLS one used above.
+        mu, lam, sigma, dt, n = 2.0, 1.0, 1.0, 0.1, 4000
+        x = ou_path(mu, lam, sigma, dt, n)
+        fit = arima.ar_offset_fit(pandas.Series(x), 1)
+        assert list(fit.params.index) == ARFitStub.NAMES
+        assert list(fit.bse.index) == ARFitStub.NAMES
+
+        report = OUEstReport(fit, dt, x[0])
+        phi = numpy.exp(-lam*dt)
+        assert report.coeff_est == pytest.approx(phi, abs=0.05)
+        assert report.lambda_est() == pytest.approx(lam, abs=0.5)
+        # statsmodels' ARIMA trend='c' reports the process MEAN as 'const',
+        # not the OLS intercept mu(1 - phi) that OUEstReport expects
+        assert report.offset_est == pytest.approx(mu, abs=0.4)
+        assert report.sigma2_est == pytest.approx(sigma**2*(1.0 - phi**2)/(2.0*lam), rel=0.2)
+
+    @pytest.mark.xfail(strict=True, raises=AssertionError,
+                       reason="mu_est assumes the OLS parameterisation params[0] = mu(1 - phi), but "
+                              "navi's only AR(1) with offset estimator (lib.models.arima."
+                              "ar_offset_fit -> statsmodels ARIMA trend='c') reports the process "
+                              "mean itself as 'const', so mu_est divides the mean by (1 - phi) a "
+                              "second time and overstates it by ~10x at dt = 0.1, lambda = 1")
+    def test_mu_est_from_navi_ar_offset_fit(self):
+        mu, lam, sigma, dt, n = 2.0, 1.0, 1.0, 0.1, 4000
+        x = ou_path(mu, lam, sigma, dt, n)
+        report = OUEstReport(arima.ar_offset_fit(pandas.Series(x), 1), dt, x[0])
+        assert report.mu_est() == pytest.approx(mu, abs=0.4)
+
+    def test_mu_est_from_navi_ar_offset_fit_current_value(self):
+        # companion pin for the xfail above: the returned estimate is the mean
+        # divided by (1 - phi) ~ 0.095, i.e. inflated by roughly a factor 10
+        # (8.9x to 12.6x over 60 seeds)
+        mu, lam, sigma, dt, n = 2.0, 1.0, 1.0, 0.1, 4000
+        x = ou_path(mu, lam, sigma, dt, n)
+        report = OUEstReport(arima.ar_offset_fit(pandas.Series(x), 1), dt, x[0])
+        assert report.mu_est() > 4.0*mu
+
+    def test_fit_must_be_pandas_backed(self):
+        # ar_offset_fit is typed for NDArray input, and for an ndarray sample
+        # statsmodels returns params/bse as plain arrays - which .iloc cannot
+        # address. Callers must hand OUEstReport a pandas backed fit.
+        x = ou_path(2.0, 1.0, 1.0, 0.1, 500)
+        fit = arima.ar_offset_fit(x, 1)
+        assert isinstance(fit.params, numpy.ndarray)
+        with pytest.raises(AttributeError, match="iloc"):
+            OUEstReport(fit, 0.1, x[0])
 
 
 # ===========================================================================
@@ -535,21 +726,33 @@ class TestJohansenTestReport:
         # eigenvectors are printed as columns of evec
         assert "[ 1.  -2.   0.5]" in out
 
+    def test_summary_default_tablefmt_is_fancy_grid(self, capsys):
+        result = JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR)
+        JohansenTestReport(result).summary()
+        out = capsys.readouterr().out
+        # four boxed tables: trace, rank, eigenvalue statistic, eigenvectors
+        assert out.count("╒") == 4 and out.count("╘") == 4
+        assert "│" in out
+        for section in ["Trace Statistic", "Rank", "Eigenvalue Statistic",
+                        "Eigenvalues and Eigenvectors"]:
+            assert section in out
+
     def test_cointegrated_pair_round_trip(self):
         # y2 = 2*y1 + stationary noise, so exactly one cointegrating relation
         # exists and its vector is proportional to (2, -1).
-        data = cointegrated_pair(n=1000, beta=2.0)
-        result = coint_johansen(data, 0, 1)
-        report = JohansenTestReport(result)
+        report = real_pair_report(n=1000, beta=2.0)
 
         # The r <= 0 trace and max-eigenvalue statistics diverge with n for a
-        # genuinely cointegrated pair (both land near 230 for n = 1000 against
-        # a 99% critical value of ~20), so rejection is certain for any seed.
-        # The r <= 1 statistic is a size-controlled test whose value straddles
-        # its critical value from seed to seed and is not asserted on.
-        assert report.trace_statistic[0] > 10.0*report.trace_critical_vals[0][2]
-        assert report.eigen_value_statistic[0] > 10.0*report.eigen_value_critical_values[0][2]
-        assert report.trace_statistic[1] < report.trace_statistic[0]
+        # genuinely cointegrated pair (both land near 230 for n = 1000 with sd
+        # ~18, against a 99% critical value of ~20). Three times the critical
+        # value (~60) sits more than 9 sd below the mean, so rejection holds
+        # for any seed; ten times (~200) is only 1.7 sd below it and flakes.
+        assert report.trace_statistic[0] > 3.0*report.trace_critical_vals[0][2]
+        assert report.eigen_value_statistic[0] > 3.0*report.eigen_value_critical_values[0][2]
+        # lr1 is a decreasing partial sum by construction, so trace[1] < trace[0]
+        # holds for any data at all: what separates a cointegrated pair from an
+        # unrelated one is the size of the gap (the ratio stays under 0.09).
+        assert report.trace_statistic[1] < 0.2*report.trace_statistic[0]
 
         # the leading eigenvector is the first *column* of evec, normalised
         # here by its first entry; (2, -1) ~ (1, -0.5)
@@ -557,9 +760,72 @@ class TestJohansenTestReport:
         assert_allclose(lead/lead[0], [1.0, -0.5], atol=0.05)
         assert numpy.real(report.eigen_values[0]) > numpy.real(report.eigen_values[1])
 
+    def test_real_pair_compute_rank(self):
+        # compute_rank on the shape the notebooks use. One cointegrating
+        # relation exists, so the answer should be one rank per significance
+        # level; what comes back is one entry per VARIABLE (see the xfail
+        # below). The r <= 0 null is rejected by a factor of ten at every
+        # level, so every column that is reported carries at least rank 1 - the
+        # r <= 1 null is size controlled and strays above its 90/95% critical
+        # values often enough that the individual values are not pinned.
+        report = real_pair_report()
+        ranks = report.compute_rank()
+        assert len(ranks) == len(report.trace_statistic) == 2
+        assert all(int(rank) >= 1 for rank in ranks)
+
+    @pytest.mark.xfail(strict=True, raises=AssertionError,
+                       reason="compute_rank slices the (nvars, 3) rejection matrix with "
+                              "range(len(trace_statistic)), so a real two variable Johansen result "
+                              "yields two ranks instead of one per significance level - the 99% "
+                              "column is dropped entirely")
+    def test_real_pair_compute_rank_covers_every_significance_level(self):
+        assert len(real_pair_report().compute_rank()) == 3
+
+    @pytest.mark.xfail(strict=True, raises=AssertionError,
+                       reason="summary prints compute_rank's truncated list under the three "
+                              "significance headers, so the rank table of a two variable result "
+                              "shows only the 90% and 95% columns")
+    def test_real_pair_summary_rank_table_covers_every_significance_level(self, capsys):
+        real_pair_report().summary(tablefmt="plain")
+        out = capsys.readouterr().out
+        rank_table = out.split("Rank\n")[1].split("Eigenvalue Statistic")[0]
+        assert "Critical Value 99%" in rank_table
+
+    def test_real_pair_summary_rank_table_current_columns(self, capsys):
+        # what the truncation actually prints: two values under the first two
+        # of the three significance headers
+        real_pair_report().summary(tablefmt="plain")
+        out = capsys.readouterr().out
+        rank_table = out.split("Rank\n")[1].split("Eigenvalue Statistic")[0]
+        header, values = [line for line in rank_table.split("\n") if line.strip()][:2]
+        assert header.split() == ["Critical", "Value", "90%", "Critical", "Value", "95%"]
+        assert len(values.split()) == 2
+
+    def test_real_result_keeps_complex_eigen_values(self):
+        # numpy >= 2 linalg.eig returns complex128 even when every imaginary
+        # part is zero, and JohansenTestReport stores eig/evec verbatim.
+        # hyp_test.JohansenCointTestEigenVector takes numpy.real for exactly
+        # this reason; the report does not.
+        report = real_pair_report()
+        assert numpy.iscomplexobj(report.eigen_values)
+        assert numpy.iscomplexobj(report.eigen_vectors)
+        assert_allclose(numpy.imag(report.eigen_values), 0.0)
+        assert_allclose(numpy.imag(report.eigen_vectors), 0.0)
+
+    @pytest.mark.xfail(strict=True, raises=numpy.exceptions.ComplexWarning,
+                       reason="the eigenvalue column is formatted with floatfmt='.2e', so tabulate "
+                              "casts the stored complex128 eigenvalues to float and raises "
+                              "ComplexWarning ('Casting complex values to real discards the "
+                              "imaginary part') on every printed report of a real result; the "
+                              "eigenvector cells are printed with their '+0.j' parts intact")
+    def test_summary_of_real_result_does_not_discard_imaginary_parts(self):
+        report = real_pair_report()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", numpy.exceptions.ComplexWarning)
+            report.summary(tablefmt="plain")
+
     def test_summary_of_real_result_prints_leading_eigenvector(self, capsys):
-        data = cointegrated_pair(n=1000, beta=2.0)
-        report = JohansenTestReport(coint_johansen(data, 0, 1))
+        report = real_pair_report(n=1000, beta=2.0)
         report.summary(tablefmt="plain")
         out = capsys.readouterr().out
         assert "r <= 0" in out and "r <= 1" in out

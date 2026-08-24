@@ -12,20 +12,30 @@ the reports/database layers serialise. So the tests here are contract checks:
     ParamEst.from_dict round trip, including the numpy.float64 scalars the
     estimators actually pass in;
   * the labels ARMAEst stamps on its parameters, and the (order, row, column)
-    addressing VAREst/VECMEst rely on, built exactly the way the estimators
-    build them;
-  * __repr__ / __str__ structure.
+    addressing plus mathtext labels VAREst/VECMEst rely on, built exactly the
+    way the estimators build them;
+  * __repr__ / __str__ structure;
+  * module import hygiene -- what a consumer pays to `import lib.data.param_est`.
 
 Tests that expose defects in the library are kept and marked
-xfail(strict=True) so they flip to FAIL as soon as the defect is fixed.
+xfail(strict=True) so they flip to FAIL as soon as the defect is fixed.  Each
+defect is owned by exactly ONE xfail: where a passing test would otherwise
+hard-pin the same buggy string, it asserts the surrounding structure instead, so
+a real fix produces one red test and not five.  Purely cosmetic divergences
+(pretty-print indent widths, `est_id=x` vs `est_id=(x)` in a repr) are recorded
+as comments next to a green assertion rather than as strict xfails.
 """
 
+import inspect
 import json
+import subprocess
+import sys
 
 import numpy
 import pytest
 from numpy.testing import assert_array_equal
 
+from lib.data import param_est as param_est_module
 from lib.data.param_est import (
     ARMAEst,
     ARMAEstType,
@@ -82,30 +92,58 @@ def _ols_result(nparams=2, r2=0.9) -> OLSResult:
     return OLSResult(EST_ID, const, params, r2)
 
 
+# The mathtext labels lib.data.impl.var / lib.data.impl.vecm stamp on every row
+# they build.  Reproduced here verbatim so the builders below carry the same
+# backslash-laden strings the real estimators do -- escaping them through
+# to_json is the interesting half of serialising a VAR/VECM result.
+VAR_LABELS = {
+    "const": (r"$\hat{M}$", r"$\sigma^M$"),
+    "params": (r"$\hat{\Phi}$", r"$\sigma^\Phi$"),
+    "omega": (r"$\hat{\Omega}$", r"$\sigma{\Omega}$"),
+}
+VECM_LABELS = {
+    "const": (r"$\hat{M}$", r"$\sigma_{M}$"),
+    "lambda_est": (r"$\hat{\lambda}$", r"$\sigma_{\lambda}$"),
+    "beta_est": (r"$\hat{\beta}$", r"$\sigma_{\beta}$"),
+    "a_est": (r"$\hat{A}$", r"$\sigma_A$"),
+    "omega": (r"$\hat{\Omega}$", r"$\sigma_{\Omega}$"),
+}
+
+
 def _var_est(n=2, m=2) -> tuple[VAREst, numpy.ndarray, numpy.ndarray]:
     """Built like lib.data.impl.var: m equations, n lags. Φ[i, j, k] is the
-    coefficient at lag i+1, row j, column k; Ω[i, j] the noise covariance."""
+    coefficient at lag i+1, row j, column k; Ω[i, j] the noise covariance.
+    Labels are the ones lib.data.impl.var actually stamps (VAR_LABELS)."""
     Φ = numpy.arange(n * m * m, dtype=float).reshape(n, m, m) / 10.0
     Ω = numpy.arange(m * m, dtype=float).reshape(m, m) + 100.0
-    const = [_param(float(i), 0.1, order=i + 1, param_type=VARParamType.VAR_CONST.value) for i in range(m)]
-    params = [_param(Φ[i, j, k], 0.01, order=i + 1, row=j, column=k, param_type=VARParamType.VAR_PARAM.value)
+    const = [_param(float(i), 0.1, order=i + 1, param_type=VARParamType.VAR_CONST.value,
+                    est_label=VAR_LABELS["const"][0], err_label=VAR_LABELS["const"][1]) for i in range(m)]
+    params = [_param(Φ[i, j, k], 0.01, order=i + 1, row=j, column=k, param_type=VARParamType.VAR_PARAM.value,
+                     est_label=VAR_LABELS["params"][0], err_label=VAR_LABELS["params"][1])
               for i in range(n) for j in range(m) for k in range(m)]
-    omega = [_param(Ω[i, j], 0.0, row=i, column=j, param_type=VARParamType.VAR_OMEGA.value)
+    omega = [_param(Ω[i, j], 0.0, row=i, column=j, param_type=VARParamType.VAR_OMEGA.value,
+                    est_label=VAR_LABELS["omega"][0], err_label=VAR_LABELS["omega"][1])
              for i in range(m) for j in range(m)]
     return VAREst(order=n, const=const, params=params, omega=omega), Φ, Ω
 
 
 def _vecm_est(neq=2, rank=1, order=2) -> VECMEst:
     """Built like lib.data.impl.vecm: λ and β are neq x rank, A has one
-    neq x neq block per lag (order 1..p), Ω is neq x neq."""
-    lambda_est = [_param(0.1 * (i + 1), 0.01, row=i, column=j, param_type=VECMParamType.VECM_LAMBDA.value)
+    neq x neq block per lag (order 1..p), Ω is neq x neq.  Labels are the ones
+    lib.data.impl.vecm actually stamps (VECM_LABELS)."""
+    lambda_est = [_param(0.1 * (i + 1), 0.01, row=i, column=j, param_type=VECMParamType.VECM_LAMBDA.value,
+                         est_label=VECM_LABELS["lambda_est"][0], err_label=VECM_LABELS["lambda_est"][1])
                   for j in range(rank) for i in range(neq)]
-    beta_est = [_param(1.0 if i == 0 else -0.5, 0.01, row=i, column=j, param_type=VECMParamType.VECM_BETA.value)
+    beta_est = [_param(1.0 if i == 0 else -0.5, 0.01, row=i, column=j, param_type=VECMParamType.VECM_BETA.value,
+                       est_label=VECM_LABELS["beta_est"][0], err_label=VECM_LABELS["beta_est"][1])
                 for j in range(rank) for i in range(neq)]
-    const = [_param(0.01 * i, 0.001, row=i, param_type=VECMParamType.VECM_CONST.value) for i in range(neq)]
-    omega = [_param(1.0 if i == j else 0.2, 0.0, row=i, column=j, param_type=VECMParamType.VECM_OMEGA.value)
+    const = [_param(0.01 * i, 0.001, row=i, param_type=VECMParamType.VECM_CONST.value,
+                    est_label=VECM_LABELS["const"][0], err_label=VECM_LABELS["const"][1]) for i in range(neq)]
+    omega = [_param(1.0 if i == j else 0.2, 0.0, row=i, column=j, param_type=VECMParamType.VECM_OMEGA.value,
+                    est_label=VECM_LABELS["omega"][0], err_label=VECM_LABELS["omega"][1])
              for i in range(neq) for j in range(neq)]
-    a_est = [_param(0.05 * (k + 1), 0.01, order=k + 1, row=i, column=j, param_type=VECMParamType.VECM_ALPHA.value)
+    a_est = [_param(0.05 * (k + 1), 0.01, order=k + 1, row=i, column=j, param_type=VECMParamType.VECM_ALPHA.value,
+                    est_label=VECM_LABELS["a_est"][0], err_label=VECM_LABELS["a_est"][1])
              for k in range(order) for j in range(neq) for i in range(neq)]
     return VECMEst(rank=rank, order=order, const=const, lambda_est=lambda_est, beta_est=beta_est,
                    a_est=a_est, omega=omega)
@@ -159,11 +197,20 @@ def test_param_type_enums_value_equals_name(enum_cls, expected_names):
 
 
 class TestVECMParamType:
+    # Held apart from test_param_type_enums_value_equals_name only because
+    # VECM_OMEGA's value does not equal its name (see the xfail below); every
+    # other property asserted of the sibling enums is asserted here too.
     def test_members(self):
         assert {m.name for m in VECMParamType} == {"VECM_CONST", "VECM_ALPHA", "VECM_LAMBDA", "VECM_BETA", "VECM_OMEGA"}
         for member in VECMParamType:
+            # The str mixin is what lets the database layer compare a stored
+            # param_type against a plain string and json.dumps emit the value.
+            assert isinstance(member, str)
+            assert VECMParamType(member.value) is member
             if member is not VECMParamType.VECM_OMEGA:
                 assert member.value == member.name
+                assert VECMParamType(member.name) is member
+                assert member == member.name
 
     @pytest.mark.xfail(
         strict=True,
@@ -261,11 +308,35 @@ class TestARMAEstTypeSetParamLabels:
     def test_overwrites_existing_labels(self):
         p = _param(est_label="old-est", err_label="old-err")
         ARMAEstType.AR.set_param_labels(p, 0)
-        # Pin the concrete post-state, not merely "changed": err_label is the
-        # malformed three-delimiter form xfailed by
-        # test_err_label_is_well_formed_mathtext.
+        # Pin the concrete post-state, not merely "changed".  est_label is
+        # pinned exactly; err_label is pinned structurally (symbol + index +
+        # sigma prefix) because its exact spelling is the malformed
+        # three-delimiter form owned by test_err_label_is_well_formed_mathtext
+        # -- fixing that defect must produce exactly one red test, not two.
         assert p.est_label == r"$\hat{\phi_{0}}$"
-        assert p.err_label == r"$\sigma_{$\hat{\phi_{0}}}$"
+        assert p.err_label.startswith(r"$\sigma_{")
+        assert p.err_label.endswith("$")
+        assert r"\hat{\phi_{0}}" in p.err_label
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="the two ARMAEstType dispatchers disagree on the AR coefficient's glyph: formula() writes "
+           r"'\varphi' while set_param_labels() writes '\phi', so a figure whose title is the formula "
+           "and whose table rows are the labels renders one parameter as two different symbols",
+)
+@pytest.mark.parametrize(
+    "est_type", [ARMAEstType.AR, ARMAEstType.AR_OFFSET], ids=lambda t: t.name
+)
+def test_formula_and_param_labels_agree_on_the_ar_symbol(est_type):
+    # Direction-agnostic: the symbol is read out of formula() and the label
+    # dispatcher is required to agree with it, so either spelling fixes this.
+    formula = est_type.formula()
+    formula_symbol = r"\varphi" if r"\varphi" in formula else r"\phi"
+    p = _param()
+    est_type.set_param_labels(p, 1)
+    assert formula_symbol in p.est_label
+    assert formula_symbol in p.err_label
 
 
 # ---------------------------------------------------------------------------
@@ -309,23 +380,25 @@ class TestParamEst:
         loaded = json.loads(text)
         assert loaded["est"] == 0.75 and loaded["err"] == 0.0625
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="ParamEst.to_json's `default=lambda o: o.__dict__` hook is the whole numpy/JSON boundary "
+               "and handles only numpy scalars that subclass float: numpy.int64/int32/float32 reach it and "
+               "die with AttributeError on the missing __dict__ (not even the TypeError a serialiser should "
+               "raise).  Latent today only because callers happen to pass python ints for order/row/column",
+    )
     @pytest.mark.parametrize(
-        "field, value",
+        "field, value, expected",
         [
-            ("order", numpy.int64(2)),
-            ("row", numpy.int32(1)),
-            ("est", numpy.float32(0.5)),
+            ("order", numpy.int64(2), 2),
+            ("row", numpy.int32(1), 1),
+            ("est", numpy.float32(0.5), 0.5),
         ],
         ids=["order-int64", "row-int32", "est-float32"],
     )
-    def test_to_json_breaks_on_non_float_numpy_scalars(self, field, value):
-        # The ``default=lambda o: o.__dict__`` hook is the whole numpy/JSON
-        # boundary: any numpy scalar that is NOT a float subclass reaches it and
-        # dies on the missing ``__dict__`` -- and it raises AttributeError, not
-        # the TypeError a caller would expect from a serialiser.
+    def test_to_json_serialises_non_float_numpy_scalars(self, field, value, expected):
         p = _param(**{field: value})
-        with pytest.raises(AttributeError, match=r"has no attribute '__dict__'"):
-            p.to_json()
+        assert json.loads(p.to_json())[field] == expected
 
     def test_to_json_pretty_parses_to_same_document(self):
         p = _param()
@@ -346,6 +419,31 @@ class TestParamEst:
         assert (p.est, p.err, p.est_id, p.param_type) == (0.5, 0.1, "x", "OLS_CONST")
         assert p.est_label is None and p.err_label is None
         assert (p.order, p.row, p.column) == (0, 0, 0)
+
+    def test_from_dict_distinguishes_an_absent_key_from_an_explicit_none(self):
+        # from_dict tests membership (``"order" in data``) rather than taking a
+        # default (``data.get("order", 0)``), so a key present with the value
+        # None is NOT defaulted: it is passed straight through.  That is exactly
+        # the shape to_json produces for an unlabelled row, so the distinction
+        # decides what a JSON round trip of order/row/column yields.
+        absent = ParamEst.from_dict({"est": 0.5, "err": 0.1, "est_id": "x", "param_type": "t"})
+        explicit_none = ParamEst.from_dict({"est": 0.5, "err": 0.1, "est_id": "x", "param_type": "t",
+                                            "est_label": None, "err_label": None,
+                                            "order": None, "row": None, "column": None})
+        assert (absent.order, absent.row, absent.column) == (0, 0, 0)
+        assert (explicit_none.order, explicit_none.row, explicit_none.column) == (None, None, None)
+        # est_label/err_label default to None either way, so those two agree.
+        assert (absent.est_label, absent.err_label) == (explicit_none.est_label, explicit_none.err_label) == (None, None)
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="ParamEst.from_dict reads err_label twice (param_est.py:99 and :103) -- the second "
+               "assignment is unreachable dead code that shadows nothing and only invites an edit to "
+               "land on the copy that is thrown away",
+    )
+    def test_from_dict_reads_each_field_once(self):
+        body = inspect.getsource(ParamEst.from_dict)
+        assert body.count("err_label = data") == 1
 
     def test_from_dict_ignores_unknown_keys(self):
         p = ParamEst.from_dict({"est": 0.5, "err": 0.1, "est_id": "x", "param_type": "t", "pvalue": 0.03})
@@ -405,6 +503,16 @@ class TestOLSTransform:
         assert s.startswith("param=(")
         assert "est=(2.0)" in s
 
+    def test_repr_embeds_the_wrapped_param(self):
+        # The only green content assertion on OLSTransform.__repr__: its class
+        # prefix is owned by test_ols_repr_prefix_is_class_name (xfail), so
+        # without this nothing pins that the wrapped param reaches the repr.
+        r = repr(OLSTransform(_param(2.0, 0.5, est_label=r"$\lambda$")))
+        assert "param=(" in r
+        assert "est=(2.0)" in r
+        assert r"est_label=($\lambda$)" in r
+        assert r.endswith(")")
+
 
 # ---------------------------------------------------------------------------
 # OLSResult
@@ -415,6 +523,9 @@ class TestOLSResult:
         r = _ols_result(nparams=2, r2=0.9)
         assert r.est_model is EstModel.OLS
         assert r.est_id == EST_ID
+        # r2 is stored as the raw float, not as the ParamEst its docstring and
+        # the OLS_R2 enum member promise -- see
+        # test_r2_is_the_param_est_row_its_type_is_declared_for.
         assert r.r2 == 0.9
         assert len(r.params) == 2
         assert r.const.param_type == "OLS_CONST"
@@ -431,6 +542,32 @@ class TestOLSResult:
         assert r.model == "ou-model"
         assert r.param_transforms == [half_life, lam]
         assert r.const_transform is mu
+
+    def test_set_transforms_replaces_rather_than_accumulates(self):
+        # set_transforms is a plain three-field assignment: a second call
+        # silently discards the first set instead of appending or raising.
+        r = _ols_result(nparams=1)
+        first = OLSTransform(_param(1.0, 0.1, param_type=OLSParamType.TRANS_PARAM.value))
+        second = OLSTransform(_param(2.0, 0.2, param_type=OLSParamType.TRANS_PARAM.value))
+        r.set_transforms("first-model", [first], OLSTransform(_param(0.1)))
+        r.set_transforms("second-model", [second], OLSTransform(_param(0.2)))
+        assert r.model == "second-model"
+        assert r.param_transforms == [second]
+        assert first not in r.param_transforms
+        assert r.const_transform.param.est == 0.2
+
+    def test_set_transforms_accepts_no_const_transform(self):
+        # A model with a slope transform but no constant transform (the OU
+        # half-life case with the offset left alone) passes const_transform=None;
+        # the field must go back to its constructor state and serialise as null.
+        r = _ols_result(nparams=1)
+        r.set_transforms("no-const", [OLSTransform(_param(30.1, 2.0))], None)
+        assert r.const_transform is None
+        assert r.model == "no-const"
+        assert len(r.param_transforms) == 1
+        loaded = json.loads(r.to_json())
+        assert loaded["const_transform"] is None
+        assert loaded["param_transforms"][0]["param"]["est"] == 30.1
 
     def test_to_json_before_transforms(self):
         r = _ols_result(nparams=2, r2=numpy.float64(0.87))   # statsmodels rsquared is a numpy scalar
@@ -478,10 +615,13 @@ class TestOLSResult:
         r = _ols_result(nparams=1, r2=0.9)
         s = str(r)
         assert not s.startswith("OLSEst(") and not s.startswith("OLSResult(")
-        assert repr(r) == f"OLSEst({s})"
-        assert s.startswith(f"est_id={EST_ID}, ")
-        assert "est_model=(EstModel.OLS)" in s
+        # Pin the field order and rendered values literally.  Comparing against
+        # f"OLSEst({s})" would only re-derive repr from the same private
+        # __props() that produced s, and so could not fail for any defect in it.
+        assert s.startswith(f"est_id={EST_ID}, est_model=(EstModel.OLS), const=(")
+        assert s.endswith("model=(None), const_transform=(None), param_transforms=(None)")
         assert "r2=(0.9)" in s
+        assert s.index("const=(") < s.index("params=(") < s.index("r2=(") < s.index("model=(None)")
 
     @pytest.mark.xfail(
         strict=True,
@@ -489,6 +629,20 @@ class TestOLSResult:
     )
     def test_repr_closes_params_parenthesis(self):
         assert "), r2=(" in repr(_ols_result())
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="OLSResult documents 'r2: ParamEst' (param_est.py:173) and OLSParamType carries an OLS_R2 "
+               "member for exactly that row, but __init__ stores the bare float statsmodels returns "
+               "(param_est.py:179,183) so r2 has no err/est_label/est_id and OLS_R2 is dead: grep over navi "
+               "finds it only in its own definition.  The r2 row is therefore the one OLS estimate that "
+               "cannot be persisted or plotted like the others",
+    )
+    def test_r2_is_the_param_est_row_its_type_is_declared_for(self):
+        r = _ols_result(r2=0.87)
+        assert isinstance(r.r2, ParamEst)
+        assert r.r2.param_type == OLSParamType.OLS_R2.value
+        assert r.r2.est == 0.87
 
 
 @pytest.mark.xfail(
@@ -526,29 +680,83 @@ class TestARMAEst:
         assert est.params == []
 
     def test_const_and_sigma2_labels(self):
-        est = _arma_est()
+        # AR_OFFSET is the type whose formula actually carries a μ* term, so it
+        # is the one for which the μ* const label can be pinned exactly.  The
+        # offset-free types get the same label anyway -- that contradiction is
+        # owned by test_const_label_is_not_claimed_for_offset_free_models.
+        est = _arma_est(ARMAEstType.AR_OFFSET)
         assert est.const.est_label == r"$\hat{\mu^*}$"
         assert est.const.err_label == r"$\sigma_{\hat{\mu^*}}$"
         assert est.sigma2.est_label == r"$\hat{\sigma^2}$"
         assert est.sigma2.err_label == r"$\sigma_{\hat{\sigma^2}}$"
 
+    @pytest.mark.parametrize("est_type", list(ARMAEstType), ids=lambda t: t.name)
+    def test_sigma2_labels_are_est_type_independent(self, est_type):
+        est = _arma_est(est_type)
+        assert est.sigma2.est_label == r"$\hat{\sigma^2}$"
+        assert est.sigma2.err_label == r"$\sigma_{\hat{\sigma^2}}$"
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="ARMAEst.__set_const_labels stamps '$\\hat{\\mu^*}$' unconditionally (param_est.py:331-333), "
+               "including for ARMAEstType.AR and MA whose own formula() carries no μ* term -- so the figure "
+               "legend advertises a constant the model does not have.  The consequence is in "
+               "lib/data/impl/arima.py:513, which takes result.params[0] as the const row for every est "
+               "type, offset or not",
+    )
+    @pytest.mark.parametrize("est_type", [ARMAEstType.AR, ARMAEstType.MA], ids=lambda t: t.name)
+    def test_const_label_is_not_claimed_for_offset_free_models(self, est_type):
+        est = _arma_est(est_type)
+        assert r"\mu^*" not in est_type.formula()      # premise: no offset in the model
+        assert r"\mu^*" not in (est.const.est_label or "")
+        assert r"\mu^*" not in (est.const.err_label or "")
+
     @pytest.mark.parametrize(
-        "est_type, expected_labels",
+        "est_type, symbol",
         [
-            (ARMAEstType.AR, [r"$\hat{\phi_{0}}$", r"$\hat{\phi_{1}}$"]),
-            (ARMAEstType.AR_OFFSET, [r"$\hat{\phi_{0}}$", r"$\hat{\phi_{1}}$"]),
-            (ARMAEstType.MA, [r"$\hat{\theta_{0}}$", r"$\hat{\theta_{1}}$"]),
-            (ARMAEstType.MA_OFFSET, [r"$\hat{\theta_{0}}$", r"$\hat{\theta_{1}}$"]),
+            (ARMAEstType.AR, r"\phi"),
+            (ARMAEstType.AR_OFFSET, r"\phi"),
+            (ARMAEstType.MA, r"\theta"),
+            (ARMAEstType.MA_OFFSET, r"\theta"),
         ],
         ids=lambda x: x.name if isinstance(x, ARMAEstType) else None,
     )
-    def test_param_labels_follow_est_type(self, est_type, expected_labels):
-        # Labels are indexed by position in ``params`` (0-based), independent of
-        # the 1-based ``order`` the estimators assign.
-        est = _arma_est(est_type, nparams=2)
-        assert [p.est_label for p in est.params] == expected_labels
-        symbol = r"\phi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
+    def test_param_labels_follow_est_type(self, est_type, symbol):
+        # What this owns: the est_type -> symbol dispatch (φ for the AR family,
+        # θ for the MA family), one label per parameter, all distinct and in
+        # parameter order.  The *index* inside each label is owned by
+        # test_param_label_index_matches_the_stored_order below, so fixing that
+        # off-by-one produces exactly one red test rather than five.
+        est = _arma_est(est_type, nparams=3)
+        labels = [p.est_label for p in est.params]
+        assert len(set(labels)) == len(labels) == 3
+        assert all(label.startswith(rf"$\hat{{{symbol}_{{") and label.endswith("}}$") for label in labels)
+        other = r"\theta" if symbol == r"\phi" else r"\phi"
+        assert all(other not in label for label in labels)
         assert all(p.err_label.startswith(r"$\sigma_{") and symbol in p.err_label for p in est.params)
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="ARMAEst.__set_params_labels (param_est.py:335-337) passes the 0-based position in "
+               "``params`` as the subscript, so the lag-1 coefficient is labelled φ̂_0 even though "
+               "lib/data/impl/arima.py:507-511 stores it with order=1 and ARMAEstType.formula() writes "
+               r"'\sum_{i=1}^p \varphi_i X_{t-i}'.  An AR(p) has no φ_0, and the label disagrees with the "
+               "order column it is displayed next to",
+    )
+    @pytest.mark.parametrize("est_type", list(ARMAEstType), ids=lambda t: t.name)
+    def test_param_label_index_matches_the_stored_order(self, est_type):
+        symbol = r"\phi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
+        est = _arma_est(est_type, nparams=2)
+        assert [p.order for p in est.params] == [1, 2]          # as the estimators store them
+        assert [p.est_label for p in est.params] == [rf"$\hat{{{symbol}_{{{p.order}}}}}$" for p in est.params]
+
+    def test_param_labels_are_currently_zero_based(self):
+        # Characterisation of the defect above, kept as the single green record
+        # of today's behaviour: the first parameter is labelled with 0 while its
+        # stored order is 1.
+        est = _arma_est(ARMAEstType.AR, nparams=2)
+        assert est.params[0].order == 1
+        assert est.params[0].est_label == r"$\hat{\phi_{0}}$"
 
     def test_constructor_overwrites_labels_on_passed_objects(self):
         const = _param(est_label="c", err_label="c-err")
@@ -556,7 +764,11 @@ class TestARMAEst:
         sigma2 = _param(est_label="s", err_label="s-err")
         ARMAEst(EST_ID, const, params, sigma2, ARMAEstType.MA)
         assert const.est_label == r"$\hat{\mu^*}$"
-        assert params[0].est_label == r"$\hat{\theta_{0}}$"
+        assert const.err_label != "c-err"
+        # Structural: the subscript is owned by
+        # test_param_label_index_matches_the_stored_order.
+        assert params[0].est_label.startswith(r"$\hat{\theta_{")
+        assert params[0].err_label.startswith(r"$\sigma_{")
         assert sigma2.est_label == r"$\hat{\sigma^2}$"
 
     def test_to_json(self):
@@ -610,8 +822,9 @@ class TestVAREst:
         n, m = 2, 2
         est, Φ, Ω = _var_est(n=n, m=m)
         loaded = json.loads(est.to_json())
-        # NB: no "est_id" -- unlike ParamEst/OLSResult/ARMAEst.  See
-        # test_container_carries_est_id for that gap.
+        # NB: no top-level "est_id" -- unlike ParamEst/OLSResult/ARMAEst.  The
+        # join key still travels on every nested row; see
+        # test_var_and_vecm_rows_share_one_est_id_join_key.
         assert set(loaded) == {"est_model", "const", "order", "params", "omega"}
         assert loaded["est_model"] == "VAR"
         assert all(p["param_type"] == "VAR_OMEGA" for p in loaded["omega"])
@@ -664,23 +877,28 @@ class TestVECMEst:
         assert {p.param_type for p in est.beta_est} == {"VECM_BETA"}
         assert {p.param_type for p in est.a_est} == {"VECM_ALPHA"}
         assert {p.param_type for p in est.const} == {"VECM_CONST"}
-        # BUG (see TestVECMParamType.test_vecm_omega_value_matches_name): the
-        # blast radius of VECM_OMEGA == "VAR_OMEGA" is right here -- VECM
-        # covariance rows carry the VAR type string, so once persisted they are
-        # indistinguishable from the VAR_OMEGA rows of TestVAREst.test_constructor.
-        assert {p.param_type for p in est.omega} == {"VAR_OMEGA"}
+        # The omega rows carry whatever VECMParamType.VECM_OMEGA's value is --
+        # today the wrong string "VAR_OMEGA", which is owned by
+        # TestVECMParamType.test_vecm_omega_value_matches_name.  Asserting it
+        # through the enum keeps that defect to one red test while still
+        # proving the type reaches the container unaltered.
+        # (Its blast radius while unfixed: persisted VECM covariance rows are
+        # stamped with the VAR type string and so are indistinguishable from the
+        # VAR_OMEGA rows of TestVAREst.test_constructor.)
+        assert {p.param_type for p in est.omega} == {VECMParamType.VECM_OMEGA.value}
 
     def test_to_json(self):
         neq, rank, order = 2, 1, 2
         est = _vecm_est(neq=neq, rank=rank, order=order)
         loaded = json.loads(est.to_json())
-        # NB: no "est_id" -- unlike ParamEst/OLSResult/ARMAEst.  See
-        # test_container_carries_est_id for that gap.
+        # NB: no top-level "est_id" -- unlike ParamEst/OLSResult/ARMAEst.  The
+        # join key still travels on every nested row; see
+        # test_var_and_vecm_rows_share_one_est_id_join_key.
         assert set(loaded) == {"est_model", "rank", "const", "order", "lambda_est", "beta_est", "a_est", "omega"}
         assert loaded["est_model"] == "VECM"
-        # Serialised VECM covariance rows are stamped "VAR_OMEGA" -- the
-        # persisted form of the VECM_OMEGA defect.
-        assert {p["param_type"] for p in loaded["omega"]} == {"VAR_OMEGA"}
+        # Serialised through the enum, not the literal, so the VECM_OMEGA value
+        # defect stays owned by test_vecm_omega_value_matches_name alone.
+        assert {p["param_type"] for p in loaded["omega"]} == {VECMParamType.VECM_OMEGA.value}
         assert (loaded["rank"], loaded["order"]) == (rank, order)
         assert len(loaded["lambda_est"]) == neq * rank
         assert len(loaded["beta_est"]) == neq * rank
@@ -775,33 +993,32 @@ def _pretty_indent(obj) -> int:
 )
 def test_pretty_json_indent_width(factory, indent):
     # Pinned because the widths disagree across the module: ParamEst and
-    # OLSTransform pass indent=4 while the four composite results pass an odd
-    # indent=3.  Merely asserting "a newline exists" hides that entirely.
+    # OLSTransform pass indent=4 (param_est.py:74,123) while the four composite
+    # results pass indent=3 (:207,:312,:403,:480).  Merely asserting "a newline
+    # exists" hides that entirely.  It is a cosmetic inconsistency and nothing
+    # more: json.dumps applies one indent to a whole tree and to_json is never
+    # called on a nested object, so a ParamEst inside an OLSResult renders at
+    # the container's width (3), not at its own -- there is no defect to xfail
+    # here, only two top-level styles.
     assert _pretty_indent(factory()) == indent
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="to_json(pretty=True) indent width is inconsistent: ParamEst/OLSTransform use indent=4 "
-           "while OLSResult/ARMAEst/VAREst/VECMEst use indent=3, so a nested ParamEst re-indents "
-           "at a different width than the container that holds it",
-)
-def test_pretty_json_indent_is_consistent_across_the_module():
-    widths = {_pretty_indent(factory.values[0]()) for factory in ALL_SERIALISABLE}
-    assert len(widths) == 1
+def test_nested_objects_use_their_containers_indent():
+    # The corollary that makes the width difference harmless: within one
+    # document the indent is uniform, so the nested ParamEst rows of an
+    # OLSResult step by the container's 3, never by ParamEst's own 4.
+    pretty = _ols_result(nparams=1).to_json(pretty=True).split("\n")
+    nested = [line for line in pretty if line.lstrip().startswith('"est":')]
+    assert nested, "expected the const/params rows to appear in the pretty output"
+    assert {len(line) - len(line.lstrip(" ")) for line in nested} == {6, 9}  # 2 x 3 and 3 x 3
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ParamEst.__props omits the closing ')' after err, so every repr that embeds a ParamEst "
-           "(all of them) is paren-unbalanced; OLSResult.__props adds a second imbalance after params",
-)
-@pytest.mark.parametrize("factory", ALL_SERIALISABLE)
-def test_repr_parentheses_are_balanced(factory):
-    # Generalises the two targeted xfails (ParamEst err, OLSResult params): any
-    # newly introduced "field=(" without its closing paren fails here too.
-    r = repr(factory())
-    assert r.count("(") == r.count(")")
+# The paren imbalance every repr in the module inherits has exactly two root
+# causes -- the missing ')' after ParamEst's err and after OLSResult's params.
+# Both are owned by targeted strict xfails (TestParamEst.test_repr_closes_err_
+# parenthesis, TestOLSResult.test_repr_closes_params_parenthesis); a generalised
+# "count('(') == count(')')" sweep over all six classes would only restate those
+# two defects six more times and turn five extra tests red on the one-line fix.
 
 
 @pytest.mark.parametrize(
@@ -831,58 +1048,92 @@ def test_arma_est_type_repr_renders_enum_dunder_form_while_json_renders_value():
 
 
 @pytest.mark.parametrize(
-    "factory",
-    [
-        pytest.param(lambda: _param(), id="ParamEst"),
-        pytest.param(
-            _ols_result, id="OLSResult",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="OLSResult.__props emits a bare 'est_id={...}' while ParamEst.__props emits "
-                       "'est_id=({...})'; the est_id field is the only one in the repr without parens",
-            ),
-        ),
-        pytest.param(
-            _arma_est, id="ARMAEst",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="ARMAEst.__props emits a bare 'est_id={...}' while ParamEst.__props emits "
-                       "'est_id=({...})'; the est_id field is the only one in the repr without parens",
-            ),
-        ),
-    ],
+    "factory", [pytest.param(_ols_result, id="OLSResult"), pytest.param(_arma_est, id="ARMAEst")]
 )
-def test_est_id_repr_formatting_matches_every_other_field(factory):
-    r = repr(factory())
-    assert f"est_id=({EST_ID})" in r
-    # The bare form can only come from the container's own __props -- a nested
-    # ParamEst always renders "est_id=(...)".
-    assert f"est_id={EST_ID}" not in r
+def test_container_repr_carries_the_est_id(factory):
+    # OLSResult/ARMAEst render est_id bare ("est_id=<id>") where ParamEst wraps
+    # it ("est_id=(<id>)").  That difference is cosmetic -- nothing parses these
+    # reprs -- so it is recorded here rather than as a strict xfail that would
+    # fire on any incidental repr tidy-up.  What matters, and what is asserted,
+    # is that the id reaches the repr at all.
+    assert EST_ID in repr(factory())
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="VAREst and VECMEst carry no est_id attribute (ParamEst/OLSResult/ARMAEst all do), so the "
-           "serialised container cannot be joined back to its estimate even though every ParamEst row "
-           "it holds carries est_id",
-)
 @pytest.mark.parametrize(
     "factory", [pytest.param(lambda: _var_est()[0], id="VAREst"), pytest.param(_vecm_est, id="VECMEst")]
 )
-def test_container_carries_est_id(factory):
+def test_var_and_vecm_rows_share_one_est_id_join_key(factory):
+    # VAREst/VECMEst carry no est_id attribute of their own, unlike
+    # ParamEst/OLSResult/ARMAEst -- but that does NOT orphan the serialised
+    # container: lib.data.impl.var and .vecm stamp the same uuid on every row
+    # they build, so the join key is present on each record.  A top-level copy
+    # would be redundant, which is why this is a green contract test and not an
+    # xfail: what has to hold is that all the rows agree on one id.
     obj = factory()
-    assert hasattr(obj, "est_id")
-    assert "est_id" in json.loads(obj.to_json())
+    loaded = json.loads(obj.to_json())
+    rows = [row for value in loaded.values() if isinstance(value, list) for row in value]
+    assert len(rows) >= 8
+    assert {row["est_id"] for row in rows} == {EST_ID}
+    # The container itself has no est_id field to disagree with them.
+    assert "est_id" not in loaded
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="only ParamEst defines from_dict; OLSResult/ARMAEst/VAREst/VECMEst serialise one way, so a "
-           "persisted composite estimate result cannot be rehydrated from its own JSON",
-)
-@pytest.mark.parametrize("cls", [OLSResult, ARMAEst, VAREst, VECMEst], ids=lambda c: c.__name__)
-def test_composite_results_round_trip_through_from_dict(cls):
-    assert hasattr(cls, "from_dict")
+def test_var_mathtext_labels_survive_serialisation():
+    # The labels lib.data.impl.var stamps are backslash-heavy mathtext, and
+    # JSON has to escape every backslash: the interesting failure is a label
+    # arriving at the plot layer as "$\\hat{\\Phi}$" or with the backslashes
+    # eaten.  Assert on the raw text as well as on the parsed document.
+    est, _, _ = _var_est(n=2, m=2)
+    text = est.to_json()
+    assert r'"est_label": "$\\hat{\\Phi}$"' in text        # escaped on the wire
+    loaded = json.loads(text)
+    for field, (est_label, err_label) in VAR_LABELS.items():
+        assert {row["est_label"] for row in loaded[field]} == {est_label}
+        assert {row["err_label"] for row in loaded[field]} == {err_label}
+        assert "\\\\" not in est_label                     # ... but not once parsed
+    assert loaded["params"][0]["est_label"] == r"$\hat{\Phi}$"
+
+
+def test_vecm_mathtext_labels_survive_serialisation():
+    est = _vecm_est(neq=2, rank=1, order=2)
+    loaded = json.loads(est.to_json())
+    for field, (est_label, err_label) in VECM_LABELS.items():
+        assert {row["est_label"] for row in loaded[field]} == {est_label}
+        assert {row["err_label"] for row in loaded[field]} == {err_label}
+    # λ and β must stay distinguishable after the round trip -- they share
+    # (row, column) addressing and differ only by label and param_type.
+    assert loaded["lambda_est"][0]["est_label"] != loaded["beta_est"][0]["est_label"]
+    assert ParamEst.from_dict(loaded["lambda_est"][0]).est_label == r"$\hat{\lambda}$"
+
+
+@pytest.mark.parametrize("factory", ALL_SERIALISABLE)
+def test_every_param_est_row_rehydrates_through_param_est_from_dict(factory):
+    # ParamEst.from_dict is the module's ONLY rehydrator -- the composite
+    # results serialise one way by design (lib.data.impl.* build them from
+    # statsmodels results and only ever call ParamEst.from_dict, e.g.
+    # arima.py:507,513,517 and stats.py:867,877).  So the round trip that has to
+    # hold is per row: every ParamEst-shaped record in any container's JSON
+    # rebuilds into an identical ParamEst, labels and all.
+    obj = factory()
+    loaded = json.loads(obj.to_json())
+
+    def rows(node):
+        if isinstance(node, dict):
+            if set(node) == PARAM_KEYS:
+                yield node
+            else:
+                for value in node.values():
+                    yield from rows(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from rows(value)
+
+    found = list(rows(loaded))
+    assert found, "expected at least one ParamEst row in the serialised form"
+    for row in found:
+        restored = ParamEst.from_dict(row)
+        assert restored.__dict__ == row
+        assert json.loads(restored.to_json()) == row
 
 
 # ---------------------------------------------------------------------------
@@ -916,4 +1167,46 @@ def test_arma_est_defaults_to_ar():
     # the AR default is what decides the φ (rather than θ) parameter labels.
     est = ARMAEst(EST_ID, _param(), [_param(), _param()], _param())
     assert est.arma_est_type is ARMAEstType.AR
-    assert [p.est_label for p in est.params] == [r"$\hat{\phi_{0}}$", r"$\hat{\phi_{1}}$"]
+    # φ (not θ) is the point; the subscripts are owned by
+    # test_param_label_index_matches_the_stored_order.
+    assert all(p.est_label.startswith(r"$\hat{\phi_{") for p in est.params)
+    assert est.params[0].est_label != est.params[1].est_label
+    assert json.loads(est.to_json())["arma_est_type"] == "AR"
+
+
+# ---------------------------------------------------------------------------
+# Module import hygiene
+#
+# param_est is a pure data-container module: enums, five plain result objects
+# and json.dumps.  Everything it imports at module scope is paid for by every
+# consumer -- the plot layer, the database layer and the notebooks all import it
+# long before any estimator runs.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="param_est.py:1 `import numpy` and :4 `import uuid` are never used -- neither name appears "
+           "anywhere else in the module",
+)
+@pytest.mark.parametrize("name", ["numpy", "uuid"])
+def test_module_level_imports_are_used(name):
+    source = inspect.getsource(param_est_module)
+    # >1 occurrence: the import statement itself, plus at least one use.
+    assert source.count(name) > 1
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="param_est.py:6 `from statsmodels.tsa.vector_ar.var_model import LagOrderResults` is unused "
+           "(the name appears nowhere else in the module) yet forces every consumer of this pure "
+           "data-container module -- plots, database layer, notebooks -- to import the whole of "
+           "statsmodels before it can hold a ParamEst",
+)
+def test_importing_param_est_does_not_pull_in_statsmodels():
+    code = (
+        "import sys; import lib.data.param_est; "
+        "print('statsmodels' if 'statsmodels' in sys.modules else 'clean')"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == "clean"

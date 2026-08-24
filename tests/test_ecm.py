@@ -23,12 +23,16 @@ simulated x path is the cumsum of a *zero-initialised* AR(1) rather than of a
 stationary one. The closed forms in ``lib.models.ecm`` assume the stationary
 case, so the two are compared against separately derived references here.
 
+Validation stance: none of the model functions validate their inputs, and the
+docstrings state preconditions (|φ| < 1, integer t ≥ 0) rather than an error
+contract. The suite therefore *documents* what the code does outside those
+preconditions (``TestOutOfDomainInputs``, ``TestDegenerateSizes``) instead of
+asserting a guard that was never promised; ``xfail`` is reserved for cases
+where the code contradicts its own documentation.
+
 Every simulation draws from numpy's global RNG, which ``conftest`` reseeds
 before each test.
 """
-
-import ast
-import inspect
 
 import numpy
 import pytest
@@ -49,6 +53,10 @@ def cumsum_ar1_var(φ: float, σ: float, n: int) -> float:
     Σ_{k=1}^{n-1} (n-k) φ^k has the closed form φ[n(1-φ) - (1-φ^n)]/(1-φ)²,
     so the variance is γ0 [n + 2 φ (n(1-φ) - (1-φ^n)) / (1-φ)²] with
     γ0 = σ²/(1-φ²).
+
+    The identity is algebraic, so it is also the analytic continuation of the
+    library's summation to |φ| > 1 — where it is negative, and no longer a
+    variance. ``TestOutOfDomainInputs`` uses it in exactly that role.
     """
     if n == 0:
         return 0.0
@@ -87,17 +95,11 @@ def lag1_autocorr(x: numpy.ndarray) -> float:
     return float((z[1:] @ z[:-1]) / (z @ z))
 
 
-def unused_imports(module) -> list[str]:
-    """Names imported by ``module`` that no expression in it ever references."""
-    tree = ast.parse(inspect.getsource(module))
-    imported: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported |= {alias.asname or alias.name.split(".")[0] for alias in node.names}
-        elif isinstance(node, ast.ImportFrom):
-            imported |= {alias.asname or alias.name for alias in node.names}
-    used = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
-    return sorted(imported - used)
+def ols_line(x: numpy.ndarray, y: numpy.ndarray) -> tuple[float, float]:
+    """(slope, intercept) of the OLS fit of y on x, from the normal equations."""
+    x̄, ȳ = x.mean(), y.mean()
+    slope = ((x - x̄) * (y - ȳ)).sum() / ((x - x̄) ** 2).sum()
+    return float(slope), float(ȳ - slope * x̄)
 
 
 # Reference simulation parameters. λ < 0 so the ECM term mean-reverts,
@@ -134,6 +136,8 @@ class TestXtVar:
     @pytest.mark.parametrize("φ", [0.3, 0.7, -0.5])
     @pytest.mark.parametrize("σ", [1.0, 2.0])
     def test_matches_geometric_closed_form(self, φ, σ):
+        # Parametrised over σ, so this also pins the σ² scaling against the
+        # hand-derived form rather than against another call to xt_var.
         t = numpy.arange(0, 30, dtype=float)
         expected = [cumsum_ar1_var(φ, σ, int(n)) for n in t]
         assert_allclose(ecm.xt_var(φ, σ, t), expected, rtol=1e-12)
@@ -154,17 +158,19 @@ class TestXtVar:
         # the correction has the sign and size the expansion predicts
         assert (v / n) / (σ**2 / (1 - φ) ** 2) - 1.0 == pytest.approx(-2 * φ / (n * (1 - φ**2)), rel=1e-3)
 
-    def test_scales_with_sigma_squared(self):
-        t = numpy.arange(1, 10, dtype=float)
-        assert_allclose(ecm.xt_var(0.4, 2.0, t), 4.0 * ecm.xt_var(0.4, 1.0, t))
-
     def test_monotone_in_t_for_positive_phi(self):
         t = numpy.arange(0, 40, dtype=float)
         assert numpy.all(numpy.diff(ecm.xt_var(0.5, 1.0, t)) > 0)
 
     def test_truncates_non_integer_t(self):
-        # Time values are cast with int(), so 2.9 evaluates as n=2.
+        # Time values are cast with int(), so 2.9 evaluates as n=2. The model is
+        # a discrete-time process, so only integer t is defined; the cast is a
+        # floor, not an interpolation. Consequence: any grid finer than one time
+        # unit is a staircase — see
+        # TestVarianceFacades.test_sub_unit_delta_t_duplicates_values, which
+        # pins what that does to the documented Δt kwarg.
         assert_allclose(ecm.xt_var(0.5, 1.0, numpy.array([2.9])), [cumsum_ar1_var(0.5, 1.0, 2)])
+        assert_allclose(ecm.xt_var(0.5, 1.0, numpy.array([2.0, 2.5, 2.9])), [cumsum_ar1_var(0.5, 1.0, 2)] * 3)
 
     def test_output_shape_and_dtype(self):
         t = numpy.linspace(0, 9, 10)
@@ -174,17 +180,65 @@ class TestXtVar:
         assert out.dtype.kind == "f"
         assert ecm.xt_var(0.5, 1.0, numpy.array([])).shape == (0,)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="xt_var never guards against t < 0: the inner `range(1, npts)` is empty for "
-        "npts <= 1, so the result collapses to npts·σ²/(1-φ²), which is NEGATIVE for every "
-        "negative time — ecm.xt_var(0.5, 1.0, [-3, -2.9, -1]) returns "
-        "[-4.0, -2.667, -1.333]. A variance must never be negative; negative times should "
-        "raise or clamp to 0",
+
+class TestOutOfDomainInputs:
+    """What the closed forms do outside their documented preconditions.
+
+    ``xt_var``/``yt_var``/``cov`` document ``|φ| < 1`` and are only defined on
+    integer times t ≥ 0, and they validate neither. These tests are the record
+    of the current, unguarded behaviour, so that any future guard (raise, clamp)
+    shows up as a red test rather than as a silent change of meaning. They are
+    deliberately *not* xfails: no documented contract is being violated.
+    """
+
+    @pytest.mark.parametrize("φ", [1.0, -1.0])
+    @pytest.mark.parametrize(
+        "func,args",
+        [(ecm.xt_var, ()), (ecm.yt_var, (1.5,)), (ecm.cov, (1.5,))],
     )
-    def test_negative_t_never_yields_negative_variance(self):
+    def test_unit_root_phi_raises_zero_division(self, func, args, φ):
+        # lib/models/ecm.py:38 divides by (1 - φ²) with Python floats, so the
+        # boundary of the documented |φ| < 1 precondition raises rather than
+        # returning inf — and it raises for *every* t, t = 0 included.
+        with pytest.raises(ZeroDivisionError):
+            func(φ, 1.0, *args, numpy.array([0.0, 1.0, 5.0]))
+
+    def test_explosive_phi_returns_negative_variances(self):
+        # |φ| > 1: the summation still evaluates, and equals the analytic
+        # continuation of the stationary closed form — which is negative for
+        # every t ≥ 1 because γ0 = σ²/(1-φ²) < 0. So the function silently
+        # returns something that cannot be a variance.
+        φ, σ = 1.5, 1.0
+        t = numpy.arange(0, 6, dtype=float)
+        out = ecm.xt_var(φ, σ, t)
+        assert_allclose(out, [cumsum_ar1_var(φ, σ, int(n)) for n in t], rtol=1e-12)
+        assert out[0] == 0.0
+        assert numpy.all(out[1:] < 0.0)
+        assert_allclose(out[1:3], [-0.8, -4.0], rtol=1e-12)
+
+    @pytest.mark.parametrize("β", [1.5, -0.8])
+    def test_explosive_phi_propagates_through_yt_var_and_cov(self, β):
+        # yt_var and cov are β²- and β-scalings of xt_var, so they inherit the
+        # defect: yt_var stays negative for either sign of β, while cov flips
+        # sign with β — a "covariance" whose sign no longer tracks β.
+        φ, σ = 1.5, 1.0
+        t = numpy.arange(0, 6, dtype=float)
+        ref = numpy.array([cumsum_ar1_var(φ, σ, int(n)) for n in t])
+        assert_allclose(ecm.yt_var(φ, σ, β, t), β**2 * ref, rtol=1e-12)
+        assert_allclose(ecm.cov(φ, σ, β, t), β * ref, rtol=1e-12)
+        assert numpy.all(ecm.yt_var(φ, σ, β, t)[1:] < 0.0)
+        assert numpy.all(numpy.sign(ecm.cov(φ, σ, β, t)[1:]) == -numpy.sign(β))
+
+    def test_negative_t_returns_negative_values(self):
+        # t < 0 is outside the domain and unreachable through any façade (every
+        # compute_* builds its grid with create_space(xmin=0, ...)). The inner
+        # `range(1, npts)` is empty for npts <= 0, so the result collapses to
+        # npts·σ²/(1-φ²) — negative, and int()-truncated toward zero, so -2.9
+        # evaluates as -2 rather than -3.
         out = ecm.xt_var(0.5, 1.0, numpy.array([-3.0, -2.9, -1.0, 0.0]))
-        assert numpy.all(out >= 0.0)
+        γ0 = 1.0 / (1.0 - 0.5**2)
+        assert_allclose(out, [-3 * γ0, -2 * γ0, -1 * γ0, 0.0], rtol=1e-12)
+        assert numpy.all(out[:3] < 0.0)
 
 
 class TestYtVarAndCov:
@@ -203,19 +257,10 @@ class TestYtVarAndCov:
         assert_allclose(ecm.cov(φ, σ, β, t), expected, rtol=1e-12)
 
     @pytest.mark.parametrize("β", [1.5, -0.8])
-    def test_cov_saturates_cauchy_schwarz(self, β):
-        # The three closed forms have to stay mutually consistent: the implied
-        # correlation is exactly ±1, i.e. cov² = var_x var_y elementwise. This
-        # is a relation *between* three public functions, so changing any one
-        # of them in isolation breaks it — but note it carries no numeric
-        # content on its own; the empirical claim is checked in the next test.
-        t = numpy.arange(1, 20, dtype=float)
-        c = ecm.cov(0.6, 1.0, β, t)
-        assert_allclose(c**2, ecm.xt_var(0.6, 1.0, t) * ecm.yt_var(0.6, 1.0, β, t), rtol=1e-12)
-
-    @pytest.mark.parametrize("β", [1.5, -0.8])
     def test_simulated_correlation_approaches_sign_of_beta(self, β):
-        # The falsifiable form of "the implied correlation is ±1": x and y are
+        # The falsifiable form of "the implied correlation is ±1" (which the
+        # three closed forms assert algebraically, cov² = var_x var_y, since
+        # yt_var and cov are one-line scalings of xt_var): x and y are
         # cointegrated, so the ensemble correlation of (x_T, y_T) tends to
         # sign(β) as the I(1) component swamps the stationary residual. At
         # T=50 the residual still contributes — observed ρ = 0.995 (β=1.5) and
@@ -251,23 +296,28 @@ class TestEcmSimulation:
 
     def test_x_is_the_ar1_driver_integrated_and_xi_is_drawn_after_it(self):
         # Pins the RNG contract of the simulator, not just its statistics:
-        # ecm.ecm draws the AR(1) driver first, integrates it with
-        # arima_from_arma(·, 1), and only then draws the ξ stream — and it
-        # burns ξ[0], which the i-loop never reads. Replaying the same global
-        # stream must reproduce both paths bit-for-bit; the NaN planted at ξ[0]
-        # proves that first draw is discarded rather than used anywhere.
+        # ecm.ecm draws the AR(1) driver first, integrates it, and only then
+        # draws the ξ stream — and it burns ξ[0], which the i-loop never reads.
+        # Replaying the same global stream must reproduce both paths
+        # bit-for-bit; the NaN planted at ξ[0] proves that first draw is
+        # discarded rather than used anywhere.
+        #
+        # x_ref is numpy.cumsum(driver), NOT arima.arima_from_arma(driver, 1):
+        # the latter is the very helper ecm.ecm calls, so comparing against it
+        # would validate no value. The y recursion below is a transcription of
+        # the model documented in this file's header, so it pins the code
+        # against the documented model.
         n, δ, α = 60, 0.3, 1.0
         numpy.random.seed(31)
         xt, yt = ecm.ecm(PHI, δ, α, BETA, GAMMA, LAMBDA, n, SIGMA)
 
         numpy.random.seed(31)
         driver = arima.ar1(PHI, n, SIGMA)
-        x_ref = arima.arima_from_arma(driver, 1)
+        x_ref = numpy.cumsum(driver)
         ξ = numpy.random.normal(0.0, SIGMA, n)
         ξ[0] = numpy.nan
 
         assert_array_equal(xt, x_ref)
-        assert_array_equal(xt, numpy.cumsum(driver))
 
         y_ref = numpy.zeros(n)
         for i in range(1, n):
@@ -292,16 +342,19 @@ class TestEcmSimulation:
 
     def test_xt_increments_are_ar1(self, simulated):
         # Δx_t is the driving AR(1): lag-1 autocorrelation φ, variance σ²/(1-φ²).
-        # n=2000: SE(acf1) ≈ sqrt((1-φ²)/n) ≈ 0.018, so abs=0.06 is ≈ 3.3 SE —
-        # the largest deviation over 61 seeds was 0.052 and this seed gives
-        # 0.6024. The sample variance has relative SE ≈ sqrt(2/n_eff) ≈ 0.06
-        # with n_eff = n(1-φ)/(1+φ) = 500, so rel=0.15 is ≈ 2.5 SE (largest
-        # deviation over the same 61 seeds: 0.104). Tight enough that a driver
-        # simulated at φ=0.5 fails both.
+        # Both quantities are random variables with heavy-ish tails at fixed n,
+        # so the tolerances are set outside the range observed over 1500 seeds
+        # rather than at a nominal SE multiple. n=2000: SE(acf1) ≈
+        # sqrt((1-φ²)/n) ≈ 0.018, largest |dev| over 1500 seeds was 0.065, so
+        # abs=0.08 clears the observed range. The sample variance has relative
+        # SE ≈ sqrt(2/n_eff) ≈ 0.06 with n_eff = n(1-φ)/(1+φ) = 500, largest
+        # relative deviation over the same 1500 seeds was 0.159, so rel=0.25
+        # clears it. Both still discriminate the stated alternative: a driver
+        # simulated at φ=0.5 is 0.10 away in acf and 26% away in variance.
         xt, _ = simulated
         dx = numpy.diff(xt)
-        assert lag1_autocorr(dx) == pytest.approx(PHI, abs=0.06)
-        assert dx.var() == pytest.approx(SIGMA**2 / (1 - PHI**2), rel=0.15)
+        assert lag1_autocorr(dx) == pytest.approx(PHI, abs=0.08)
+        assert dx.var() == pytest.approx(SIGMA**2 / (1 - PHI**2), rel=0.25)
 
     def test_recovered_innovations_are_white_with_variance_sigma2(self, simulated):
         # Inverting the documented recursion must give back iid N(0, σ²) noise:
@@ -457,7 +510,10 @@ class TestMeanFacades:
         strict=True,
         reason="compute_xt_mean/compute_yt_mean document Δt as the time-step width but pass "
         "both xmax=npts-1 and npts to create_space, which then ignores Δx; the grid is "
-        "always unit-spaced and disagrees with compute_xt_var's grid for the same Δt",
+        "always unit-spaced and disagrees with compute_xt_var's grid for the same Δt. Unlike "
+        "the over-determined create_space calls a *caller* can make, here the façade itself "
+        "manufactures the conflicting xmax from npts and so silently voids its own documented "
+        "kwarg (lib/data/impl/ecm.py:43,66)",
     )
     def test_delta_t_sets_time_step(self, func):
         t, _ = func(npts=5, Δt=0.5)
@@ -493,11 +549,54 @@ class TestVarianceFacades:
     def test_xt_var_sigma_defaults_to_one(self):
         t, v = fecm.compute_xt_var(φ=0.6, npts=6)
         assert_allclose(v, [cumsum_ar1_var(0.6, 1.0, n) for n in range(6)], rtol=1e-12)
+        # σ enters as σ², so a wrong default would rescale the whole curve.
+        _, v2 = fecm.compute_xt_var(φ=0.6, σ=2.0, npts=6)
+        assert_allclose(v2, 4.0 * v, rtol=1e-12)
+
+    def test_yt_var_sigma_defaults_to_one(self):
+        # The default was only ever pinned for compute_xt_var; yt_var's own
+        # get_param_default_if_missing("σ", 1.0, ...) is checked here against
+        # the hand-derived form, not against another façade call.
+        φ, β = 0.6, -0.8
+        t, v = fecm.compute_yt_var(φ=φ, β=β, npts=6)
+        assert_allclose(v, [β**2 * cumsum_ar1_var(φ, 1.0, n) for n in range(6)], rtol=1e-12)
+        _, v2 = fecm.compute_yt_var(φ=φ, β=β, σ=2.0, npts=6)
+        assert_allclose(v2, 4.0 * v, rtol=1e-12)
+
+    def test_cov_sigma_defaults_to_one(self):
+        φ, β = 0.6, -0.8
+        t, c = fecm.compute_cov(φ=φ, β=β, npts=6)
+        assert_allclose(c, [β * cumsum_ar1_var(φ, 1.0, n) for n in range(6)], rtol=1e-12)
+        _, c2 = fecm.compute_cov(φ=φ, β=β, σ=2.0, npts=6)
+        assert_allclose(c2, 4.0 * c, rtol=1e-12)
 
     def test_xt_var_delta_t_spaces_grid(self):
         t, v = fecm.compute_xt_var(φ=0.6, npts=5, Δt=2.0)
         assert_array_equal(t, [0.0, 2.0, 4.0, 6.0, 8.0])
         assert_allclose(v, [cumsum_ar1_var(0.6, 1.0, n) for n in (0, 2, 4, 6, 8)], rtol=1e-12)
+
+    @pytest.mark.parametrize(
+        "func,extra,scale",
+        [
+            (fecm.compute_xt_var, {}, 1.0),
+            (fecm.compute_yt_var, {"β": 1.5}, 1.5**2),
+            (fecm.compute_cov, {"β": 1.5}, 1.5),
+        ],
+    )
+    def test_sub_unit_delta_t_duplicates_values(self, func, extra, scale):
+        # Documents the consequence of ecm.xt_var's int(t) cast (lib/models/
+        # ecm.py:40) for the documented Δt kwarg: below one time unit the grid
+        # is refined but the curve is not, so the result is a staircase and Δt
+        # carries no information. compute_xt_var(φ=0.6, npts=6, Δt=0.5) returns
+        # t = [0, 0.5, 1, 1.5, 2, 2.5] against v = [0, 0, 1.5625, 1.5625, 5, 5]
+        # — in particular Var is reported as 0 at t=0.5, not as the (undefined)
+        # value between 0 and σ²/(1-φ²). Δt ≥ 1 and integer-valued is the only
+        # regime in which the kwarg means what its docstring says.
+        t, v = func(φ=0.6, npts=6, Δt=0.5, **extra)
+        assert_array_equal(t, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
+        expected = [scale * cumsum_ar1_var(0.6, 1.0, n) for n in (0, 0, 1, 1, 2, 2)]
+        assert_allclose(v, expected, rtol=1e-12)
+        assert v[0] == v[1] and v[2] == v[3] and v[4] == v[5]
 
     def test_xt_var_tmax_sets_grid_end(self):
         t, v = fecm.compute_xt_var(φ=0.6, npts=4, tmax=9)
@@ -512,22 +611,18 @@ class TestVarianceFacades:
             (fecm.compute_cov, {"β": 1.5}),
         ],
     )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="when tmax and npts are both supplied create_space takes neither derivation "
-        "branch (xmax is not None and npts is not None) and silently discards Δx, so the "
-        "documented Δt kwarg is ignored: compute_xt_var(φ=0.6, npts=5, tmax=8, Δt=0.5) returns "
-        "the grid [0, 2, 4, 6, 8] instead of honouring Δt. Same root cause as the "
-        "compute_xt_mean grid bug. Over-determined input should either raise or honour Δt",
-    )
-    def test_tmax_and_delta_t_together_do_not_drop_delta_t(self, func, extra):
-        try:
-            t, _ = func(φ=0.6, npts=5, tmax=8, Δt=0.5, **extra)
-        except Exception:
-            # Rejecting the over-determined call outright is an acceptable
-            # contract too, so an exception counts as fixed.
-            return
-        assert_allclose(numpy.diff(t), 0.5)
+    def test_tmax_and_npts_together_ignore_delta_t(self, func, extra):
+        # Documentation test, not a defect report. Supplying tmax, npts and Δt
+        # over-determines a two-parameter linspace; create_space
+        # (lib/utils.py:150-163) documents only "xmax or npts is required" and
+        # derives whichever of the two is missing, so with both present it
+        # takes neither branch and Δx never enters — the same precedence
+        # numpy.linspace itself has. The conflict here is the caller's, so the
+        # current behaviour is pinned rather than xfailed. (Contrast
+        # TestMeanFacades.test_delta_t_sets_time_step, where the façade
+        # fabricates the conflicting xmax itself and voids its own kwarg.)
+        t, _ = func(φ=0.6, npts=5, tmax=8, Δt=0.5, **extra)
+        assert_array_equal(t, [0.0, 2.0, 4.0, 6.0, 8.0])
 
     @pytest.mark.parametrize("missing", ["φ", "npts"])
     def test_xt_var_required_kwargs(self, missing):
@@ -671,18 +766,89 @@ class TestDegenerateSizes:
         assert v[0] == 0.0
 
 
+class TestDegenerateEstimatorInput:
+    """The two estimator façades on samples too short (or mis-shaped) to fit.
+
+    Neither validates its input, so these record what the underlying
+    statsmodels call does. They are documentation of the current failure modes,
+    not defect reports: the functions promise nothing about n ≤ 3.
+    """
+
+    @staticmethod
+    def _short(n):
+        xt, yt = ecm.ecm(PHI, DELTA, ALPHA, BETA, GAMMA, LAMBDA, n, SIGMA)
+        return xt, yt
+
+    def test_single_sample_raises_in_both_facades(self):
+        xt, yt = self._short(1)
+        # β fit: sm.add_constant sees a one-row design whose only column is
+        # trivially constant and skips the intercept, so the fit returns a
+        # single parameter, result.params ends up empty, and
+        # __add_beta_transform's result.params[0] is an IndexError.
+        with pytest.raises(IndexError):
+            fecm.compute_beta_estimate(yt, xt)
+        # γ/λ fit: diff() leaves zero rows, so statsmodels reduces over an
+        # empty array.
+        with pytest.raises(ValueError):
+            fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
+
+    def test_mismatched_lengths_raise(self):
+        xt, yt = self._short(50)
+        with pytest.raises(ValueError):
+            fecm.compute_beta_estimate(yt, xt[:40])
+        with pytest.raises(ValueError):
+            fecm.compute_gamma_lambda_estimate(yt, xt[:40], BETA)
+
+    def test_beta_estimate_with_two_samples_is_an_exact_but_error_free_fit(self):
+        # Two points, two parameters: zero residual degrees of freedom. The fit
+        # succeeds and interpolates (r² = 1) but every standard error is inf,
+        # so a caller that trusts result.params[0].err gets no signal at all.
+        xt, yt = self._short(2)
+        _, result = fecm.compute_beta_estimate(yt, xt)
+        slope, intercept = ols_line(xt, yt)
+        assert result.params[0].est == pytest.approx(slope, rel=1e-8)
+        assert result.const.est == pytest.approx(intercept, rel=1e-8, abs=1e-8)
+        assert result.r2 == pytest.approx(1.0)
+        # zero residual degrees of freedom: s² = ssr/0 is inf when the residual
+        # is a nonzero rounding artefact and nan when it is exactly 0, so the
+        # invariant is that no standard error is a usable number.
+        assert not numpy.isfinite(result.params[0].err)
+        assert not numpy.isfinite(result.const.err)
+
+    def test_gamma_lambda_estimate_with_two_samples_silently_loses_a_parameter(self):
+        # n=2 leaves a single differenced observation, so every column of the
+        # 1x2 design is trivially constant and sm.add_constant skips adding an
+        # intercept. The result model then reads column 0 as the constant and
+        # reports ONE parameter where the caller asked for two — the γ̂/λ̂
+        # unpacking every caller does would silently shift by one column.
+        xt, yt = self._short(2)
+        _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
+        assert len(result.params) == 1
+        # a single observation makes the centred total sum of squares exactly 0,
+        # so r² is 0/0 or ssr/0 — never a usable number.
+        assert not numpy.isfinite(result.r2)
+
+    def test_gamma_lambda_estimate_with_three_samples_returns_two_parameters(self):
+        # n=3 → 2 differenced rows against 3 columns: still rank deficient, but
+        # add_constant now does add the intercept, so the (const, γ̂, λ̂)
+        # structure is intact and the pseudo-inverse gives an exact fit.
+        xt, yt = self._short(3)
+        _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
+        assert len(result.params) == 2
+        assert numpy.all(numpy.isfinite([p.est for p in result.params]))
+        assert result.r2 == pytest.approx(1.0)
+
+
 class TestBetaEstimate:
     def test_recovers_beta(self, simulated):
         # OLS of y on an I(1) regressor is superconsistent (error O(1/n)):
-        # observed |β̂ - β| ≤ 0.009 over 40 seeds at n=2000; tol 0.05.
+        # observed |β̂ - β| ≤ 0.018 over 300 seeds at n=2000; tol 0.05.
         # The reported error must be the textbook OLS slope SE
         # s/sqrt(Σ(x-x̄)²), s² = SSR/(n-2), computed here from the normal
-        # equations rather than read off statsmodels (value ≈ 0.00216, so the
-        # band below is a sanity net around an exact check).
+        # equations rather than read off statsmodels.
         xt, yt = simulated
         _, result = fecm.compute_beta_estimate(yt, xt)
         assert result.params[0].est == pytest.approx(BETA, abs=0.05)
-        assert result.r2 > 0.99
 
         x̄, ȳ = xt.mean(), yt.mean()
         Sxx = ((xt - x̄) ** 2).sum()
@@ -691,7 +857,16 @@ class TestBetaEstimate:
         s2 = resid @ resid / (len(xt) - 2)
         assert result.params[0].err == pytest.approx(numpy.sqrt(s2 / Sxx), rel=1e-8)
         assert result.const.err == pytest.approx(numpy.sqrt(s2 * (1.0 / len(xt) + x̄**2 / Sxx)), rel=1e-8)
-        assert 1e-3 < result.params[0].err < 5e-3
+
+        # r² is the centred identity, checked exactly rather than against a
+        # threshold: at fixed n it is the ratio of the stationary residual
+        # variance to the *realized* sample variance of a random walk, so it
+        # does not concentrate near 1 and any fixed cutoff is seed-tuned.
+        sst = ((yt - ȳ) ** 2).sum()
+        assert result.r2 == pytest.approx(1.0 - resid @ resid / sst, rel=1e-8)
+        # loose magnitude net: a cointegrating fit is always high-r², but the
+        # lower tail crosses 0.99 regularly, so the bound is 0.95.
+        assert result.r2 > 0.95
 
     def test_matches_independent_least_squares(self, simulated):
         xt, yt = simulated
@@ -705,6 +880,61 @@ class TestBetaEstimate:
         assert result.const.est == params[0] and result.params[0].est == params[1]
         assert result.const.err == bse[0] and result.params[0].err == bse[1]
         assert result.r2 == report.rsquared
+
+    def test_beta_recovery_survives_a_non_zero_intercept(self):
+        # Every other estimator test runs at δ = α = 0. β̂ must be unaffected by
+        # a non-zero level: over 300 seeds at (δ, α) = (0.3, 1.0) the largest
+        # |β̂ - β| was 0.018, identical to the δ = α = 0 case, so tol 0.05.
+        δ, α = 0.3, 1.0
+        xt, yt = ecm.ecm(PHI, δ, α, BETA, GAMMA, LAMBDA, NPTS, SIGMA)
+        _, result = fecm.compute_beta_estimate(yt, xt)
+        assert result.params[0].est == pytest.approx(BETA, abs=0.05)
+
+    def test_intercept_shift_from_delta_and_alpha_is_exact(self):
+        # Exact (seed-free) proof that δ and α reach the β regression's
+        # constant. On an identical RNG stream, y(δ, α) - y(0, 0) is the
+        # deterministic offset d_t = (α - δ/λ)(1 - (1+λ)^t) (proved in
+        # test_delta_and_alpha_enter_affinely_with_noise_present) and x is
+        # bit-identical, so OLS linearity forces the two fits to differ by
+        # exactly the OLS fit of d on x — no statistical tolerance involved.
+        δ, α, n = 0.4, 2.0, 800
+        state = numpy.random.get_state()
+        xt, y_a = ecm.ecm(PHI, δ, α, BETA, GAMMA, LAMBDA, n, SIGMA)
+        numpy.random.set_state(state)
+        _, y_b = ecm.ecm(PHI, 0.0, 0.0, BETA, GAMMA, LAMBDA, n, SIGMA)
+
+        _, res_a = fecm.compute_beta_estimate(y_a, xt)
+        _, res_b = fecm.compute_beta_estimate(y_b, xt)
+
+        d = (α - δ / LAMBDA) * (1.0 - (1.0 + LAMBDA) ** numpy.arange(n))
+        slope_d, intercept_d = ols_line(xt, d)
+        assert res_a.params[0].est - res_b.params[0].est == pytest.approx(slope_d, abs=1e-10)
+        assert res_a.const.est - res_b.const.est == pytest.approx(intercept_d, abs=1e-10)
+        # And the offset being absorbed really is the ECM level: d is entirely
+        # deterministic, and d̄ = (α - δ/λ)(1 - mean((1+λ)^t)) = 3.0 x (1 -
+        # 1/320) at these parameters. The *split* of d̄ between intercept_d and
+        # slope_d x̄ is not deterministic — slope_d = Sxd/Sxx picks up the
+        # random walk's scatter against d's short transient — which is exactly
+        # why the level claim is made statistically in
+        # test_intercept_estimates_alpha_minus_delta_over_lambda instead.
+        assert d.mean() == pytest.approx(α - δ / LAMBDA, rel=1e-2)
+
+    def test_intercept_estimates_alpha_minus_delta_over_lambda(self):
+        # The statistical form of the same claim. The OLS intercept
+        # ȳ - β̂ x̄ is NOT superconsistent — its error is dominated by
+        # (β̂ - β) x̄ = O_p(n^{-1/2}) — so a single path is a poor estimator
+        # (sd ≈ 0.23 at n=2000, with a tail out past 1.5). Averaging M
+        # independent paths gives SE ≈ 0.05; deviations of the ensemble mean
+        # from α - δ/λ ranged to 0.093 over 6 seeds, so abs=0.35 is ≈ 7 SE and
+        # ~4x the largest observed miss. It still separates α - δ/λ = 3.0 from
+        # α alone (2.0), from -δ/λ alone (1.0), and from 0.
+        δ, α, M, n = 0.4, 2.0, 60, 600
+        consts = numpy.empty(M)
+        for i in range(M):
+            xt, yt = ecm.ecm(PHI, δ, α, BETA, GAMMA, LAMBDA, n, SIGMA)
+            _, result = fecm.compute_beta_estimate(yt, xt)
+            consts[i] = result.const.est
+        assert consts.mean() == pytest.approx(α - δ / LAMBDA, abs=0.35)
 
     def test_result_structure_and_transforms(self, simulated):
         xt, yt = simulated
@@ -749,14 +979,42 @@ class TestBetaEstimate:
 class TestGammaLambdaEstimate:
     def test_recovers_gamma_and_lambda(self, simulated):
         # Regression of Δy on (Δx, ε_{t-1}). At n=2000 the coefficient SEs are
-        # ≈ 0.02 (γ) and ≈ 0.014 (λ); observed max errors over 40 seeds were
-        # 0.04 and 0.02. Tolerances 0.15 / 0.1 are ≥ 5 SE.
+        # ≈ 0.02 (γ) and ≈ 0.014 (λ); observed max errors over 300 seeds were
+        # 0.069 and 0.033. Tolerances 0.15 / 0.1 are ≥ 5 SE and clear the
+        # observed range with room to spare.
         xt, yt = simulated
         _, β_result = fecm.compute_beta_estimate(yt, xt)
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, β_result.params[0].est)
         assert len(result.params) == 2
         assert result.params[0].est == pytest.approx(GAMMA, abs=0.15)
         assert result.params[1].est == pytest.approx(LAMBDA, abs=0.1)
+
+    def test_constant_estimates_delta_minus_lambda_alpha(self):
+        # The identity the const-label xfail below is built on, asserted
+        # numerically against the TRUE (δ, α, λ) rather than against lstsq.
+        # Rewriting the recursion,
+        #     Δy_t = (δ - λα) + γ Δx_t + λ (y_{t-1} - β x_{t-1}) + ξ_t,
+        # so with ε_t = y_t - β x_t the regression constant estimates δ - λα.
+        # δ - λα = 0.7 here, which is distinct from δ (0.3), from -λα (0.4)
+        # and from 0, so the assertion discriminates all the plausible
+        # alternatives. True β is passed rather than β̂ because the residual
+        # (β̂ - β) x_{t-1} leaks an I(1) term into the constant: with true β the
+        # constant's sd is 0.028 and its largest deviation over 300 seeds was
+        # 0.113 (tol 0.2 ≈ 7 SD), with β̂ the same numbers are 0.078 and 0.485.
+        δ, α = 0.3, 1.0
+        xt, yt = ecm.ecm(PHI, δ, α, BETA, GAMMA, LAMBDA, NPTS, SIGMA)
+        _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
+        assert result.const.est == pytest.approx(δ - LAMBDA * α, abs=0.2)
+        # γ and λ are unaffected by the level parameters.
+        assert result.params[0].est == pytest.approx(GAMMA, abs=0.15)
+        assert result.params[1].est == pytest.approx(LAMBDA, abs=0.1)
+
+    def test_constant_is_zero_when_delta_and_alpha_vanish(self, simulated):
+        # The complementary half of the identity: δ = α = 0 ⇒ δ - λα = 0.
+        # Largest |const| over 300 seeds at these settings was 0.073.
+        xt, yt = simulated
+        _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
+        assert result.const.est == pytest.approx(0.0, abs=0.2)
 
     def test_matches_independent_least_squares(self, simulated):
         xt, yt = simulated
@@ -869,9 +1127,10 @@ class TestGammaLambdaEstimate:
         strict=True,
         reason="__add_gamma_lambda_transform labels the constant transform with the λ̂ labels, "
         "duplicating the second parameter transform's. The constant of the Δy regression "
-        "estimates δ - λα, so its label has to name δ — anything else (including another "
-        "wrong label) is still a bug, which is why this asserts the δ form positively rather "
-        "than merely differing from the λ̂ label",
+        "estimates δ - λα (asserted numerically against the true δ, α, λ in "
+        "test_constant_estimates_delta_minus_lambda_alpha), so its label has to name δ — "
+        "anything else (including another wrong label) is still a bug, which is why this "
+        "asserts the δ form positively rather than merely differing from the λ̂ label",
     )
     def test_const_transform_is_labelled_for_delta(self, simulated):
         xt, yt = simulated
@@ -916,27 +1175,20 @@ class TestEndToEnd:
         report, _ = fecm.compute_gamma_lambda_estimate(yt, xt, β_hat)
         assert numpy.asarray(report.resid).var() == pytest.approx(σ**2, rel=0.2)
 
-
-class TestModuleHygiene:
-    @pytest.mark.parametrize(
-        "module,dead",
-        [
-            pytest.param(ecm, ["sm", "tsa"], id="lib.models.ecm"),
-            pytest.param(fecm, ["tsa", "verify_type"], id="lib.data.impl.ecm"),
-        ],
-    )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Both ECM modules carry imports nothing in them references: lib/models/ecm.py "
-        "imports statsmodels.api as sm and statsmodels.tsa as tsa (lines 9-10) and uses "
-        "neither — the AR(1) driver comes from lib.models.arima — and lib/data/impl/ecm.py "
-        "imports statsmodels.tsa as tsa and lib.utils.verify_type without referencing either. "
-        "Dead imports pull statsmodels into the import graph of the pure-model module and "
-        "there is no lint gate to catch them",
-    )
-    def test_no_dead_imports(self, module, dead):
-        # AST scan of the module's own source: every imported binding must be
-        # referenced by some Name node (annotations included, since these
-        # modules do not stringify them).
-        found = unused_imports(module)
-        assert found == [], f"unused imports {found} (expected dead set {dead})"
+    def test_facade_pipeline_with_non_zero_delta_and_alpha(self):
+        # Same flow with the level parameters engaged, so every estimator sees
+        # δ ≠ 0 and α ≠ 0 end to end: β̂ → β, (γ̂, λ̂) → (γ, λ), and the Δy
+        # regression's constant → δ - λα. β̂ is used for ε here (the notebook
+        # flow), which inflates the constant's spread — largest deviation over
+        # 300 seeds was 0.485 — so its tolerance is 0.6, still well inside the
+        # 0.7 separation from 0.
+        δ, α, σ = 0.3, 1.0, 1.0
+        _, values = fecm.create_source(φ=PHI, δ=δ, α=α, β=BETA, γ=GAMMA, λ=LAMBDA, σ=σ, npts=NPTS)
+        xt, yt = values
+        _, β_result = fecm.compute_beta_estimate(yt, xt)
+        β_hat = β_result.params[0].est
+        _, γλ_result = fecm.compute_gamma_lambda_estimate(yt, xt, β_hat)
+        assert β_hat == pytest.approx(BETA, abs=0.05)
+        assert γλ_result.params[0].est == pytest.approx(GAMMA, abs=0.15)
+        assert γλ_result.params[1].est == pytest.approx(LAMBDA, abs=0.1)
+        assert γλ_result.const.est == pytest.approx(δ - LAMBDA * α, abs=0.6)

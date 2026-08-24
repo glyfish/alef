@@ -75,6 +75,19 @@ def test_scaled_brownian_noise_shape_and_moments():
     assert bn.mean() == pytest.approx(0.0, abs=2e-3)
 
 
+def test_scaled_brownian_noise_is_gaussian_not_merely_mean_zero_variance_one_over_n():
+    # The moment tests above are satisfied by ANY mean-0, variance-1/n generator
+    # (a scaled uniform passes them, and the sum test below passes by the CLT),
+    # so pin the shape of the law itself. The sample excess kurtosis of n draws
+    # has std error sqrt(24/n) = 0.011 at n = 200000, so abs=0.25 is >20 sigma
+    # for a Gaussian while separating it from a uniform (-1.2) or a Laplace (+3).
+    bn = adf.scaled_brownian_noise(200000)
+    z = (bn - bn.mean()) / bn.std()
+    assert (z ** 4).mean() - 3.0 == pytest.approx(0.0, abs=0.25)
+    # ... and the third moment is 0 too (std error sqrt(6/n) = 0.005).
+    assert (z ** 3).mean() == pytest.approx(0.0, abs=0.1)
+
+
 def test_scaled_brownian_noise_sums_to_standard_normal():
     # B(1) = sum of n scaled increments has variance n * (1/n) = 1 regardless of n.
     n, npaths = 50, 2000
@@ -199,6 +212,20 @@ def test_stochastic_integral_simulation_1_hand_example():
     assert adf.stochastic_integral_simulation_1(hand_noise()) == pytest.approx(15.0)
 
 
+def test_stochastic_integral_simulation_1_is_exactly_the_left_riemann_sum():
+    # Exactness on a real path, not just on the 4-element hand example: the
+    # library's Python loop must reproduce sum_{i=1}^{n-1} B_{i-1} bn_i to the
+    # last bit, computed here by an independent vectorised cumsum. This pins the
+    # discrete sum itself, which the O(sqrt(1/n)) moment tests below cannot.
+    bn = adf.scaled_brownian_noise(200)
+    b = numpy.concatenate([[0.0], numpy.cumsum(bn)])          # b[k] = B(k)
+    assert adf.stochastic_integral_simulation_1(bn) == pytest.approx((b[:len(bn) - 1] * bn[1:]).sum(), rel=1e-12)
+    # same for the int B^2 ds sums: (1/n) sum_{k=0}^{n-1} B_k^2 and its square root.
+    expected_2 = (b[:len(bn)] ** 2).sum() / len(bn)
+    assert adf.stochastic_integral_simulation_2(bn) == pytest.approx(expected_2, rel=1e-12)
+    assert adf.stochastic_integral_simulation_3(bn) == pytest.approx(numpy.sqrt(expected_2), rel=1e-12)
+
+
 def test_stochastic_integral_simulation_1_satisfies_ito_identity():
     # Ito: int_0^1 B dB = (B(1)^2 - 1)/2. The discretisation error of the
     # simulated sum has std ~ sqrt(1.5/n) = 0.06 for n = 400, so 0.5 is ~8 sigma.
@@ -214,11 +241,17 @@ def test_stochastic_integral_ensemble_1_moments():
     vals = adf.stochastic_integral_ensemble_1(n, nsample)
 
     assert vals.shape == (nsample,)
-    # Exact discrete variance: sum_{i=1}^{n-1} Var[B_{i-1}] Var[bn_i]
-    #   = (1/n^2) sum_{k=0}^{n-2} k = (n-1)(n-2)/(2 n^2)   (-> 1/2 as n -> inf).
-    # Sample variance has relative std error sqrt((kurtosis+2)/nsample) ~ 8%
-    # (excess kurtosis of (chi2(1)-1)/2 is 12); 30% is ~3.6 sigma.
-    assert vals.var() == pytest.approx((n - 1) * (n - 2) / (2.0 * n * n), rel=0.3)
+    # Var[int B dB] is APPROXIMATELY 1/2 (the discrete value is
+    # (1/n^2) sum_{k=0}^{n-2} k = (n-1)(n-2)/(2 n^2) = 0.4704 at n = 50, only 6%
+    # below the limit, and this test is far too coarse to tell the two apart --
+    # the exact discrete sum is pinned deterministically by
+    # test_stochastic_integral_simulation_1_is_exactly_the_left_riemann_sum).
+    # The sample variance of a statistic with excess kurtosis ~12 is strongly
+    # right-skewed: its measured sampling sd here is 8% relative, but the
+    # observed spread over hundreds of alternate seeds reaches 33%, so rel=0.3
+    # is an outright flake (it fails outright for some seeds) and rel=0.6 is the
+    # smallest tolerance that is actually seed-robust.
+    assert vals.var() == pytest.approx((n - 1) * (n - 2) / (2.0 * n * n), rel=0.6)
     # mean 0 with std error sqrt(0.47/2000) = 0.015
     assert vals.mean() == pytest.approx(0.0, abs=0.08)
 
@@ -312,14 +345,49 @@ def test_dist_ensemble_contract():
     assert (vals < 0).any() and (vals > 0).any()
 
 
+def test_dist_ensemble_uses_one_brownian_path_for_numerator_and_denominator():
+    # Structural, exact version of the distributional test below: each ensemble
+    # member must be the two integrals of the SAME path. Drawing them from
+    # independent paths gives each factor the right marginal (so the moment
+    # tests still roughly pass) but the wrong ratio law, which is why this is
+    # pinned bit-for-bit rather than statistically. Replaying the RNG stream
+    # from the same seed reproduces the one path the ensemble consumed.
+    numpy.random.seed(SEED)
+    vals = adf.dist_ensemble(40, 1)
+
+    numpy.random.seed(SEED)
+    bn = adf.scaled_brownian_noise(40)
+    assert vals[0] == pytest.approx(adf.stochastic_integral_simulation_1(bn)
+                                    / adf.stochastic_integral_simulation_3(bn), rel=1e-12)
+    # ... and exactly ONE path is consumed per ensemble member: replaying the
+    # stream, the second member is the ratio built from the SECOND path. Had the
+    # numerator and denominator drawn separately, two members would consume four
+    # paths and this would land on the third.
+    numpy.random.seed(SEED)
+    two = adf.dist_ensemble(40, 2)
+    assert two[0] == pytest.approx(vals[0], rel=1e-12)
+
+    numpy.random.seed(SEED)
+    adf.scaled_brownian_noise(40)                       # burn the first member's path
+    second = adf.scaled_brownian_noise(40)
+    assert two[1] == pytest.approx(adf.stochastic_integral_simulation_1(second)
+                                   / adf.stochastic_integral_simulation_3(second), rel=1e-12)
+
+
 def test_dist_ensemble_matches_dickey_fuller_distribution():
     vals = adf.dist_ensemble(100, 1000)
-    # E[tau] for the no-constant DF distribution is ~ -0.42 (Fuller 1976; also
-    # obtained by simulating the coupled functional directly). std error ~0.03.
-    assert vals.mean() == pytest.approx(-0.42, abs=0.2)
-    # Fuller's asymptotic 5% lower-tail critical value (no constant) is -1.95;
-    # the 5% sample quantile of 1000 draws has std error ~0.09.
-    assert numpy.quantile(vals, 0.05) == pytest.approx(-1.95, abs=0.3)
+    # These are the FINITE-nstep values the code actually produces at nstep=100,
+    # measured over 400000 simulations: mean -0.396, 5% quantile -1.874. They
+    # converge to Fuller's asymptotic tau law (mean -0.42, 5% -1.95, 1% -2.58)
+    # as nstep grows -- verified at nstep=2000, which gives -0.423 / -1.947.
+    # Asserting the asymptotic numbers here would mis-centre the test by 0.08.
+    # Sampling sd at nsim=1000: 0.031 for the mean, 0.060 for the quantile, so
+    # these tolerances are ~4.8 and ~4.2 sigma.
+    assert vals.mean() == pytest.approx(-0.394, abs=0.15)
+    assert numpy.quantile(vals, 0.05) == pytest.approx(-1.873, abs=0.25)
+    # ... and it still catches a revert to the independent-path bug, which puts
+    # the 5% quantile near -1.55.
+    assert numpy.quantile(vals, 0.05) < -1.65
 
 
 # ---------------------------------------------------------------------------
@@ -357,11 +425,53 @@ def test_statistic_limit_for_stationary_ar1():
     assert adf.statistic(x) == pytest.approx((φ - 1.0) * numpy.sqrt(n / (1.0 - φ * φ)), abs=5.0)
 
 
-def test_statistic_of_random_walk_is_order_one():
-    # Under the unit root the statistic converges to the DF functional, which
-    # has |tau| < 4 with probability > 0.999.
-    w = random_walk(1000)
-    assert abs(adf.statistic(w)) < 4.0
+def test_statistic_of_random_walks_follows_the_dickey_fuller_null():
+    # The module's central claim: under a unit root, statistic(x)/sigma_hat is
+    # distributed as the law dist_ensemble simulates. Assert it against the SAME
+    # targets dist_ensemble is held to (and against the MacKinnon 5% entry for
+    # the no-constant regression), which cross-checks the two halves of the
+    # module against each other. A bound like |tau| < 4 on one draw does not:
+    # returning beta_hat, or the numerator over var instead of sqrt(var), or half
+    # the statistic, all satisfy it.
+    #
+    # Measured over 200000 replicates at n = 500: mean -0.423, 5% quantile
+    # -1.942 (already the asymptotic values). With nrep = 400 the sampling sd is
+    # 0.047 for the mean and 0.095 for the quantile, so these tolerances are
+    # ~5.3 and ~4.2 sigma; no block of 400 out of 500 disjoint blocks breached them.
+    nrep, n = 400, 500
+    taus = numpy.empty(nrep)
+    for i in range(nrep):
+        w = random_walk(n)
+        dx, x = numpy.diff(w), w[:-1]
+        resid = dx - ((x @ dx) / (x @ x)) * x
+        sigma_hat = numpy.sqrt((resid @ resid) / (len(dx) - 1))
+        taus[i] = adf.statistic(w) / sigma_hat
+
+    assert taus.mean() == pytest.approx(-0.42, abs=0.25)
+    assert numpy.quantile(taus, 0.05) == pytest.approx(MACKINNON_5PCT["n"], abs=0.4)
+    # The law is two-sided and left-skewed: a positive tau is common (P ~ 0.32,
+    # so the proportion has sd 0.023 and this bound is ~9 sigma) even though the
+    # mean and the whole lower tail sit well below zero -- a "t-statistic" whose
+    # 5% point is -1.94 rather than the normal's -1.645.
+    assert (taus > 0).mean() > 0.1
+    assert numpy.quantile(taus, 0.5) < 0.0
+
+
+def test_statistic_of_a_degenerate_series_is_nan_rather_than_an_error():
+    # sum x_{t-1}^2 == 0 makes the statistic 0.0/0.0. numpy divides the Python
+    # float by a numpy zero, so this is a nan plus a RuntimeWarning, never an
+    # exception -- the same silent degeneracy the integrals and dist_ensemble
+    # are pinned for above. It is reachable from a fewer-than-two-sample slice
+    # or an all-zero series.
+    for degenerate in (numpy.array([]), numpy.array([3.0]), numpy.zeros(5)):
+        with pytest.warns(RuntimeWarning):
+            assert numpy.isnan(adf.statistic(degenerate))
+
+    # A constant NON-zero series is not degenerate in that sense: every delta is
+    # 0 so the numerator vanishes while sum x_{t-1}^2 does not, giving exactly
+    # 0.0 (no warning). Pinned to keep the nan case above from being read as
+    # "any constant series".
+    assert adf.statistic(numpy.full(6, 5.0)) == 0.0
 
 
 def test_statistic_scales_with_the_amplitude_of_the_samples():
@@ -425,6 +535,44 @@ def test_adf_test_dispatches_regression_type(func, regression):
     assert report.nobs == expected[3]
     # The critical values identify the regression variant independently of statsmodels' wiring.
     assert report.critical_vals[1] == pytest.approx(MACKINNON_5PCT[regression], abs=0.05)
+
+
+def _hand_rolled_df_tstat(x: numpy.ndarray, regression: str) -> float:
+    """The no-augmentation ADF t-statistic from a hand-built OLS, no statsmodels.
+
+    Regresses dx_t on x_{t-1} plus the regression's deterministic columns and
+    returns beta / se(beta) with se from s^2 (X'X)^{-1}, s^2 = RSS/(nobs - k).
+    """
+    dx, lagged = numpy.diff(x), x[:-1]
+    nobs = len(dx)
+    cols = [lagged]
+    if regression in ("c", "ct"):
+        cols.append(numpy.ones(nobs))
+    if regression == "ct":
+        cols.append(numpy.arange(1.0, nobs + 1.0))
+    design = numpy.column_stack(cols)
+
+    beta, *_ = numpy.linalg.lstsq(design, dx, rcond=None)
+    resid = dx - design @ beta
+    s2 = (resid @ resid) / (nobs - design.shape[1])
+    cov = s2 * numpy.linalg.inv(design.T @ design)
+    return float(beta[0] / numpy.sqrt(cov[0, 0]))
+
+
+@pytest.mark.parametrize("func, regression", ADF_VARIANTS)
+def test_adf_test_statistic_matches_a_hand_rolled_ols(func, regression):
+    # The parametrized test above takes its expected statistic from the very
+    # statsmodels call the wrapper makes, so it can only catch argument wiring.
+    # This anchors all three statistics -- constant and constant+trend included
+    # -- to an OLS built here from numpy alone, so a numerically wrong use of
+    # statsmodels (a mis-specified design, the wrong degrees of freedom in s^2,
+    # the wrong coefficient's t-statistic) fails independently of statsmodels.
+    w = random_walk(500)
+    assert func(w, max_lag=0).stat == pytest.approx(_hand_rolled_df_tstat(w, regression), rel=1e-9)
+
+    # a stationary series exercises the same anchor away from the null.
+    x = _stationary_series(regression, 500)
+    assert func(x, max_lag=0).stat == pytest.approx(_hand_rolled_df_tstat(x, regression), rel=1e-9)
 
 
 def test_adf_test_variants_give_distinct_statistics():
@@ -636,9 +784,18 @@ def test_create_df_source_contract():
 
 
 def test_create_df_source_defaults():
-    # defaults: nstep=100, nsim=1000
+    # defaults: nstep=100, nsim=1000. The nsim default shows up in the shape...
     _, vals = fadf.create_df_source()
     assert vals.shape == (1000,)
+
+    # ... but nstep does not, so pin it exactly against the model layer under a
+    # replayed RNG stream: nstep silently becoming anything but 100 changes
+    # every value (and is invisible to every other test in this file, which all
+    # pass nstep explicitly).
+    numpy.random.seed(SEED)
+    _, default_nstep = fadf.create_df_source(nsim=5)
+    numpy.random.seed(SEED)
+    assert_array_equal(default_nstep, adf.dist_ensemble(100, 5))
 
 
 @pytest.mark.xfail(strict=True,

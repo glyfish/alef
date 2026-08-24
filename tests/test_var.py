@@ -19,6 +19,7 @@ from types import SimpleNamespace
 
 import numpy
 import numpy.polynomial.polynomial as npoly
+import pandas
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 from scipy.linalg import solve_discrete_lyapunov
@@ -53,6 +54,20 @@ PHI_3 = numpy.array([[[0.25, 0.50], [0.50, 0.25]],
 OMEGA_COUPLED = numpy.array([[2.0, 0.2],
                              [0.2, 2.0]])
 MU = numpy.array([1.0, -1.0])
+# VAR(2) in three endogenous variables. Both lag blocks are asymmetric and no two
+# rows or columns are equal, so the (lag, row, column) -> stderr row arithmetic
+# 1 + lag*m + k cannot pass under a transposed or m-hardcoded index the way the
+# m = 2 diagonal cases can. Spectral radius 0.83.
+PHI_3D2 = numpy.array([[[0.40, 0.10, 0.00],
+                        [0.00, 0.30, 0.20],
+                        [0.10, 0.00, 0.35]],
+                       [[0.15, 0.00, 0.10],
+                        [0.10, 0.20, 0.00],
+                        [0.00, 0.15, 0.15]]])
+OMEGA_3D = numpy.array([[1.0, 0.2, 0.1],
+                        [0.2, 1.0, 0.3],
+                        [0.1, 0.3, 1.0]])
+MU_3D = numpy.array([0.5, -0.5, 1.0])
 
 
 def ar2_gamma(phi1: float, phi2: float, sigma2: float = 1.0, nlags: int = 3) -> list[float]:
@@ -89,6 +104,48 @@ def char_poly_roots(phi):
     return npoly.polyroots(det)
 
 
+def ma_acov(phi, omega, nlag: int, terms: int = 250):
+    """Autocovariances gamma_0 .. gamma_{nlag-1} from the MA(infinity) form.
+
+    For the companion VAR(1) ``z_t = Phi z_{t-1} + e_t`` the moving-average
+    representation gives ``gamma_k = E[z_{t-k} z_t'] = sum_j Phi^j Omega
+    (Phi^{j+k})'``. This shares no code with ``lib.models.var.cov`` (a Kronecker
+    solve) or with ``acov``'s recursion, so it is an independent expectation for
+    both gamma_0 and every lag. Only ``phi_comp`` / ``omega_comp`` are reused, and
+    those are pinned separately against hard-coded block layouts. The series is
+    truncated at ``terms``; for a spectral radius below 0.4 the tail is ~1e-100.
+    """
+    Phi = numpy.asarray(model.phi_comp(phi))
+    Omega = numpy.asarray(model.omega_comp(omega, len(phi)))
+    powers = [numpy.eye(Phi.shape[0])]
+    for _ in range(terms + nlag):
+        powers.append(powers[-1] @ Phi)
+    return numpy.array([sum(powers[j] @ Omega @ powers[j + k].T for j in range(terms))
+                        for k in range(nlag)])
+
+
+def ols_var_stderr(xt, nlags: int):
+    """Standard errors of a VAR(nlags) OLS fit with a constant, straight from the
+    definition ``se(regressor k, equation j) = sqrt((Z'Z)^-1_kk sigma_jj)`` with
+    ``sigma = resid' resid / (nobs - 1 - nlags m)``.
+
+    Written from the OLS formula rather than obtained from statsmodels, so it is an
+    independent check on the magnitude of the errors the facade reports (it agrees
+    with ``VARResults.stderr`` to 3e-18 on these fixtures). Rows are ``[const,
+    L1.y1 ... L1.ym, L2.y1 ...]`` and columns are equations, matching the
+    ``result.stderr`` layout the facade indexes into.
+    """
+    m, npts = xt.shape
+    Y = xt[:, nlags:].T
+    nobs = Y.shape[0]
+    Z = numpy.hstack([numpy.ones((nobs, 1))] +
+                     [xt[:, nlags - lag:npts - lag].T for lag in range(1, nlags + 1)])
+    ZtZ_inv = numpy.linalg.inv(Z.T @ Z)
+    resid = Y - Z @ (ZtZ_inv @ Z.T @ Y)
+    sigma = resid.T @ resid / (nobs - Z.shape[1])
+    return numpy.sqrt(numpy.outer(numpy.diag(ZtZ_inv), numpy.diag(sigma)))
+
+
 def simulate(phi, seed: int = SEED, **kwargs):
     """Seed explicitly so module-scoped fixtures don't depend on fixture order."""
     numpy.random.seed(seed)
@@ -109,6 +166,12 @@ def var1_estimate(var1_sim):
 @pytest.fixture(scope="module")
 def var2_sim():
     return simulate(PHI_DIAG2, npts=6000)
+
+
+@pytest.fixture(scope="module")
+def var3d_sim():
+    """VAR(2) with three endogenous variables: the only fixture with m != 2."""
+    return simulate(PHI_3D2, Ω=OMEGA_3D, μ=MU_3D, npts=5000)
 
 
 @pytest.fixture(scope="module")
@@ -240,20 +303,26 @@ class TestClosedForms:
             expected = numpy.diag([0.5 ** k / 0.75, 0.2 ** k / 0.96])
             assert_allclose(γ[k], expected)
 
-    def test_acov_recursion_is_consistent_with_cov_and_phi(self):
-        """Consistency check only, NOT an independent expectation: acov builds
-        gamma[k] by the same recursion (gamma[k] = Sigma (Phi^k)'). It pins
-        gamma[0] == cov and that the k-step iteration is a matrix power, nothing
-        more. The independent expectations live in the AR(1)/AR(2) closed forms
-        above and the sample-moment test in TestSimulation, which is what fixes
-        the Sigma Phi' / Phi Sigma orientation.
+    def test_acov_matches_ma_infinity_representation(self):
+        """Independent expectation for every lag: gamma[k] = sum_j Phi^j Omega
+        (Phi^{j+k})', the MA(infinity) form of the companion VAR(1).
+
+        This does not reconstruct the closed form the library evaluates (acov
+        iterates a matrix power and then multiplies by cov's Kronecker solve), so
+        it re-derives gamma[0] as well as the decay, and it fixes the
+        Sigma Phi' / Phi Sigma orientation on its own rather than leaning on the
+        sample-moment test in TestSimulation.
         """
-        Φ = numpy.asarray(model.phi_comp(PHI_COUPLED1))
-        Σ = numpy.asarray(model.cov(PHI_COUPLED1, OMEGA_COUPLED))
         γ = model.acov(PHI_COUPLED1, OMEGA_COUPLED, 6)
-        assert_allclose(γ[0], Σ)
+        assert γ.shape == (6, 2, 2)
+        assert_allclose(γ, ma_acov(PHI_COUPLED1, OMEGA_COUPLED, 6), atol=1e-12)
+        # gamma[0] is the stationary covariance, and the lags satisfy the
+        # Yule-Walker recursion gamma[k] = gamma[k-1] Phi' built from the companion
+        # matrix and the k = 0 block only.
+        Φ = numpy.asarray(model.phi_comp(PHI_COUPLED1))
+        assert_allclose(γ[0], numpy.asarray(model.cov(PHI_COUPLED1, OMEGA_COUPLED)))
         for k in range(1, 6):
-            assert_allclose(γ[k], Σ @ numpy.linalg.matrix_power(Φ, k).T)
+            assert_allclose(γ[k], γ[k - 1] @ Φ.T, atol=1e-12)
 
     def test_acov_var2_matches_ar2_autocovariances(self):
         γ_true = ar2_gamma(0.25, 0.5, nlags=4)
@@ -301,6 +370,14 @@ class TestClosedForms:
             assert numpy.abs(roots).max() > 1.0
         else:
             assert numpy.abs(roots).max() == pytest.approx(radius, abs=1e-6)
+        # The whole spectrum, not just its radius: model.eig (phi_comp followed by
+        # numpy.linalg.eig) must reproduce every root of the reverse characteristic
+        # polynomial, including the complex pair and the 6x6 companion matrix of
+        # PHI_3 and the repeated roots of the random-walk / unit-root cases. atol
+        # 1e-6 is set by the repeated roots, where both routines lose half their
+        # digits (worst observed deviation 1.2e-8; PHI_3 agrees to 1.3e-15).
+        assert_allclose(numpy.sort_complex(model.eig(phi).astype(complex)),
+                        numpy.sort_complex(roots.astype(complex)), atol=1e-6)
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +516,18 @@ class TestEstimation:
         assert_allclose(params[1], [0.0, 0.0], atol=0.01)
         assert_allclose(result.coefs[0], PHI_COUPLED1[0], atol=0.08)
 
+    def test_fit_accepts_dataframe_endog(self, var1_sim):
+        """fit documents its endog as a DataFrame (lib/models/var.py:328). A
+        DataFrame carries its column names into the equation and regressor labels,
+        and must produce the identical fit to the equivalent ndarray."""
+        _, xt = var1_sim
+        result = model.fit(pandas.DataFrame(xt.T, columns=["y_a", "y_b"]), maxlags=1)
+        assert result.names == ["y_a", "y_b"]
+        assert result.exog_names == ["const", "L1.y_a", "L1.y_b"]
+        assert isinstance(result.params, pandas.DataFrame)
+        assert_array_equal(result.coefs, model.fit(xt.T, maxlags=1).coefs)
+        assert_allclose(result.coefs[0], PHI_COUPLED1[0], atol=0.08)
+
     @pytest.mark.parametrize("fixture, order", [("var1_sim", 1), ("var2_sim", 2)])
     def test_order_estimate_selects_true_order(self, fixture, order, request):
         _, xt = request.getfixturevalue(fixture)
@@ -553,6 +642,27 @@ class TestFacadeContract:
         assert γ.shape == (26, 2, 2)
         assert_allclose(γ[3], numpy.diag([0.5 ** 3 / 0.75, 0.2 ** 3 / 0.96]))
 
+    def test_compute_acov_var2_returns_companion_sized_blocks(self):
+        """For n > 1 the facade returns companion-sized (nlag+1, m*n, m*n) blocks,
+        not (nlag+1, m, m): gamma[k] = E[z_{t-k} z_t'] for the stacked companion
+        state z_t = [x_t, x_{t-1}]. Anchored on the scalar AR(2) Yule-Walker
+        autocovariances, which fixes each block independently of the library."""
+        t, γ = facade.compute_acov(PHI_DIAG2, nlag=4)
+        assert_array_equal(t, numpy.arange(5.0))
+        assert γ.shape == (5, 4, 4)
+        γ_true = ar2_gamma(0.25, 0.5, nlags=5)
+        for k in range(5):
+            # Top-left block E[x_{t-k} x_t'] = gamma_x[k], for both components.
+            assert_allclose(γ[k][0, 0], γ_true[k])
+            assert_allclose(γ[k][1, 1], γ_true[k])
+            # Lower-left block E[x_{t-k-1} x_t'] = gamma_x[k+1].
+            assert_allclose(γ[k][2, 0], γ_true[k + 1])
+            # Upper-right block E[x_{t-k} x_{t-1}'] = gamma_x[|k-1|].
+            assert_allclose(γ[k][0, 2], γ_true[abs(k - 1)])
+            # The two AR(2)s are independent, so every cross-component entry is 0.
+            assert γ[k][0, 1] == pytest.approx(0.0, abs=1e-12)
+            assert γ[k][0, 3] == pytest.approx(0.0, abs=1e-12)
+
     def test_compute_mean_default_offset_is_zero(self):
         assert_allclose(numpy.asarray(facade.compute_mean(PHI_COUPLED1)), numpy.zeros((2, 1)))
         assert_allclose(numpy.asarray(facade.compute_mean(PHI_COUPLED1, MU)),
@@ -628,15 +738,17 @@ class TestFacadeContract:
         with pytest.raises(Exception):
             facade.compute_unvec(col)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.data.impl.var.compute_vec is a bare delegation with no input validation, "
-        "unlike its compute_unvec sibling: lib.models.var.vec sizes the output from the "
-        "column count alone, so a non-square matrix dies with a raw numpy 'could not "
-        "broadcast input array from shape (3,1) into shape (2,1)' instead of the "
-        "library's own message"))
-    def test_compute_vec_validates_square_input(self):
-        with pytest.raises(Exception, match="square"):
+    def test_compute_vec_non_square_input_is_unvalidated(self):
+        """Behaviour, not a wish: non-square input is outside vec's documented use,
+        so this pins what actually happens rather than demanding validation.
+        compute_vec is a bare delegation (unlike its compute_unvec sibling, which
+        checks for a column vector) and lib.models.var.vec sizes its output from the
+        column count alone, so the failure is a raw numpy ValueError and not one of
+        the library's own Exception("... should satisfy ...") messages.
+        """
+        with pytest.raises(Exception) as exc_info:
             facade.compute_vec(numpy.matrix(numpy.zeros((3, 2))))
+        assert type(exc_info.value) is ValueError
 
     @pytest.mark.parametrize("fn", [
         facade.compute_eig_values,
@@ -645,6 +757,14 @@ class TestFacadeContract:
         facade.compute_cov,
         facade.compute_acov,
         facade.create_source,
+        pytest.param(facade.compute_mean, marks=pytest.mark.xfail(strict=True, reason=(
+            "lib.data.impl.var.compute_mean is the only phi-taking facade that does not "
+            "call __verify_phi: lines 34-35 do their own weaker len(φ) > 0 + "
+            "verify_type(φ[0]) check and never verify that the blocks are square or "
+            "equally sized. A (1, 2, 3) φ therefore reaches lib.models.var.mean and dies "
+            "with a raw ValueError('operands could not be broadcast together with shapes "
+            "(2,2) (2,3)'), and [eye(2), eye(3)] with an AttributeError, where every "
+            "sibling reports 'should be square' / 'should have size (2, 2)'"))),
     ])
     def test_phi_validation(self, fn):
         with pytest.raises(Exception, match="square"):
@@ -653,6 +773,18 @@ class TestFacadeContract:
             fn([numpy.eye(2), numpy.eye(3)])
         with pytest.raises(Exception, match="len"):
             fn(numpy.zeros((0, 2, 2)))
+
+    @pytest.mark.parametrize("fn", [facade.compute_cov, facade.compute_acov])
+    @pytest.mark.xfail(strict=True, reason=(
+        "lib.data.impl.var.compute_cov and compute_acov type-check Ω but never check its "
+        "shape against φ (lib/data/impl/var.py:65-66 and 94-95 call verify_type only), "
+        "although create_source validates exactly this mistake at line 304. A 3x3 Ω "
+        "against a 2x2 Φ reaches lib.models.var.cov and dies with a raw ValueError("
+        "'shapes (4,4) and (9,1) not aligned: 4 (dim 1) != 9 (dim 0)') from the Kronecker "
+        "solve instead of the library's own 'Ω should satisfy should have shape(2,2)'"))
+    def test_omega_shape_validation(self, fn):
+        with pytest.raises(Exception, match="should have shape"):
+            fn(PHI_COUPLED1, numpy.eye(3))
 
     def test_compute_mean_rejects_empty_and_non_array(self):
         with pytest.raises(Exception, match="len"):
@@ -742,7 +874,8 @@ class TestFacadeEstimation:
         # VECM facade writes "$\sigma_{\Omega}$"; est.omega errors are always 0.0.
         assert {(p.est_label, p.err_label) for p in est.omega} == {(r"$\hat{\Omega}$", r"$\sigma{\Omega}$")}
 
-    def test_compute_estimate_params_match_statsmodels_layout(self, var1_estimate):
+    def test_compute_estimate_params_match_statsmodels_layout(self, var1_sim, var1_estimate):
+        _, xt = var1_sim
         result, est = var1_estimate
         m = 2
         # statsmodels: params/stderr rows are [const, L1.y1, L1.y2, ...], columns are equations.
@@ -756,7 +889,17 @@ class TestFacadeEstimation:
             assert p.est == result.coefs[lag, j, k]
             assert p.err == result.stderr[1 + lag * m + k, j]
         assert_allclose([p.est for p in est.params], PHI_COUPLED1[0].ravel(), atol=0.08)
-        assert all(0.0 < p.err < 0.05 for p in est.params)
+        # Magnitude as well as placement: the reported errors must be the OLS standard
+        # errors sqrt((Z'Z)^-1_kk sigma_jj), recomputed here from the samples alone.
+        # This is an exact identity rather than a statistical one (the two agree to
+        # 3e-18 absolute), so rtol 1e-9; unlike a wide 0 < err < 0.05 band it fails for
+        # an error inflated or deflated by any factor.
+        se = ols_var_stderr(xt, 1)
+        assert_allclose([p.err for p in est.params],
+                        [se[1 + (p.order - 1) * m + p.column, p.row] for p in est.params],
+                        rtol=1e-9)
+        # Scale anchor for the same numbers: ~0.018 here, range 0.0156-0.0186 over 50 seeds.
+        assert all(0.010 < p.err < 0.030 for p in est.params)
 
     def test_compute_estimate_var2_lag_indexing(self, var2_sim):
         _, xt = var2_sim
@@ -768,6 +911,44 @@ class TestFacadeEstimation:
             assert p.est == result.coefs[p.order - 1, p.row, p.column]
             assert p.err == result.stderr[1 + (p.order - 1) * 2 + p.column, p.row]
         assert_allclose([p.est for p in est.params], PHI_DIAG2.ravel(), atol=0.08)
+
+    def test_compute_estimate_three_variables_stderr_indexing(self, var3d_sim):
+        """m = 3 is the only case that exercises the stderr row arithmetic
+        1 + lag*m + k with m != 2, and PHI_3D2 is asymmetric in both lag blocks, so
+        a transposed or m-hardcoded index cannot pass by accident the way it can on
+        the diagonal m = 2 fixtures."""
+        _, xt = var3d_sim
+        m = 3
+        result, est = facade.compute_estimate(xt, maxlags=2)
+        assert result.exog_names == ["const"] + [f"L{lag}.y{i}"
+                                                 for lag in (1, 2) for i in (1, 2, 3)]
+        assert est.order == 2
+        assert len(est.const) == m
+        assert len(est.omega) == m * m
+        assert [(p.order, p.row, p.column) for p in est.params] == [
+            (lag + 1, j, k) for lag in range(2) for j in range(m) for k in range(m)]
+        se = ols_var_stderr(xt, 2)
+        for p in est.params:
+            lag = p.order - 1
+            assert p.est == result.coefs[lag, p.row, p.column]
+            assert p.err == result.stderr[1 + lag * m + p.column, p.row]
+            assert p.err == pytest.approx(se[1 + lag * m + p.column, p.row], rel=1e-9)
+        # OLS std error per coefficient is ~0.013 at n = 5000; the largest error over
+        # the 18 coefficients was 0.046 across 30 seeds, so atol 0.1 is ~7 sigma.
+        assert_allclose(numpy.array([p.est for p in est.params]).reshape(2, m, m),
+                        PHI_3D2, atol=0.1)
+        # Constant std error ~0.06; atol 0.3 is ~5 sigma.
+        assert_allclose([p.est for p in est.const], MU_3D, atol=0.3)
+
+    def test_compute_order_three_variables(self, var3d_sim):
+        """compute_order with m > 2: the true order is 2 and the consistent criteria
+        must find it (AIC is allowed to over-fit, as elsewhere in this file)."""
+        _, xt = var3d_sim
+        result, report = facade.compute_order(xt, maxlags=4)
+        assert (result.bic, result.hqic) == (2, 2)
+        assert result.aic >= 2
+        assert len(result.ics["bic"]) == 5
+        assert json.loads(report.to_json())["_VAROrderTestReport__order"]["value"] == 2
 
     def test_compute_estimate_default_maxlags(self, var1_sim):
         _, xt = var1_sim
@@ -809,27 +990,64 @@ class TestFacadeEstimation:
         # scale (0.2, not the 0.104 correlation), which a diagonal-only check would miss.
         assert_allclose(omega, OMEGA_COUPLED, atol=0.3)
 
+    # All four trend values are documented as supported by compute_estimate
+    # (lib/data/impl/var.py:355-356), but __var_estimate_from_result hard-codes the
+    # trend='c' layout in two independent ways: it drops exactly one leading row
+    # (result.stderr[1:], the constant) whatever the number of deterministic terms,
+    # and it feeds the remainder to numpy.array_split(..., n), which only divides
+    # evenly when that remainder is exactly n*m rows. The three tests below pin the
+    # correct row for each trend at maxlags = 1 and 2, so both faults are covered and
+    # neither test can pass on a fix that repairs only the leading offset.
+    @pytest.mark.parametrize("maxlags", [1, 2])
     @pytest.mark.xfail(strict=True, reason=(
-        "__var_estimate_from_result assumes trend='c': with trend='n' result.params has no "
-        "constant row, so stderr[1:] loses a lag row and indexing est_stderr raises IndexError"))
-    def test_compute_estimate_trend_n(self, var1_sim):
+        "__var_estimate_from_result assumes trend='c': with trend='n' result.stderr has no "
+        "constant row, so stderr[1:] drops a real lag row. At maxlags=1 that leaves a "
+        "single row and indexing est_stderr raises IndexError; at maxlags=2 the 3 "
+        "remaining rows split unevenly into 2 chunks and numpy.array over the ragged list "
+        "raises ValueError('... inhomogeneous shape after 2 dimensions')"))
+    def test_compute_estimate_trend_n_stderr_alignment(self, var1_sim, maxlags):
         _, xt = var1_sim
-        result, est = facade.compute_estimate(xt, maxlags=1, trend="n")
-        assert result.coefs.shape == (1, 2, 2)
-        assert len(est.params) == 4
+        result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="n")
+        assert result.exog_names == [f"L{lag}.y{i}"
+                                     for lag in range(1, maxlags + 1) for i in (1, 2)]
+        assert len(est.params) == 4 * maxlags
         for p in est.params:
-            assert p.est == result.coefs[0, p.row, p.column]
-            assert p.err == result.stderr[p.column, p.row]
+            assert p.est == result.coefs[p.order - 1, p.row, p.column]
+            assert p.err == result.stderr[(p.order - 1) * 2 + p.column, p.row]
 
+    @pytest.mark.parametrize("maxlags", [1, 2])
     @pytest.mark.xfail(strict=True, reason=(
         "__var_estimate_from_result assumes trend='c': with trend='ct' stderr[1:] starts at "
-        "the linear-trend row, so every coefficient error is shifted by one regressor"))
-    def test_compute_estimate_trend_ct_stderr_alignment(self, var1_sim):
+        "the linear-trend row, so at maxlags=1 every coefficient error is shifted by one "
+        "regressor (the lag-1 errors come back as the trend stderr, 2.9e-05, instead of "
+        "~0.018). At maxlags=2 the 5 rows left after the drop split unevenly into 2 chunks "
+        "and numpy.array over the ragged list raises ValueError('... inhomogeneous shape "
+        "after 2 dimensions'), so the row offset and the array_split are separate faults"))
+    def test_compute_estimate_trend_ct_stderr_alignment(self, var1_sim, maxlags):
         _, xt = var1_sim
-        result, est = facade.compute_estimate(xt, maxlags=1, trend="ct")
-        assert result.params.shape == (4, 2)  # const, trend, L1.y1, L1.y2
+        result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="ct")
+        assert result.exog_names[:2] == ["const", "trend"]
+        assert result.params.shape == (2 + 2 * maxlags, 2)
         for p in est.params:
-            assert p.err == result.stderr[2 + p.column, p.row]
+            assert p.err == result.stderr[2 + (p.order - 1) * 2 + p.column, p.row]
+
+    @pytest.mark.parametrize("maxlags", [1, 2])
+    @pytest.mark.xfail(strict=True, reason=(
+        "trend='ctt' is the silent variant of the same bug and the dangerous one: it never "
+        "raises at any maxlags, so no crash-shaped test covers it. stderr[1:] starts at the "
+        "'trend' row and the two extra deterministic rows keep the split even, so the "
+        "reported Phi errors are the deterministic-term stderrs. At maxlags=1 the lag-1 "
+        "errors come back as the trend and trend**2 stderrs, 0.000117 and literally 0.0 -- "
+        "a notebook renders a 0.0 standard error for a Phi coefficient with no signal that "
+        "anything is wrong; at maxlags=2 the lag-2 errors are a mix of the L1.y2 and L2 rows"))
+    def test_compute_estimate_trend_ctt_stderr_alignment(self, var1_sim, maxlags):
+        _, xt = var1_sim
+        result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="ctt")
+        assert result.exog_names[:3] == ["const", "trend", "trend**2"]
+        assert len(est.params) == 4 * maxlags
+        for p in est.params:
+            assert p.est == result.coefs[p.order - 1, p.row, p.column]
+            assert p.err == result.stderr[3 + (p.order - 1) * 2 + p.column, p.row]
 
     def test_compute_order_returns_results_and_report(self, var1_sim):
         _, xt = var1_sim
