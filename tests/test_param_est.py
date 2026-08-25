@@ -252,11 +252,6 @@ class TestARMAEstTypeFormula:
         assert expected != ar
         assert ARMAEstType.AR_OFFSET.formula() == expected
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ARMAEstType.formula() returns the AR formula (sum of φ_i X_{t-i}) for MA and MA_OFFSET; "
-               "an MA(q) model is a sum of θ_i ε_{t-i}",
-    )
     @pytest.mark.parametrize(
         "ma_type, ar_type",
         [(ARMAEstType.MA, ARMAEstType.AR), (ARMAEstType.MA_OFFSET, ARMAEstType.AR_OFFSET)],
@@ -294,11 +289,6 @@ class TestARMAEstTypeSetParamLabels:
         assert rf"\hat{{{symbol}_{{2}}}}" in p.err_label
         assert p.err_label != p.est_label
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="set_param_labels builds err_label as '$\\sigma_{$\\hat{...}}$' -- a stray '$' inside the "
-               "subscript leaves three math delimiters, which mathtext cannot render",
-    )
     @pytest.mark.parametrize("est_type", list(ARMAEstType), ids=lambda t: t.name)
     def test_err_label_is_well_formed_mathtext(self, est_type):
         p = _param()
@@ -435,12 +425,6 @@ class TestParamEst:
         # est_label/err_label default to None either way, so those two agree.
         assert (absent.est_label, absent.err_label) == (explicit_none.est_label, explicit_none.err_label) == (None, None)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ParamEst.from_dict reads err_label twice (param_est.py:99 and :103) -- the second "
-               "assignment is unreachable dead code that shadows nothing and only invites an edit to "
-               "land on the copy that is thrown away",
-    )
     def test_from_dict_reads_each_field_once(self):
         body = inspect.getsource(ParamEst.from_dict)
         assert body.count("err_label = data") == 1
@@ -470,10 +454,6 @@ class TestParamEst:
             assert fragment in r
             assert fragment in s
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ParamEst.__props omits the closing ')' after err, so repr reads 'err=(0.25, est_label=(...'",
-    )
     def test_repr_closes_err_parenthesis(self):
         p = _param(1.5, 0.25)
         assert "err=(0.25), est_label=(" in repr(p)
@@ -623,10 +603,6 @@ class TestOLSResult:
         assert "r2=(0.9)" in s
         assert s.index("const=(") < s.index("params=(") < s.index("r2=(") < s.index("model=(None)")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="OLSResult.__props omits the closing ')' after params, so repr reads 'params=([...], r2=('",
-    )
     def test_repr_closes_params_parenthesis(self):
         assert "), r2=(" in repr(_ols_result())
 
@@ -645,11 +621,6 @@ class TestOLSResult:
         assert r.r2.est == 0.87
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="OLSResult.__repr__ and OLSTransform.__repr__ both emit the prefix 'OLSEst(' rather than their "
-           "class name, so the two are indistinguishable in output (every other class reprs as itself)",
-)
 @pytest.mark.parametrize(
     "factory, cls_name",
     [(_ols_result, "OLSResult"), (lambda: OLSTransform(_param()), "OLSTransform")],

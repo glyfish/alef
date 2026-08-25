@@ -562,12 +562,6 @@ class TestComputeBmFromNoise:
         with pytest.raises(Exception, match="dB parameter is required"):
             facade.compute_bm_from_noise()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="compute_bm_from_noise calls verify_type(dB, NDArray[numpy.floating[Any]]); "
-               "isinstance() rejects a parameterized generic with TypeError, so the function "
-               "raises for every input",
-    )
     def test_integrates_noise_with_zero_start(self):
         # stats.from_noise: B_0 = 0, B_k = B_{k-1} + dB_k (dB_0 is not used).
         # NOTE: this body is dead while the xfail stands, so the expectations

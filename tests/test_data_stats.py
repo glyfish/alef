@@ -32,6 +32,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 from scipy.stats import norm
 
 from lib.data.hyp_test import GrangerCausalityTestReport, GrangerCausalityTestResult
+from lib import stats as base_stats
 from lib.data.impl import stats as dstats
 from lib.data.impl.stats import OLS
 from lib.data.param_est import EstModel, OLSParamType, ParamEst
@@ -1392,6 +1393,49 @@ class TestOLS:
 # ---------------------------------------------------------------------------
 # facade contract shared by the compute_* functions
 # ---------------------------------------------------------------------------
+
+class TestFractionalPriceChange:
+    """lib.stats.fractional_purchase / compute_fractional_price_change.
+
+    Deleted by accident during a type-annotation sweep (navi 2d34c07) and only
+    noticed when a notebook that calls them was re-run months later. The sole
+    caller is an .ipynb, so a code-wide grep for the symbol finds nothing --
+    which is exactly why these tests exist.
+    """
+
+    def test_is_the_one_step_ahead_short_return(self):
+        x = numpy.array([100.0, 110.0, 99.0, 99.0, 50.0])
+        got = base_stats.fractional_purchase(x, 1)
+        assert_allclose(got, [(100 - 110) / 110, (110 - 99) / 99, 0.0, (99 - 50) / 50])
+
+    def test_constant_series_has_zero_change(self):
+        assert_allclose(base_stats.fractional_purchase(numpy.full(12, 7.5), 4), numpy.zeros(8))
+
+    @pytest.mark.parametrize("window", [1, 2, 5, 23])
+    def test_time_axis_and_values_are_the_same_length(self, window):
+        n = 40
+        t = numpy.arange(float(n))
+        x = 100.0 + numpy.arange(float(n))
+
+        ft, fp = dstats.compute_fractional_price_change(t, x, window)
+
+        assert len(ft) == len(fp) == n - window
+        assert ft[0] == t[window - 1]
+        assert ft[-1] == t[-2]
+
+    def test_facade_shares_its_window_origin_with_zscore(self):
+        t = numpy.arange(60.0)
+        x = 100.0 + numpy.sin(t / 5.0)
+        ft, _ = dstats.compute_fractional_price_change(t, x, 10)
+        zt, _ = dstats.compute_zscore(t, x, 10)
+        assert ft[0] == zt[0]
+
+    def test_facade_matches_the_leaf(self):
+        t = numpy.arange(30.0)
+        x = 50.0 + numpy.arange(30.0) ** 1.3
+        _, fp = dstats.compute_fractional_price_change(t, x, 6)
+        assert_allclose(fp, base_stats.fractional_purchase(x, 6))
+
 
 class TestFacadeContract:
 

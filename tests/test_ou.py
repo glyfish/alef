@@ -1183,7 +1183,7 @@ class TestHalfLifeEstimate:
         assert [tr["param"]["est_label"] for tr in payload["param_transforms"]] == [r"$t_{1/2}$", r"$\lambda$"]
         assert payload["param_transforms"][0]["param"]["est"] == pytest.approx(result.param_transforms[0].param.est)
         assert payload["const_transform"]["param"]["est"] == pytest.approx(result.const.est)
-        assert "OLSEst(" in repr(result)
+        assert "OLSResult(" in repr(result)
 
 
 class TestHalfLifeEstimateDegenerateInput:

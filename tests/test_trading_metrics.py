@@ -854,12 +854,6 @@ def test_price_like_series_matches_pandas_rolling():
     assert_allclose(z, _pandas_rolling_zscore(prices, w), rtol=1e-6, atol=1e-9)
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="lib.stats.moving_var forms the variance as (Σx² - (Σx)²/w)/w, which "
-                          "cancels catastrophically for price-like data (offset ~1e5, σ ~0.5): the "
-                          "cumulative-sum rolling std/zscore then disagree with the two-pass "
-                          "per-window computation in lib.trading.metrics by ~6e-4 relative, while "
-                          "the metrics loop itself matches pandas to ~1e-9")
 def test_price_like_series_matches_vectorised_lib_stats_implementation():
     # Same cross-check as the N(0,1) ones above, moved to the data regime the
     # strategies actually see. At zero offset both paths agree to 1e-8; the

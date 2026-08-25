@@ -46,14 +46,6 @@ def sample_acf(x, nlags):
     return numpy.array([(x[: n - k] @ x[k:]) / n / c0 for k in range(nlags + 1)])
 
 
-MAQ_COV_BUG = pytest.mark.xfail(
-    strict=True,
-    reason="maq_cov adds the lag-n cross-product sum sum_i θ_i θ_{i+n} to the lag-(n+1) "
-           "direct term θ_{n+1}, so for q>=2 every lag 1..q is mis-indexed "
-           "(θ=[0.5,0.3] gives [0.5,0.45]·σ² instead of the true γ=[0.65,0.3]·σ²)",
-)
-
-
 # ---------------------------------------------------------------------------
 # Model layer: closed forms
 # ---------------------------------------------------------------------------
@@ -68,8 +60,8 @@ class TestMAqClosedForms:
     # γ(h) = σ² Σ_{j=0}^{q-h} θ_j θ_{j+h} with θ_0 = 1, hand-computed for lags 1..q.
     @pytest.mark.parametrize("θ, σ, expected", [
         ([0.6], 2.0, [2.4]),
-        pytest.param([0.5, 0.3], 2.0, [2.6, 1.2], marks=MAQ_COV_BUG),
-        pytest.param([0.4, 0.3, 0.2], 1.0, [0.58, 0.38, 0.2], marks=MAQ_COV_BUG),
+        ([0.5, 0.3], 2.0, [2.6, 1.2]),
+        ([0.4, 0.3, 0.2], 1.0, [0.58, 0.38, 0.2]),
     ])
     def test_maq_cov(self, θ, σ, expected):
         cov = model.maq_cov(θ, σ)
@@ -100,7 +92,7 @@ class TestMAqClosedForms:
             model.maq_acf([0.4, 0.3, 0.2], 1.0, 2)
 
     @pytest.mark.parametrize("θ, expected", [
-        pytest.param([0.5, 0.3], [1.0, 0.65 / 1.34, 0.3 / 1.34, 0.0], marks=MAQ_COV_BUG),
+        ([0.5, 0.3], [1.0, 0.65 / 1.34, 0.3 / 1.34, 0.0]),
     ])
     def test_maq_acf_ma2(self, θ, expected):
         assert_allclose(model.maq_acf(θ, max_lag=3), expected, rtol=1e-12)
@@ -340,12 +332,11 @@ class TestMAqStatsmodels:
 
     def test_ma2_sample_acf_matches_hand_derived_autocovariance(self):
         # Pins the q=2 simulator (model.maq via create_ma_source) numerically and
-        # anchors the MAQ_COV_BUG expectations to data rather than algebra alone.
+        # anchors the maq_cov expectations to data rather than algebra alone.
         r = self.ma2_sample_acf()
         assert r[1] == pytest.approx(self.MA2_ρ[0], abs=0.03)
         assert r[2] == pytest.approx(self.MA2_ρ[1], abs=0.04)
 
-    @MAQ_COV_BUG
     def test_ma2_navi_acf_matches_the_sample_acf(self):
         # The same comparison from the library's side: navi's maq_acf returns
         # [0.3731, 0.3358] where the simulated process shows [0.485, 0.224].
@@ -546,7 +537,6 @@ class TestFacadeClosedForms:
         assert acf.shape == (6,)
         assert_allclose(acf, [1.0, 0.6 / 1.36, 0, 0, 0, 0], rtol=1e-12)
 
-    @MAQ_COV_BUG
     def test_compute_maq_acf_ma2(self):
         # θ=[0.4,0.2] → γ0 = 1.2, γ1 = θ1+θ1θ2 = 0.48, γ2 = θ2 = 0.2, so the true
         # ACF is [1, 0.4, 1/6, 0]; navi returns [1, 1/3, 7/30, 0] via maq_cov.
@@ -860,7 +850,7 @@ class TestFacadeEstimates:
             # order 1 but reads $\hat{\phi_{0}}$. Both halves asserted exactly.
             assert p.order == i + 1
             assert p.est_label == rf"$\hat{{\{label_symbol}_{{{i}}}}}$"
-            assert p.err_label == rf"$\sigma_{{$\hat{{\{label_symbol}_{{{i}}}}}}}$"
+            assert p.err_label == rf"$\sigma_{{\hat{{\{label_symbol}_{{{i}}}}}}}$"
         assert est.sigma2.est == result.params[-1] and est.sigma2.err == result.bse[-1]
         assert est.const.param_type == ARMAParamType.ARMA_CONST.value
         assert est.sigma2.param_type == ARMAParamType.ARMA_SIG2.value

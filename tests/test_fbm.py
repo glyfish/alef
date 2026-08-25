@@ -270,12 +270,6 @@ class TestFFTGenerator:
         with pytest.raises(Exception, match="dB should have length 32"):
             fbm.generate_fft(0.7, 16, numpy.zeros(33))
 
-    @pytest.mark.xfail(strict=True,
-                       reason="fft_noise builds the circulant first row with C[n] = 0 instead of "
-                              "acf(H, n); that embedding has negative eigenvalues for H >= 0.89 "
-                              "at n <= 256 (and H >= 0.9 at n = 1024) while the standard "
-                              "Davies-Harte embedding with C[n] = acf(H, n) is positive definite "
-                              "there, so fft_noise raises 'Eigenvalues are negative' for H = 0.95")
     def test_fft_noise_supports_strongly_persistent_H(self):
         H, n = 0.95, 64
         A = linear_map(lambda e: fbm.fft_noise(H, n, e), 2 * n)
@@ -431,10 +425,6 @@ class TestVarianceRatio:
         theta = ((vr - 1.0) / stat) ** 2
         assert_allclose(theta, [lo_mackinlay_theta(s, t) for s in s_vals], rtol=0.15)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="vr_stat_hetero_scan has no s == 1 guard: theta is an empty sum, "
-                              "so the statistic is 0/0 = nan, whereas vr_stat_homo_scan returns 0 "
-                              "for the same lag")
     def test_hetero_stat_is_zero_at_lag_one(self):
         x = random_walk(256)
         with numpy.errstate(invalid="ignore"):
@@ -567,17 +557,21 @@ class TestFacadeTheory:
             fbm_data.compute_sd(npts=4)
 
     def test_compute_acf_defaults_and_brownian_limit(self):
+        # Lags start at 1: the acf formula 1/2[(n-1)^2H + (n+1)^2H - 2n^2H]
+        # evaluates (-1)^2H at n = 0, which is complex for non-integer 2H, so
+        # lag 0 is outside its domain (and is trivially 1 by definition anyway).
         t, acf = fbm_data.compute_acf(H=0.5)
-        assert_allclose(t, numpy.arange(11, dtype=float))
-        expected = numpy.zeros(11)
-        expected[0] = 1.0
-        assert_allclose(acf, expected, atol=1e-12)
+        assert_allclose(t, numpy.arange(1, 12, dtype=float))
+        # H = 0.5 is ordinary Brownian motion: its increments are uncorrelated
+        # at every lag >= 1.
+        assert_allclose(acf, numpy.zeros(11), atol=1e-12)
 
     def test_compute_acf_grid_and_model_agreement(self):
         t, acf = fbm_data.compute_acf(H=0.8, nlags=4, Δt=0.5)
-        assert_allclose(t, [0.0, 0.5, 1.0, 1.5])
+        assert_allclose(t, [1.0, 1.5, 2.0, 2.5])
         assert_allclose(acf, fbm.acf(0.8, t))
-        assert acf[2] == pytest.approx(2.0 ** 0.6 - 1.0)
+        # lag 1 is the first entry now, and rho^H_1 = 2^(2H-1) - 1
+        assert acf[0] == pytest.approx(2.0 ** 0.6 - 1.0)
         with pytest.raises(Exception, match="H parameter is required"):
             fbm_data.compute_acf(nlags=4)
 
@@ -724,8 +718,10 @@ class TestFacadeSources:
         # The only exercise of create_cholesky_source's npts=1024 default and of the
         # L=None fallback at that size (a pure-Python O(npts^2) ACF matrix build).
         t, Z = fbm_data.create_cholesky_source(H=0.7)
-        assert len(t) == 1024
-        assert_allclose(t, numpy.arange(1024, dtype=float))
+        # generate_cholesky(H, npts) returns npts + 1 points, and the façade's
+        # time axis matches it.
+        assert len(t) == 1025
+        assert_allclose(t, numpy.arange(1025, dtype=float))
         assert Z[0] == 0.0
         assert numpy.all(numpy.isfinite(Z))
         # increments of the generated motion are unit-variance fGn with the H = 0.7 acf
@@ -735,7 +731,7 @@ class TestFacadeSources:
 
     def test_noise_cholesky_source_default_npts(self):
         t, noise = fbm_data.create_noise_cholesky_source(H=0.7)
-        assert len(t) == 1024
+        assert len(t) == 1025
         assert noise.var() == pytest.approx(1.0, rel=0.2)
         assert numpy.corrcoef(noise[:-1], noise[1:])[0, 1] == pytest.approx(fbm.acf(0.7, 1.0), abs=0.12)
 
@@ -813,18 +809,10 @@ class TestFacadeSources:
                                 for _ in range(nsim)])
         assert ensemble.var() == pytest.approx(Δt ** (2.0 * H), rel=0.2)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="create_noise_cholesky_source returns t with npts points but "
-                              "cholesky_noise(H, npts, ...) returns npts + 1 values, so the "
-                              "(t, values) tuple has mismatched lengths")
     def test_noise_cholesky_source_time_and_values_have_same_length(self):
         t, noise = fbm_data.create_noise_cholesky_source(H=0.7, npts=16)
         assert len(t) == len(noise)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="create_cholesky_source returns t with npts points but "
-                              "generate_cholesky(H, npts, ...) returns npts + 1 values, so the "
-                              "(t, values) tuple has mismatched lengths")
     def test_cholesky_source_time_and_values_have_same_length(self):
         t, Z = fbm_data.create_cholesky_source(H=0.7, npts=16)
         assert len(t) == len(Z)

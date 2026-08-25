@@ -403,10 +403,6 @@ class TestStatisticalTestData:
         assert repr(data) == f"StatisticalTestData({data})"
         assert "status=(HypothesisTestStatus.PASSED)" in repr(data)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestData.__props (hyp_test.py:226) never closes the parenthesis it opens "
-        "for `pval`: it emits `pval=(label=(...), value=(...), test_id=(...), params=(...)` so "
-        "the pval group swallows every field after it and the repr is unbalanced."))
     def test_repr_is_balanced(self):
         assert repr(compact_test_data()) == (
             "StatisticalTestData(test_id=(tid), "
@@ -543,10 +539,6 @@ class TestStatisticalTestReport:
         assert repr(report) == f"TestReport({report})"
         assert "hyp_test_type=(HypothesisTestType.STATIONARITY)" in repr(report)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestReport.__props (hyp_test.py:294) never closes the parenthesis it "
-        "opens for `desc`: it emits `desc=(Stationarity Test, test_data=(...))` so the desc "
-        "group swallows the test data and the repr is unbalanced."))
     def test_repr_is_balanced(self):
         report = StatisticalTestReport(test_id="tid",
                                        status=HypothesisTestStatus.PASSED,
@@ -742,10 +734,6 @@ class TestGrangerCausality:
         assert "est_id=(est-id)" in text
         assert text == f"GrangerCausalityTestResult({result})"
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "GrangerCausalityTestResult.__props (hyp_test.py:495) ends its last f-string fragment "
-        "with a dangling `, `, so every repr and str is emitted with a trailing separator: "
-        "`result=(True), )` instead of `result=(True))`."))
     def test_result_repr_has_no_trailing_separator(self):
         result = GrangerCausalityTestResult.from_dict(self.records()[1], "est-id")
         assert repr(result) == (

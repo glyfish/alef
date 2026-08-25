@@ -487,24 +487,17 @@ def test_statistic_scales_with_the_amplitude_of_the_samples():
 
 
 @pytest.mark.parametrize("σ", [0.5, 2.0, 3.0])
-def test_statistic_sigma_divides_by_sigma_squared_as_shipped(σ):
-    # Characterisation of the SHIPPED σ handling: σ enters only as the divisor
-    # σ**2 (lib/models/adf.py: delta_numerator / (sqrt(var) * σ**2)), so it is a
-    # pure rescaling of the σ = 1 value and never touches the samples.
-    # Paired with the strict xfail below, which asserts the σ**2 is wrong: when
-    # the divisor is corrected to σ, BOTH tests have to be updated together
-    # (this one to base / σ), and dropping the σ argument outright breaks this
-    # one too rather than silently removing all coverage of it.
+def test_statistic_sigma_divides_by_sigma(σ):
+    # σ enters only as the divisor (lib/models/adf.py: delta_numerator /
+    # (sqrt(var) * σ)), so it is a pure rescaling of the σ = 1 value and never
+    # touches the samples. Dividing once is what makes the DF t-statistic
+    # invariant under x -> c·x with σ -> c·σ (see the scale-invariance test).
     w = random_walk(400)
     base = adf.statistic(w)
-    assert adf.statistic(w, σ=σ) == pytest.approx(base / σ**2, rel=1e-12)
-    assert adf.statistic(w, σ) == pytest.approx(base / σ**2, rel=1e-12)
+    assert adf.statistic(w, σ=σ) == pytest.approx(base / σ, rel=1e-12)
+    assert adf.statistic(w, σ) == pytest.approx(base / σ, rel=1e-12)
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="statistic divides by sigma**2 instead of sigma: the DF t-statistic "
-                          "sum x_{t-1} dx_t / (sigma sqrt(sum x_{t-1}^2)) is invariant under x -> c x, sigma -> c sigma, "
-                          "but statistic(c*x, σ=c) == statistic(x)/c.")
 def test_statistic_is_scale_invariant_when_sigma_is_supplied():
     w = random_walk(500)
     c = 3.0
@@ -798,11 +791,6 @@ def test_create_df_source_defaults():
     assert_array_equal(default_nstep, adf.dist_ensemble(100, 5))
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="create_df_source returns t = create_space(xmax=nsim, npts=nsim+1) with nsim+1 points "
-                          "alongside an ensemble of nsim values, so the (t, values) pair does not align. "
-                          "create_space(xmax=nsim-1, npts=nsim) gives the nsim indices 0..nsim-1 the "
-                          "ensemble actually has.")
 def test_create_df_source_time_axis_matches_values():
     nsim = 50
     t, vals = fadf.create_df_source(nstep=20, nsim=nsim)

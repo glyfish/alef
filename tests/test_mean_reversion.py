@@ -239,7 +239,7 @@ class TestContract:
         assert restored.est_label == r"$t_{1/2}$"
         assert restored.param_type == OLSParamType.TRANS_PARAM.value
         assert "$t_{1/2}$" in repr(restored)
-        assert repr(result).startswith("OLSEst(")
+        assert repr(result).startswith("OLSResult(")
         assert result.est_id in repr(result)
 
     def test_report_summary_is_usable(self, fit):
