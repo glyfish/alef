@@ -376,23 +376,12 @@ class TestStatisticalTestData:
         with pytest.raises(KeyError):
             StatisticalTestData.from_dict(data)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestData.from_dict (hyp_test.py:239) does `status = data['status'] if "
-        "'status' in data else HypothesisTestStatus.FAILED` with no enum coercion, so a "
-        "decoded JSON status stays a bare str and `.to_bool()` is unavailable after a round "
-        "trip. Identical to the hyp_type/hyp_test_type/status defect in "
-        "StatisticalTestReport.from_dict (hyp_test.py:303-305)."))
     def test_from_dict_rehydrates_the_status_enum(self):
         raw = json.loads(a_test_data(upper=a_param()).to_json())
         data = StatisticalTestData.from_dict(raw)
         assert data.status is HypothesisTestStatus.PASSED
         assert data.status.to_bool() is True
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestData.from_dict guards optional params with `if 'stat' in data`, "
-        "but to_json emits absent params as JSON null, so the key is present with a None "
-        "value and StatisticalTestParam.from_dict(None) raises TypeError. Every ADF report "
-        "hits this: __adf_report_from_result always passes upper=None."))
     def test_json_round_trip_with_an_absent_optional_param(self):
         raw = json.loads(a_test_data(upper=None).to_json())
         restored = StatisticalTestData.from_dict(raw)
@@ -507,14 +496,6 @@ class TestStatisticalTestReport:
         raw["hyp_test_type"] = HypothesisTestType.BM
         assert StatisticalTestReport.from_dict(raw).desc == "Brownian Motion Test"
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestReport.from_dict (hyp_test.py:303-304) copies data['status'] and "
-        "data['hyp_type'] straight through with no enum coercion, so after a JSON round trip "
-        "both are bare str: `report.status` is 'PASSED' rather than HypothesisTestStatus.PASSED "
-        "and `report.hyp_type` is 'LOWER_TAIL' rather than HypothesisType.LOWER_TAIL. "
-        "hyp_test_type is patched back to an enum member here so that only these two are "
-        "under test -- the hyp_test_type third of the same defect is pinned separately by "
-        "test_json_round_trip."))
     def test_from_dict_rehydrates_the_status_and_hyp_type_enums(self):
         raw = json.loads(self.report().to_json())
         assert raw["status"] == "PASSED" and raw["hyp_type"] == "LOWER_TAIL"
@@ -523,12 +504,6 @@ class TestStatisticalTestReport:
         assert report.status is HypothesisTestStatus.PASSED
         assert report.hyp_type is HypothesisType.LOWER_TAIL
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "StatisticalTestReport.from_dict passes data['hyp_test_type'] straight to the "
-        "constructor, which calls hyp_test_type.desc(). Decoded JSON supplies a plain str, "
-        "so the round trip raises AttributeError: 'str' object has no attribute 'desc'. "
-        "The fix belongs in from_dict (coerce the value back to HypothesisTestType) or in "
-        "__init__ (coerce before calling desc()); nothing in this file constrains which."))
     def test_json_round_trip(self):
         report = self.report(upper=a_param(label="$t_U$", value=2.57))
         restored = StatisticalTestReport.from_dict(json.loads(report.to_json()))

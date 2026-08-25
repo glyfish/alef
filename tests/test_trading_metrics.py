@@ -168,13 +168,6 @@ class TestZscore:
         assert type(result) is float
 
     @pytest.mark.parametrize("bad", [numpy.inf, -numpy.inf])
-    @pytest.mark.xfail(strict=True,
-                       reason="zscore swallows non-finite samples: mean is ±inf, std is NaN "
-                              "(inf - inf), and `std > 0` is False for NaN, so metrics.py:88 takes "
-                              "the degenerate branch and returns 0.0 — 'the price sits exactly on "
-                              "its rolling mean', a tradeable flat signal — instead of propagating "
-                              "the non-finite input the way std() does. Fix: return NaN when std "
-                              "is not finite, reserving the 0.0 branch for std == 0")
     def test_infinite_sample_should_propagate_not_be_silently_zero(self, bad):
         samples = numpy.array([1.0, 2.0, bad])
         with numpy.errstate(invalid="ignore"):
@@ -195,21 +188,10 @@ class TestZscore:
         assert isinstance(zscore(numpy.array([1.0, 2.0, 4.0])), float)
         assert isinstance(zscore(numpy.array([1.0, 1.0])), float)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="zscore is annotated and documented `-> float` (metrics.py:66) but "
-                              "the dividing branch returns numpy.float64; only the std == 0 guard "
-                              "returns a Python float. The sibling std() already wraps its return "
-                              "in float() (metrics.py:106). Fix: `return float((val - mean) / std)`")
     def test_return_type_should_be_python_float_in_both_branches(self):
         assert type(zscore(numpy.array([1.0, 2.0, 4.0]))) is float
         assert type(zscore(numpy.array([1.0, 1.0]))) is float
 
-    @pytest.mark.xfail(strict=True,
-                       reason="zscore cannot take a pandas.Series: samples[-1] (metrics.py:86) is "
-                              "label-based lookup on a default RangeIndex and raises KeyError: -1. "
-                              "Quotes reach the strategies from the CSV/DB loaders as Series, and "
-                              "std() handles them fine. Fix: use samples.iloc[-1] / "
-                              "numpy.asarray(samples)[-1]")
     def test_pandas_series_input(self):
         # mean 3, population std sqrt(2), last value 5 -> sqrt(2), the same
         # closed form as test_ramp_closed_form on the numpy array.
@@ -362,11 +344,6 @@ class TestComputeZscore:
         time[w - 1] = -999.0
         assert t[0] == -999.0
 
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_zscore cannot take a pandas.Series: the per-window slice is "
-                              "still a Series and zscore's samples[-1] (metrics.py:86) is label "
-                              "lookup on a RangeIndex, so it raises KeyError: -1. compute_std "
-                              "accepts the same input. Fix: samples.iloc[-1] / numpy.asarray()")
     def test_pandas_series_data(self):
         n, w = 40, 6
         time = numpy.arange(n, dtype=float)
@@ -626,13 +603,6 @@ class TestComputeStd:
         assert s.dtype == numpy.float64
 
     @pytest.mark.parametrize("window", [0, -1], ids=["zero", "negative"])
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_std does not validate window > 0: numpy.std of the empty "
-                              "slices is NaN, so on n points window = 0 yields n+1 NaNs against "
-                              "the 1 stamp in time[-1:] and window = -1 yields n+2 NaNs against 2 "
-                              "stamps — a (t, values) pair with mismatched lengths returned "
-                              "silently instead of a raise. compute_zscore rejects both inputs, "
-                              "but only by accident, from its empty-sample guard")
     def test_non_positive_window_is_rejected(self, window):
         # There is no sane (t, values) pair to return for a non-positive window,
         # so the fix is to validate and raise — which is what is asserted, so
@@ -773,14 +743,6 @@ def test_compute_std_propagates_a_nan_window():
     assert numpy.all(numpy.isfinite(s[10:]))
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="compute_zscore emits 0.0 for windows containing NaN instead of "
-                          "propagating it: numpy.std of the window is NaN, `std > 0` is False for "
-                          "NaN, so metrics.py:88 takes the degenerate branch. A 0.0 z-score means "
-                          "'the price is exactly at its rolling mean' — a tradeable flat signal "
-                          "manufactured out of missing data, while compute_std correctly reports "
-                          "NaN for the very same windows. Fix: return NaN when std is not finite, "
-                          "reserving the 0.0 branch for std == 0")
 def test_compute_zscore_should_propagate_a_nan_window():
     n, w = 20, 5
     data = numpy.random.normal(0.0, 1.0, n)
@@ -793,11 +755,6 @@ def test_compute_zscore_should_propagate_a_nan_window():
 
 @pytest.mark.parametrize("compute", [compute_zscore, compute_std], ids=["zscore", "std"])
 @pytest.mark.parametrize("ntime, ndata", [(4, 10), (20, 10)], ids=["time-shorter", "time-longer"])
-@pytest.mark.xfail(strict=True,
-                   reason="neither compute_ facade validates len(time) == len(data): the values "
-                          "array is sized from len(data) while the time array is sliced from the "
-                          "time argument, so a (t, values) pair with mismatched lengths is returned "
-                          "silently — 2 vs 8 when time is shorter, 18 vs 8 when it is longer")
 def test_mismatched_time_and_data_lengths_are_rejected(compute, ntime, ndata):
     # The strategies index the returned pair positionally, so a time array of a
     # different length from the data array must not be accepted quietly. There

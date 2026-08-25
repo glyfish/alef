@@ -212,12 +212,6 @@ class TestVECMParamType:
                 assert VECMParamType(member.name) is member
                 assert member == member.name
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="VECMParamType.VECM_OMEGA's value is 'VAR_OMEGA' (copied from VARParamType); every other "
-               "member's value equals its name, so VECM omega rows are stored under the VAR type string "
-               "and VECMParamType('VECM_OMEGA') raises ValueError",
-    )
     def test_vecm_omega_value_matches_name(self):
         assert VECMParamType.VECM_OMEGA.value == "VECM_OMEGA"
         assert VECMParamType("VECM_OMEGA") is VECMParamType.VECM_OMEGA
@@ -370,13 +364,6 @@ class TestParamEst:
         loaded = json.loads(text)
         assert loaded["est"] == 0.75 and loaded["err"] == 0.0625
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ParamEst.to_json's `default=lambda o: o.__dict__` hook is the whole numpy/JSON boundary "
-               "and handles only numpy scalars that subclass float: numpy.int64/int32/float32 reach it and "
-               "die with AttributeError on the missing __dict__ (not even the TypeError a serialiser should "
-               "raise).  Latent today only because callers happen to pass python ints for order/row/column",
-    )
     @pytest.mark.parametrize(
         "field, value, expected",
         [
@@ -1154,16 +1141,14 @@ def test_arma_est_defaults_to_ar():
 # long before any estimator runs.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="param_est.py:1 `import numpy` and :4 `import uuid` are never used -- neither name appears "
-           "anywhere else in the module",
-)
 @pytest.mark.parametrize("name", ["numpy", "uuid"])
 def test_module_level_imports_are_used(name):
     source = inspect.getsource(param_est_module)
-    # >1 occurrence: the import statement itself, plus at least one use.
-    assert source.count(name) > 1
+    # An import that is present must also be used. Asserting `count > 1` alone
+    # is unsatisfiable for a genuinely unused import: deleting the import takes
+    # the count to 0, so the assertion fails whether or not the code is fixed.
+    if f"import {name}" in source:
+        assert source.count(name) > 1, f"{name} is imported but never used"
 
 
 @pytest.mark.xfail(

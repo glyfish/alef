@@ -837,22 +837,14 @@ class TestEstimateFacade:
         assert restored.param_type == original.param_type
         assert json.loads(est.to_json(pretty=True)) == payload
 
-    def test_omega_estimates_serialise_with_the_var_omega_literal(self, fit_vecm1):
-        """Recorded, not endorsed: VECMParamType.VECM_OMEGA's *value* is the
-        string "VAR_OMEGA", so that is the discriminator a persisted VECM noise
-        covariance estimate carries."""
+    def test_omega_estimates_serialise_with_their_own_literal(self, fit_vecm1):
+        """A persisted VECM noise covariance carries a VECM discriminator, so it
+        is distinguishable from a VAR result's omega rows."""
         _, est = fit_vecm1
         payload = json.loads(est.to_json())
-        assert {p["param_type"] for p in payload["omega"]} == {"VAR_OMEGA"}
+        assert {p["param_type"] for p in payload["omega"]} == {"VECM_OMEGA"}
         assert {p["param_type"] for p in payload["lambda_est"]} == {"VECM_LAMBDA"}
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="VECMParamType.VECM_OMEGA is defined as the literal 'VAR_OMEGA', "
-               "the same value as VARParamType.VAR_OMEGA, so a persisted VECM "
-               "noise covariance estimate is indistinguishable from a VAR one",
-    )
     def test_omega_param_type_is_distinct_from_the_var_one(self):
         assert VECMParamType.VECM_OMEGA.value != VARParamType.VAR_OMEGA.value
 

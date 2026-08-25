@@ -1007,11 +1007,6 @@ def test_statistical_test_param_round_trip():
     assert repr(param) == "TestParam(label=($t$), value=(-1.5), test_id=(abc))"
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="StatisticalTestReport.from_dict cannot read its own to_json output: the ADF report "
-                          "serialises upper=None and StatisticalTestData.from_dict calls "
-                          "StatisticalTestParam.from_dict(None) (TypeError); from_dict also passes "
-                          "hyp_test_type through as a plain str, on which __init__ calls .desc().")
 def test_statistical_test_report_from_dict_round_trip():
     _, test_report = fadf.compute_adf_test(random_walk(400))
     restored = StatisticalTestReport.from_dict(json.loads(test_report.to_json()))

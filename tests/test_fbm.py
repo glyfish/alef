@@ -1046,13 +1046,6 @@ class TestReportSerialization:
         assert row.upper.value == pytest.approx(norm.ppf(0.95))
         assert "TestReport(test_id=(" in repr(model)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="StatisticalTestReport.from_dict passes hyp_test_type through as the "
-                              "plain str that to_json emitted, and __init__ then calls "
-                              "hyp_test_type.desc() -> AttributeError, so a report cannot be "
-                              "reloaded from its own JSON. BM is used because both critical values "
-                              "are present in its rows, so the row-level from_dict bug below "
-                              "cannot fire first and mask this one")
     def test_statistical_report_from_dict_round_trip(self):
         x = random_walk(512)
         _, model = fbm_data.compute_vr_test(x, HypothesisTestType.BM)
@@ -1062,21 +1055,7 @@ class TestReportSerialization:
         assert restored.hyp_test_type == HypothesisTestType.BM
         assert len(restored.test_data) == len(model.test_data)
 
-    def test_statistical_report_from_dict_raises_attribute_error_on_the_test_type(self):
-        # Pin which failure the round trip above hits, so the strict xfail cannot be
-        # satisfied by an unrelated defect.
-        x = random_walk(256)
-        _, model = fbm_data.compute_vr_test(x, HypothesisTestType.BM)
-        with pytest.raises(AttributeError, match="'str' object has no attribute 'desc'"):
-            StatisticalTestReport.from_dict(json.loads(model.to_json()))
 
-    @pytest.mark.xfail(strict=True,
-                       reason="StatisticalTestData.from_dict guards each critical value with "
-                              "'lower' in data (hyp_test.py:245), but a one-tailed row serialises "
-                              "the absent bound as JSON null rather than omitting the key, so "
-                              "StatisticalTestParam.from_dict(None) raises TypeError: 'NoneType' "
-                              "object is not subscriptable at hyp_test.py:170 -- every upper/lower "
-                              "tail row fails to reload")
     @pytest.mark.parametrize("hyp_test_type", [HypothesisTestType.FBM_AUTO_CORR,
                                                HypothesisTestType.FBM_NEG_AUTO_CORR])
     def test_one_tailed_row_round_trip(self, hyp_test_type):
