@@ -542,12 +542,6 @@ class TestEstimation:
         assert int(numpy.argmin(result.ics["bic"])) == order
         assert int(numpy.argmin(result.ics["hqic"])) == order
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.models.var.lag_order_estimate accepts a trend argument and drops it: line 364 "
-        "calls select_order(maxlags=maxlags) with no trend=trend, so lag_order_estimate(..., "
-        "trend='n') silently returns the trend='c' selection. statsmodels' own "
-        "select_order(trend='n') returns a different, one-shorter set of criteria for "
-        "this data (lag 0 has no regressors without a constant)"))
     def test_order_estimate_honours_trend(self, var1_large_offset_sim):
         _, xt = var1_large_offset_sim
         with_const = model.lag_order_estimate(xt.T, maxlags=4, trend="c")
@@ -612,19 +606,10 @@ class TestFacadeContract:
         {"Ω": [[1.0, 0.0], [0.0, 1.0]]},
         {"x0": [[0.0, 0.0]]},
     ])
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.data.impl.var.create_source runs its .shape checks before the verify_type "
-        "calls, so a list-valued Ω or x0 raises AttributeError('list' object has no "
-        "attribute 'shape') and the type checks that should report the expected "
-        "numpy.ndarray type are unreachable for them"))
     def test_create_source_reports_non_array_parameters(self, bad_kwargs):
         with pytest.raises(Exception, match="Expected"):
             facade.create_source(PHI_COUPLED1, npts=10, **bad_kwargs)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.data.impl.var.create_source does not guard npts against the process order: "
-        "npts=1 for a VAR(2) dies with a raw IndexError from lib/models/var.py:314 "
-        "(xt[i] = x0[i] with i past the end of xt) instead of a validation message"))
     def test_create_source_rejects_npts_below_order(self):
         with pytest.raises(Exception) as exc_info:
             facade.create_source(PHI_DIAG2, npts=1)
@@ -728,11 +713,6 @@ class TestFacadeContract:
         with pytest.raises(Exception, match="column vector"):
             facade.compute_unvec(numpy.matrix([[1.0, 2.0, 3.0, 4.0]]))
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.models.var.unvec takes n = int(sqrt(len)) and silently truncates: a 6x1 "
-        "column comes back as the 2x2 built from its first four entries and the last two "
-        "are dropped with no error. lib.data.impl.var.compute_unvec validates only that "
-        "the input has a single column, so the data loss is silent"))
     def test_compute_unvec_rejects_length_that_is_not_a_perfect_square(self):
         col = numpy.matrix(numpy.arange(1.0, 7.0)).T
         with pytest.raises(Exception):
@@ -775,13 +755,6 @@ class TestFacadeContract:
             fn(numpy.zeros((0, 2, 2)))
 
     @pytest.mark.parametrize("fn", [facade.compute_cov, facade.compute_acov])
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.data.impl.var.compute_cov and compute_acov type-check Ω but never check its "
-        "shape against φ (lib/data/impl/var.py:65-66 and 94-95 call verify_type only), "
-        "although create_source validates exactly this mistake at line 304. A 3x3 Ω "
-        "against a 2x2 Φ reaches lib.models.var.cov and dies with a raw ValueError("
-        "'shapes (4,4) and (9,1) not aligned: 4 (dim 1) != 9 (dim 0)') from the Kronecker "
-        "solve instead of the library's own 'Ω should satisfy should have shape(2,2)'"))
     def test_omega_shape_validation(self, fn):
         with pytest.raises(Exception, match="should have shape"):
             fn(PHI_COUPLED1, numpy.eye(3))
@@ -806,11 +779,6 @@ class TestFacadeContract:
         with pytest.raises(Exception, match="square"):
             facade.compute_omega_companion_form(numpy.ones((2, 3)), 1)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.data.impl.var.compute_omega_companion_form never checks n > 0, although its "
-        "compute_mean_companion_form sibling does; n=0 dies inside numpy with 'could not "
-        "broadcast input array from shape (2,2) into shape (0,0)' instead of the "
-        "library's 'n should satisfy should be positive'"))
     def test_omega_companion_form_rejects_non_positive_order(self):
         with pytest.raises(Exception, match="positive"):
             facade.compute_omega_companion_form(numpy.eye(2), 0)
@@ -850,13 +818,6 @@ class TestFacadeEstimation:
         assert [(p.order, p.row, p.column) for p in est.omega] == [(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1)]
         assert all(p.err == 0.0 for p in est.omega)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "__var_estimate_from_result encodes the equation index of each constant in "
-        "ParamEst.order and hard-codes row=column=0 (lib/data/impl/var.py:390-392), while "
-        "the sibling VECM facade encodes the same $\\hat{M}$ constant as order=0, row=i, "
-        "column=0 (lib/data/impl/vecm.py:285-293). ParamEst documents order as the "
-        "parameter order index and row as the row index, so the VAR encoding is the "
-        "divergent one; no navi consumer reads VAREst.const back, so nothing else pins it"))
     def test_compute_estimate_const_index_matches_vecm_convention(self, var1_estimate):
         _, est = var1_estimate
         assert [(p.order, p.row, p.column) for p in est.const] == [(0, 0, 0), (0, 1, 0)]
@@ -971,11 +932,6 @@ class TestFacadeEstimation:
         assert json.loads(est.to_json(pretty=True)) == data
         assert repr(est).startswith("VAREst(")
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "__var_estimate_from_result stores result.resid_corr (residual correlation: unit "
-        "diagonal, off-diagonal 0.104 here) under the Omega label, but Omega is the noise "
-        "covariance passed to create_source; it should track result.sigma_u, whose diagonal "
-        "is ~2.0 and whose off-diagonal is ~0.200"))
     def test_compute_estimate_omega_is_noise_covariance(self, var1_estimate):
         _, est = var1_estimate
         omega = numpy.zeros((2, 2))
@@ -995,12 +951,6 @@ class TestFacadeEstimation:
     # correct row for each trend at maxlags = 1 and 2, so both faults are covered and
     # neither test can pass on a fix that repairs only the leading offset.
     @pytest.mark.parametrize("maxlags", [1, 2])
-    @pytest.mark.xfail(strict=True, reason=(
-        "__var_estimate_from_result assumes trend='c': with trend='n' result.stderr has no "
-        "constant row, so stderr[1:] drops a real lag row. At maxlags=1 that leaves a "
-        "single row and indexing est_stderr raises IndexError; at maxlags=2 the 3 "
-        "remaining rows split unevenly into 2 chunks and numpy.array over the ragged list "
-        "raises ValueError('... inhomogeneous shape after 2 dimensions')"))
     def test_compute_estimate_trend_n_stderr_alignment(self, var1_sim, maxlags):
         _, xt = var1_sim
         result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="n")
@@ -1012,13 +962,6 @@ class TestFacadeEstimation:
             assert p.err == result.stderr[(p.order - 1) * 2 + p.column, p.row]
 
     @pytest.mark.parametrize("maxlags", [1, 2])
-    @pytest.mark.xfail(strict=True, reason=(
-        "__var_estimate_from_result assumes trend='c': with trend='ct' stderr[1:] starts at "
-        "the linear-trend row, so at maxlags=1 every coefficient error is shifted by one "
-        "regressor (the lag-1 errors come back as the trend stderr, 2.9e-05, instead of "
-        "~0.018). At maxlags=2 the 5 rows left after the drop split unevenly into 2 chunks "
-        "and numpy.array over the ragged list raises ValueError('... inhomogeneous shape "
-        "after 2 dimensions'), so the row offset and the array_split are separate faults"))
     def test_compute_estimate_trend_ct_stderr_alignment(self, var1_sim, maxlags):
         _, xt = var1_sim
         result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="ct")
@@ -1028,14 +971,6 @@ class TestFacadeEstimation:
             assert p.err == result.stderr[2 + (p.order - 1) * 2 + p.column, p.row]
 
     @pytest.mark.parametrize("maxlags", [1, 2])
-    @pytest.mark.xfail(strict=True, reason=(
-        "trend='ctt' is the silent variant of the same bug and the dangerous one: it never "
-        "raises at any maxlags, so no crash-shaped test covers it. stderr[1:] starts at the "
-        "'trend' row and the two extra deterministic rows keep the split even, so the "
-        "reported Phi errors are the deterministic-term stderrs. At maxlags=1 the lag-1 "
-        "errors come back as the trend and trend**2 stderrs, 0.000117 and literally 0.0 -- "
-        "a notebook renders a 0.0 standard error for a Phi coefficient with no signal that "
-        "anything is wrong; at maxlags=2 the lag-2 errors are a mix of the L1.y2 and L2 rows"))
     def test_compute_estimate_trend_ctt_stderr_alignment(self, var1_sim, maxlags):
         _, xt = var1_sim
         result, est = facade.compute_estimate(xt, maxlags=maxlags, trend="ctt")
@@ -1078,12 +1013,6 @@ class TestFacadeEstimation:
         result, _ = facade.compute_lag_order(xt)
         assert len(result.ics["bic"]) == 13  # lags 0..12
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "compute_lag_order forwards trend to lib.models.var.lag_order_estimate, which drops it: "
-        "line 364 calls select_order(maxlags=maxlags) with no trend=trend, so "
-        "compute_lag_order(..., trend='n') silently returns the trend='c' result. The two "
-        "calls are byte-identical, while statsmodels' own select_order(trend='n') returns "
-        "a different, one-shorter set of criteria for this data"))
     def test_compute_order_honours_trend(self, var1_large_offset_sim):
         _, xt = var1_large_offset_sim
         with_const, _ = facade.compute_lag_order(xt, maxlags=4, trend="c")
