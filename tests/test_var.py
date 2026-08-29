@@ -531,7 +531,7 @@ class TestEstimation:
     @pytest.mark.parametrize("fixture, order", [("var1_sim", 1), ("var2_sim", 2)])
     def test_order_estimate_selects_true_order(self, fixture, order, request):
         _, xt = request.getfixturevalue(fixture)
-        result = model.order_estimate(xt.T, maxlags=4)
+        result = model.lag_order_estimate(xt.T, maxlags=4)
         # BIC and HQIC are consistent selectors; AIC/FPE overfit by a lag with ~10%
         # probability, so they are only required not to under-fit.
         assert result.bic == order
@@ -543,15 +543,15 @@ class TestEstimation:
         assert int(numpy.argmin(result.ics["hqic"])) == order
 
     @pytest.mark.xfail(strict=True, reason=(
-        "lib.models.var.order_estimate accepts a trend argument and drops it: line 364 "
-        "calls select_order(maxlags=maxlags) with no trend=trend, so order_estimate(..., "
+        "lib.models.var.lag_order_estimate accepts a trend argument and drops it: line 364 "
+        "calls select_order(maxlags=maxlags) with no trend=trend, so lag_order_estimate(..., "
         "trend='n') silently returns the trend='c' selection. statsmodels' own "
         "select_order(trend='n') returns a different, one-shorter set of criteria for "
         "this data (lag 0 has no regressors without a constant)"))
     def test_order_estimate_honours_trend(self, var1_large_offset_sim):
         _, xt = var1_large_offset_sim
-        with_const = model.order_estimate(xt.T, maxlags=4, trend="c")
-        no_const = model.order_estimate(xt.T, maxlags=4, trend="n")
+        with_const = model.lag_order_estimate(xt.T, maxlags=4, trend="c")
+        no_const = model.lag_order_estimate(xt.T, maxlags=4, trend="n")
         # The stationary mean is ~13, so a fit without a constant is far worse and
         # the criteria cannot coincide.
         assert not numpy.array_equal(numpy.asarray(with_const.ics["aic"]),
@@ -790,11 +790,11 @@ class TestFacadeContract:
         with pytest.raises(Exception, match="len"):
             facade.compute_mean(numpy.zeros((0, 2, 2)))
         with pytest.raises(Exception, match="Expected"):
-            facade.compute_mean(PHI_COUPLED1, [0.0, 0.0])
+            facade.compute_mean(PHI_COUPLED1, [0.0, 0.0])  # type: ignore[arg-type]
 
     def test_mean_companion_form_validation(self):
         with pytest.raises(Exception, match="Expected"):
-            facade.compute_mean_companion_form([1.0, 2.0], 1)
+            facade.compute_mean_companion_form([1.0, 2.0], 1)  # type: ignore[arg-type]
         with pytest.raises(Exception, match="1-D"):
             facade.compute_mean_companion_form(numpy.ones((2, 1)), 1)
         with pytest.raises(Exception, match="positive"):
@@ -802,7 +802,7 @@ class TestFacadeContract:
 
     def test_omega_companion_form_validation(self):
         with pytest.raises(Exception, match="Expected"):
-            facade.compute_omega_companion_form([[1.0]], 1)
+            facade.compute_omega_companion_form([[1.0]], 1)  # type: ignore[arg-type]
         with pytest.raises(Exception, match="square"):
             facade.compute_omega_companion_form(numpy.ones((2, 3)), 1)
 
@@ -815,17 +815,13 @@ class TestFacadeContract:
         with pytest.raises(Exception, match="positive"):
             facade.compute_omega_companion_form(numpy.eye(2), 0)
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib.models.var.vec assigns m[:, i] into a (n, 1) column slice, which only works "
-        "when m is a numpy.matrix; a plain 2-D ndarray (the annotated NDArray type) "
-        "raises ValueError: could not broadcast (n,) into (n, 1)"))
     def test_compute_vec_accepts_plain_ndarray(self):
         A = numpy.array([[1.0, 3.0], [2.0, 4.0]])
         assert_array_equal(numpy.asarray(facade.compute_vec(A))[:, 0], [1.0, 2.0, 3.0, 4.0])
 
 
 # ---------------------------------------------------------------------------
-# Facade estimation: compute_estimate / compute_order and their reports
+# Facade estimation: compute_estimate / compute_lag_order and their reports
 # ---------------------------------------------------------------------------
 
 class TestFacadeEstimation:
@@ -941,10 +937,10 @@ class TestFacadeEstimation:
         assert_allclose([p.est for p in est.const], MU_3D, atol=0.3)
 
     def test_compute_order_three_variables(self, var3d_sim):
-        """compute_order with m > 2: the true order is 2 and the consistent criteria
+        """compute_lag_order with m > 2: the true order is 2 and the consistent criteria
         must find it (AIC is allowed to over-fit, as elsewhere in this file)."""
         _, xt = var3d_sim
-        result, report = facade.compute_order(xt, maxlags=4)
+        result, report = facade.compute_lag_order(xt, maxlags=4)
         assert (result.bic, result.hqic) == (2, 2)
         assert result.aic >= 2
         assert len(result.ics["bic"]) == 5
@@ -1051,7 +1047,7 @@ class TestFacadeEstimation:
 
     def test_compute_order_returns_results_and_report(self, var1_sim):
         _, xt = var1_sim
-        result, report = facade.compute_order(xt, maxlags=4)
+        result, report = facade.compute_lag_order(xt, maxlags=4)
         assert isinstance(report, VAROrderTestReport)
         assert result.bic == 1
         assert len(result.ics["aic"]) == 5
@@ -1072,26 +1068,26 @@ class TestFacadeEstimation:
 
     def test_compute_order_var2(self, var2_sim):
         _, xt = var2_sim
-        result, report = facade.compute_order(xt, maxlags=4)
+        result, report = facade.compute_lag_order(xt, maxlags=4)
         assert (result.bic, result.hqic) == (2, 2)
         # Majority vote over (aic, bic, hqic) is 2 whenever bic and hqic agree.
         assert json.loads(report.to_json())["_VAROrderTestReport__order"]["value"] == 2
 
     def test_compute_order_default_maxlags(self, var1_sim):
         _, xt = var1_sim
-        result, _ = facade.compute_order(xt)
+        result, _ = facade.compute_lag_order(xt)
         assert len(result.ics["bic"]) == 13  # lags 0..12
 
     @pytest.mark.xfail(strict=True, reason=(
-        "compute_order forwards trend to lib.models.var.order_estimate, which drops it: "
+        "compute_lag_order forwards trend to lib.models.var.lag_order_estimate, which drops it: "
         "line 364 calls select_order(maxlags=maxlags) with no trend=trend, so "
-        "compute_order(..., trend='n') silently returns the trend='c' result. The two "
+        "compute_lag_order(..., trend='n') silently returns the trend='c' result. The two "
         "calls are byte-identical, while statsmodels' own select_order(trend='n') returns "
         "a different, one-shorter set of criteria for this data"))
     def test_compute_order_honours_trend(self, var1_large_offset_sim):
         _, xt = var1_large_offset_sim
-        with_const, _ = facade.compute_order(xt, maxlags=4, trend="c")
-        no_const, _ = facade.compute_order(xt, maxlags=4, trend="n")
+        with_const, _ = facade.compute_lag_order(xt, maxlags=4, trend="c")
+        no_const, _ = facade.compute_lag_order(xt, maxlags=4, trend="n")
         # The stationary mean is ~13, so a no-constant fit is much worse: the ICs
         # cannot coincide once the argument is honoured.
         assert not numpy.array_equal(numpy.asarray(with_const.ics["bic"]),
@@ -1125,14 +1121,14 @@ class TestOrderReportMajorityVote:
         (4, 0, 4, 0, 0),   # two-way tie -> the smaller of the two majorities
     ])
     def test_majority_vote(self, aic, bic, fpe, hqic, expected):
-        report = build_order_report(self.fake_result(aic, bic, fpe, hqic))
+        report = build_order_report(self.fake_result(aic, bic, fpe, hqic))  # type: ignore[arg-type]
         data = json.loads(report.to_json())
         assert data["_VAROrderTestReport__order"]["value"] == expected
         assert data["_VAROrderTestReport__order"]["label"] == r"$\tau_{min}$"
 
     def test_per_criterion_entries_index_their_own_selection(self):
         result = self.fake_result(aic=4, bic=1, fpe=3, hqic=2)
-        data = json.loads(build_order_report(result).to_json())
+        data = json.loads(build_order_report(result).to_json())  # type: ignore[arg-type]
         test_id = data["_VAROrderTestReport__test_id"]
         for name in ("aic", "bic", "fpe", "hqic"):
             entry = data[f"_VAROrderTestReport__{name}"]

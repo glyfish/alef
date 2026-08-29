@@ -411,7 +411,7 @@ class TestOrderEstimate:
         more often, which is its documented small sample behaviour, so only BIC
         is pinned exactly and HQIC is held to a bound."""
         _, xt = sim_vecm1
-        result = model.order_estimate(xt.T, 6, "co")
+        result = model.lag_order_estimate(xt.T, 6, "co")
         assert isinstance(result, LagOrderResults)
         assert result.bic == 1
         assert result.hqic <= 1
@@ -422,7 +422,7 @@ class TestOrderEstimate:
         the same way AIC is elsewhere."""
         numpy.random.seed(5309)
         _, xt = facade.create_vecm1_source(LAMBDA, BETA, A_ZERO, npts=2000)
-        result = model.order_estimate(xt.T, 6, "co")
+        result = model.lag_order_estimate(xt.T, 6, "co")
         assert result.bic == 0
         assert result.hqic <= 1
 
@@ -431,7 +431,7 @@ class TestOrderEstimate:
         equivalent lagged difference counts 0…maxlags, and the selection is the
         argmin of each criterion's list."""
         _, xt = sim_vecm1
-        result = model.order_estimate(xt.T, 6, "co")
+        result = model.lag_order_estimate(xt.T, 6, "co")
         for name in ("aic", "bic", "fpe", "hqic"):
             values = numpy.array(result.ics[name])
             assert len(values) == 7
@@ -439,7 +439,7 @@ class TestOrderEstimate:
 
     def test_default_maxlags_is_twelve(self, sim_vecm1):
         _, xt = sim_vecm1
-        assert len(model.order_estimate(xt.T).ics["aic"]) == 13
+        assert len(model.lag_order_estimate(xt.T).ics["aic"]) == 13
 
 
 # ############################################################################
@@ -896,32 +896,32 @@ class TestOrderFacade:
         with; HQIC is held to a bound for the reason given on
         ``TestOrderEstimate.test_selects_the_true_number_of_lagged_differences``."""
         _, xt = sim_vecm1
-        result, report = facade.compute_order(xt, maxlags=6)
+        result, report = facade.compute_lag_order(xt, maxlags=6)
         assert isinstance(result, LagOrderResults)
         assert isinstance(report, VAROrderTestReport)
         assert result.bic == 1 and result.hqic <= 1
 
     def test_agrees_with_the_model_layer_on_transposed_samples(self, sim_vecm1):
         _, xt = sim_vecm1
-        result, _ = facade.compute_order(xt, maxlags=6, trend="co")
-        direct = model.order_estimate(xt.T, 6, "co")
+        result, _ = facade.compute_lag_order(xt, maxlags=6, trend="co")
+        direct = model.lag_order_estimate(xt.T, 6, "co")
         assert (result.aic, result.bic, result.fpe, result.hqic) == (direct.aic, direct.bic, direct.fpe, direct.hqic)
         assert_allclose(result.ics["aic"], direct.ics["aic"], rtol=1e-12)
 
     def test_default_trend_is_a_constant_outside_the_relation(self, sim_vecm1):
-        """compute_order defaults to trend "co" where the model layer's
-        order_estimate defaults to "n"; the two score every candidate order
+        """compute_lag_order defaults to trend "co" where the model layer's
+        lag_order_estimate defaults to "n"; the two score every candidate order
         differently, so the façade default is not a pass through of the model
         default."""
         _, xt = sim_vecm1
-        result, _ = facade.compute_order(xt, maxlags=6)
-        assert_allclose(result.ics["aic"], model.order_estimate(xt.T, 6, "co").ics["aic"], rtol=1e-12)
-        assert_allclose(result.ics["bic"], model.order_estimate(xt.T, 6, "co").ics["bic"], rtol=1e-12)
-        assert not numpy.allclose(result.ics["aic"], model.order_estimate(xt.T, 6, "n").ics["aic"])
+        result, _ = facade.compute_lag_order(xt, maxlags=6)
+        assert_allclose(result.ics["aic"], model.lag_order_estimate(xt.T, 6, "co").ics["aic"], rtol=1e-12)
+        assert_allclose(result.ics["bic"], model.lag_order_estimate(xt.T, 6, "co").ics["bic"], rtol=1e-12)
+        assert not numpy.allclose(result.ics["aic"], model.lag_order_estimate(xt.T, 6, "n").ics["aic"])
 
     def test_default_maxlags_scores_thirteen_orders(self, sim_vecm1):
         _, xt = sim_vecm1
-        result, _ = facade.compute_order(xt)
+        result, _ = facade.compute_lag_order(xt)
         assert len(result.ics["aic"]) == 13
 
     def test_report_carries_each_criterion_and_its_minimum(self, sim_vecm1):
@@ -930,7 +930,7 @@ class TestOrderFacade:
         order is the modal selection of AIC, BIC and HQIC — here 1, the true
         number of lagged differences."""
         _, xt = sim_vecm1
-        result, report = facade.compute_order(xt, maxlags=6)
+        result, report = facade.compute_lag_order(xt, maxlags=6)
         payload = json.loads(report.to_json())
         prefix = "_VAROrderTestReport__"
 

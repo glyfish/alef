@@ -662,7 +662,7 @@ class TestVAROrderTestReport:
         phi = numpy.array([[[0.5, 0.0], [0.0, 0.4]],
                            [[0.2, 0.0], [0.0, 0.3]]])
         _, samples = var_data.create_source(phi, npts=2000)
-        result, report = var_data.compute_order(samples, maxlags=6)
+        result, report = var_data.compute_lag_order(samples, maxlags=6)
 
         assert int(result.bic) == 2
         raw = json.loads(report.to_json())
