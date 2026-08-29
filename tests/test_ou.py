@@ -32,6 +32,7 @@ from lib.data.impl import ou as ou_facade
 from lib.data.param_est import EstModel, OLSParamType, OLSResult
 from lib.models import ou
 from lib.utils import create_ensemble
+from helpers import present
 
 LN2 = math.log(2.0)
 
@@ -234,7 +235,7 @@ class TestDistributions:
     def test_cdf_limit_is_stationary_normal(self):
         sd = math.sqrt(ou.var_limit(self.λ, self.σ))
         c = ou.cdf_limit(numpy.array([self.μ - sd, self.μ, self.μ + sd]), self.μ, self.λ, self.σ)
-        npt.assert_allclose(c, [norm.cdf(-1.0), 0.5, norm.cdf(1.0)])
+        npt.assert_allclose(c, [float(norm.cdf(-1.0)), 0.5, float(norm.cdf(1.0))])
 
     def test_pdf_limit_sigma_defaults_to_one(self):
         # λ = 0.5 with the default σ = 1 gives var_limit = σ²/(2λ) = 1 exactly, so the limiting
@@ -247,7 +248,7 @@ class TestDistributions:
     def test_cdf_limit_sigma_defaults_to_one(self):
         x = numpy.array([self.μ - 1.0, self.μ, self.μ + 1.0])
         c = ou.cdf_limit(x, self.μ, 0.5)
-        npt.assert_allclose(c, [norm.cdf(-1.0), 0.5, norm.cdf(1.0)], rtol=1e-12)
+        npt.assert_allclose(c, [float(norm.cdf(-1.0)), 0.5, float(norm.cdf(1.0))], rtol=1e-12)
         npt.assert_array_equal(c, ou.cdf_limit(x, self.μ, 0.5, 1.0))
 
     def test_cdf_limit_ignores_x0(self):
@@ -507,7 +508,7 @@ class TestSamplerConsistency:
         assert path_end.var(ddof=1) == pytest.approx(draws.var(ddof=1), rel=0.2)
         # Whole-distribution check with a deterministic bound: 1.95√(2/nsim) is the ~1e-3
         # two-sided critical value of the two-sample KS statistic at equal sample sizes.
-        assert ks_2samp(path_end, draws).statistic < 1.95 * math.sqrt(2.0 / nsim)
+        assert ks_2samp(path_end, draws).statistic < 1.95 * math.sqrt(2.0 / nsim)  # pyright: ignore[reportAttributeAccessIssue]
 
     @pytest.mark.xfail(
         strict=True,
@@ -1050,7 +1051,7 @@ class TestHalfLifeEstimate:
         for _ in range(60):
             _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=1.0, σ=self.σ, x0=0.0, npts=4000)
             _, result = ou_facade.compute_mean_half_life_estimate(x, dt=1.0)
-            half_life = result.param_transforms[0].param
+            half_life = present(result.param_transforms)[0].param
             ests.append(half_life.est)
             errs.append(half_life.err)
         assert numpy.std(ests, ddof=1) == pytest.approx(numpy.mean(errs), rel=0.3)
@@ -1090,7 +1091,7 @@ class TestHalfLifeEstimate:
         Δt = 0.5
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=Δt, σ=self.σ, x0=0.0, npts=4000)
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=Δt)
-        const = result.const_transform.param
+        const = present(result.const_transform).param
         assert const.est_label == r"$\mu$"
         assert const.est == pytest.approx(self.λ * self.μ * Δt, rel=0.15)
         assert const.est != pytest.approx(self.μ, rel=0.1)  # emphatically not the long-run mean
@@ -1109,7 +1110,7 @@ class TestHalfLifeEstimate:
         Δt = 0.5
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=Δt, σ=self.σ, x0=0.0, npts=4000)
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=Δt)
-        assert result.const_transform.param.est == pytest.approx(result.const.est / Δt)
+        assert present(result.const_transform).param.est == pytest.approx(result.const.est / Δt)
 
     def test_every_reported_quantity_scales_correctly_with_dt(self):
         # dt is a unit conversion applied after the fit, so refitting the SAME series with dt
@@ -1123,8 +1124,8 @@ class TestHalfLifeEstimate:
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=1.0, σ=self.σ, x0=0.0, npts=4000)
         _, one = ou_facade.compute_mean_half_life_estimate(x, dt=1.0)
         _, half = ou_facade.compute_mean_half_life_estimate(x, dt=0.5)
-        hl_one, lam_one = (tr.param for tr in one.param_transforms)
-        hl_half, lam_half = (tr.param for tr in half.param_transforms)
+        hl_one, lam_one = (tr.param for tr in present(one.param_transforms))
+        hl_half, lam_half = (tr.param for tr in present(half.param_transforms))
         assert lam_half.est == pytest.approx(2.0 * lam_one.est)
         assert lam_half.err == pytest.approx(2.0 * lam_one.err)
         assert hl_half.est == pytest.approx(hl_one.est / 2.0)
@@ -1132,9 +1133,9 @@ class TestHalfLifeEstimate:
         # The const transform is the one reported quantity that does not move with dt: it is
         # the raw OLS intercept and error, carrying no /dt at all — see
         # test_const_transform_divides_the_intercept_by_dt.
-        assert half.const_transform.param.est == pytest.approx(one.const_transform.param.est)
-        assert half.const_transform.param.err == pytest.approx(one.const_transform.param.err)
-        assert half.const_transform.param.err == pytest.approx(half.const.err)
+        assert present(half.const_transform).param.est == pytest.approx(present(one.const_transform).param.est)
+        assert present(half.const_transform).param.err == pytest.approx(present(one.const_transform).param.err)
+        assert present(half.const_transform).param.err == pytest.approx(half.const.err)
         # …and the underlying regression itself is untouched by dt.
         assert half.params[0].est == pytest.approx(one.params[0].est)
         assert half.params[0].err == pytest.approx(one.params[0].err)
@@ -1146,7 +1147,7 @@ class TestHalfLifeEstimate:
         # SE(slope) ≈ √(0.64/4000) ≈ 0.013 on 0.4 → 3 SE ≈ 10%.
         _, x = ou_facade.create_source(μ=0.0, λ=self.λ, Δt=0.5, σ=self.σ, x0=0.0, npts=4000)
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=0.5)
-        half_life, lam = (tr.param for tr in result.param_transforms)
+        half_life, lam = (tr.param for tr in present(result.param_transforms))
         assert result.params[0].est == pytest.approx(-self.λ * 0.5, rel=0.1)
         assert lam.est == pytest.approx(result.params[0].est / 0.5)
         assert lam.err == pytest.approx(result.params[0].err / 0.5)
@@ -1162,7 +1163,7 @@ class TestHalfLifeEstimate:
         # better determined, so they keep rel = 0.1.
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=0.5, σ=self.σ, x0=0.0, npts=4000)
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=0.5)
-        half_life, lam = (tr.param for tr in result.param_transforms)
+        half_life, lam = (tr.param for tr in present(result.param_transforms))
         assert result.params[0].est == pytest.approx(-self.λ * 0.5, rel=0.15)
         assert result.const.est == pytest.approx(self.λ * self.μ * 0.5, rel=0.15)
         assert -result.const.est / result.params[0].est == pytest.approx(self.μ, rel=0.1)
@@ -1173,7 +1174,7 @@ class TestHalfLifeEstimate:
         _, x = ou_facade.create_source(μ=0.0, λ=self.λ, Δt=1.0, σ=self.σ, x0=0.0, npts=500)
         _, with_default = ou_facade.compute_mean_half_life_estimate(x)
         _, explicit = ou_facade.compute_mean_half_life_estimate(x, dt=1.0)
-        assert with_default.param_transforms[0].param.est == explicit.param_transforms[0].param.est
+        assert present(with_default.param_transforms)[0].param.est == present(explicit.param_transforms)[0].param.est
 
     def test_result_serialises_with_transforms(self, fit):
         _, result = fit
@@ -1214,7 +1215,7 @@ class TestHalfLifeEstimateDegenerateInput:
         # degrees of freedom. R² is 1 and every reported error is infinite, yet a finite
         # half-life comes back — nothing marks the result as meaningless.
         _, result = ou_facade.compute_mean_half_life_estimate(numpy.array([1.0, 2.0, 0.5]), dt=1.0)
-        half_life, lam = (tr.param for tr in result.param_transforms)
+        half_life, lam = (tr.param for tr in present(result.param_transforms))
         assert result.r2 == pytest.approx(1.0)
         assert math.isinf(result.params[0].err)
         assert math.isinf(half_life.err) and math.isinf(lam.err)
@@ -1227,7 +1228,7 @@ class TestHalfLifeEstimateDegenerateInput:
         # and the reported relative error ≥ 0.27; the thresholds below are well inside that.
         rw = numpy.cumsum(numpy.random.normal(0.0, 1.0, 4000))
         _, result = ou_facade.compute_mean_half_life_estimate(rw, dt=1.0)
-        half_life, lam = (tr.param for tr in result.param_transforms)
+        half_life, lam = (tr.param for tr in present(result.param_transforms))
         assert abs(lam.est) < 0.05           # no mean reversion to find
         assert result.r2 < 0.02              # …and the regression knows it
         assert abs(half_life.est) > 20.0     # a half-life ~30x the sample's own λ scale

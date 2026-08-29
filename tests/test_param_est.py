@@ -50,6 +50,8 @@ from lib.data.param_est import (
     VECMEst,
     VECMParamType,
 )
+from helpers import present
+from enum import Enum
 
 EST_ID = "7f3c-est-id"
 
@@ -188,7 +190,7 @@ class TestEstModel:
     ],
     ids=lambda x: getattr(x, "__name__", None),
 )
-def test_param_type_enums_value_equals_name(enum_cls, expected_names):
+def test_param_type_enums_value_equals_name(enum_cls: type[Enum], expected_names):
     assert {m.name for m in enum_cls} == expected_names
     for member in enum_cls:
         assert isinstance(member, str)
@@ -279,15 +281,15 @@ class TestARMAEstTypeSetParamLabels:
         p = _param()
         est_type.set_param_labels(p, 2)
         symbol = r"\phi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
-        assert p.err_label.startswith(r"$\sigma_{")
-        assert rf"\hat{{{symbol}_{{2}}}}" in p.err_label
+        assert present(p.err_label).startswith(r"$\sigma_{")
+        assert rf"\hat{{{symbol}_{{2}}}}" in present(p.err_label)
         assert p.err_label != p.est_label
 
     @pytest.mark.parametrize("est_type", list(ARMAEstType), ids=lambda t: t.name)
     def test_err_label_is_well_formed_mathtext(self, est_type):
         p = _param()
         est_type.set_param_labels(p, 0)
-        assert p.err_label.count("$") == 2
+        assert present(p.err_label).count("$") == 2
 
     def test_overwrites_existing_labels(self):
         p = _param(est_label="old-est", err_label="old-err")
@@ -298,9 +300,9 @@ class TestARMAEstTypeSetParamLabels:
         # three-delimiter form owned by test_err_label_is_well_formed_mathtext
         # -- fixing that defect must produce exactly one red test, not two.
         assert p.est_label == r"$\hat{\phi_{0}}$"
-        assert p.err_label.startswith(r"$\sigma_{")
-        assert p.err_label.endswith("$")
-        assert r"\hat{\phi_{0}}" in p.err_label
+        assert present(p.err_label).startswith(r"$\sigma_{")
+        assert present(p.err_label).endswith("$")
+        assert r"\hat{\phi_{0}}" in present(p.err_label)
 
 
 @pytest.mark.xfail(
@@ -319,8 +321,8 @@ def test_formula_and_param_labels_agree_on_the_ar_symbol(est_type):
     formula_symbol = r"\varphi" if r"\varphi" in formula else r"\phi"
     p = _param()
     est_type.set_param_labels(p, 1)
-    assert formula_symbol in p.est_label
-    assert formula_symbol in p.err_label
+    assert formula_symbol in present(p.est_label)
+    assert formula_symbol in present(p.err_label)
 
 
 # ---------------------------------------------------------------------------
@@ -520,18 +522,18 @@ class TestOLSResult:
         r.set_transforms("second-model", [second], OLSTransform(_param(0.2)))
         assert r.model == "second-model"
         assert r.param_transforms == [second]
-        assert first not in r.param_transforms
-        assert r.const_transform.param.est == 0.2
+        assert first not in present(r.param_transforms)
+        assert present(r.const_transform).param.est == 0.2
 
     def test_set_transforms_accepts_no_const_transform(self):
         # A model with a slope transform but no constant transform (the OU
         # half-life case with the offset left alone) passes const_transform=None;
         # the field must go back to its constructor state and serialise as null.
         r = _ols_result(nparams=1)
-        r.set_transforms("no-const", [OLSTransform(_param(30.1, 2.0))], None)
+        r.set_transforms("no-const", [OLSTransform(_param(30.1, 2.0))], None)  # pyright: ignore[reportArgumentType]
         assert r.const_transform is None
         assert r.model == "no-const"
-        assert len(r.param_transforms) == 1
+        assert len(present(r.param_transforms)) == 1
         loaded = json.loads(r.to_json())
         assert loaded["const_transform"] is None
         assert loaded["param_transforms"][0]["param"]["est"] == 30.1
@@ -686,12 +688,12 @@ class TestARMAEst:
         # test_param_label_index_matches_the_stored_order below, so fixing that
         # off-by-one produces exactly one red test rather than five.
         est = _arma_est(est_type, nparams=3)
-        labels = [p.est_label for p in est.params]
+        labels = [present(p.est_label) for p in est.params]
         assert len(set(labels)) == len(labels) == 3
         assert all(label.startswith(rf"$\hat{{{symbol}_{{") and label.endswith("}}$") for label in labels)
         other = r"\theta" if symbol == r"\phi" else r"\phi"
         assert all(other not in label for label in labels)
-        assert all(p.err_label.startswith(r"$\sigma_{") and symbol in p.err_label for p in est.params)
+        assert all(present(p.err_label).startswith(r"$\sigma_{") and symbol in present(p.err_label) for p in est.params)
 
     @pytest.mark.xfail(
         strict=True,
@@ -725,8 +727,8 @@ class TestARMAEst:
         assert const.err_label != "c-err"
         # Structural: the subscript is owned by
         # test_param_label_index_matches_the_stored_order.
-        assert params[0].est_label.startswith(r"$\hat{\theta_{")
-        assert params[0].err_label.startswith(r"$\sigma_{")
+        assert present(params[0].est_label).startswith(r"$\hat{\theta_{")
+        assert present(params[0].err_label).startswith(r"$\sigma_{")
         assert sigma2.est_label == r"$\hat{\sigma^2}$"
 
     def test_to_json(self):
@@ -1110,13 +1112,13 @@ class _UnhandledEstType:
 
 def test_formula_raises_for_unhandled_est_type():
     with pytest.raises(Exception, match="Estimate type is invalid"):
-        ARMAEstType.formula(_UnhandledEstType())
+        ARMAEstType.formula(_UnhandledEstType())  # pyright: ignore[reportArgumentType]
 
 
 def test_set_param_labels_raises_for_unhandled_est_type_and_leaves_param_untouched():
     p = _param(est_label="untouched", err_label="also-untouched")
     with pytest.raises(Exception, match="Estimate type is invalid"):
-        ARMAEstType.set_param_labels(_UnhandledEstType(), p, 0)
+        ARMAEstType.set_param_labels(_UnhandledEstType(), p, 0)  # pyright: ignore[reportArgumentType]
     assert (p.est_label, p.err_label) == ("untouched", "also-untouched")
 
 
@@ -1127,7 +1129,7 @@ def test_arma_est_defaults_to_ar():
     assert est.arma_est_type is ARMAEstType.AR
     # φ (not θ) is the point; the subscripts are owned by
     # test_param_label_index_matches_the_stored_order.
-    assert all(p.est_label.startswith(r"$\hat{\phi_{") for p in est.params)
+    assert all(present(p.est_label).startswith(r"$\hat{\phi_{") for p in est.params)
     assert est.params[0].est_label != est.params[1].est_label
     assert json.loads(est.to_json())["arma_est_type"] == "AR"
 

@@ -32,6 +32,7 @@ from lib.data.impl import adf as fadf
 from lib.data.reports import ADFTestReport
 from lib.data.hyp_test import (HypothesisTestStatus, HypothesisTestType, HypothesisType,
                                StatisticalTestParam, StatisticalTestReport)
+from helpers import present
 
 SEED = 20260820
 
@@ -51,7 +52,7 @@ def random_walk(n: int, drift: float = 0.0, σ: float = 1.0) -> numpy.ndarray:
 def ar1(n: int, φ: float, offset: float = 0.0, σ: float = 1.0) -> numpy.ndarray:
     """x_t = offset + φ x_{t-1} + ε_t, started from zero."""
     ε = numpy.random.normal(0.0, σ, n)
-    return lfilter([1.0], [1.0, -φ], offset + ε)
+    return numpy.asarray(lfilter([1.0], [1.0, -φ], offset + ε))
 
 
 def hand_noise() -> numpy.ndarray:
@@ -406,7 +407,7 @@ def test_statistic_matches_statsmodels_dickey_fuller_regression():
     # i.e. statistic(x) / sigma_hat where sigma_hat is the residual std of the
     # regression dx_t = beta x_{t-1} + e_t with nobs - 1 degrees of freedom.
     w = random_walk(500)
-    sm_stat = sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0]
+    sm_stat = sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0]  # pyright: ignore[reportArgumentType]
 
     dx, x = numpy.diff(w), w[:-1]
     beta = (x @ dx) / (x @ x)
@@ -625,7 +626,7 @@ def test_adf_test_max_lag_zero_gives_plain_dickey_fuller():
     assert report.lags == 0
     assert report.nobs == n - 1
     # with no augmentation the statistic is the plain DF t-statistic
-    assert report.stat == pytest.approx(sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0])
+    assert report.stat == pytest.approx(sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0])  # pyright: ignore[reportArgumentType]
 
 
 def test_adf_test_max_lag_bounds_selected_lags():
@@ -846,14 +847,14 @@ def test_compute_adf_test_contract(facade, model, regression, hyp_test_type, des
 
     for i, data in enumerate(test_report.test_data):
         assert data.test_id == test_report.test_id
-        assert data.sig.label == report.sig_str[i]
-        assert data.sig.value == report.sig[i]
-        assert data.lower.label == r"$t_L$"
-        assert data.lower.value == pytest.approx(report.critical_vals[i])
-        assert data.stat.label == r"$t$"
-        assert data.stat.value == pytest.approx(report.stat)
-        assert data.pval.label == r"$p-value$"
-        assert data.pval.value == pytest.approx(report.pval)
+        assert present(data.sig).label == report.sig_str[i]
+        assert present(data.sig).value == report.sig[i]
+        assert present(data.lower).label == r"$t_L$"
+        assert present(data.lower).value == pytest.approx(report.critical_vals[i])
+        assert present(data.stat).label == r"$t$"
+        assert present(data.stat).value == pytest.approx(report.stat)
+        assert present(data.pval).label == r"$p-value$"
+        assert present(data.pval).value == pytest.approx(report.pval)
         assert data.upper is None
         assert data.params == []
         # the per-level status spells out the lower-tail rule on the numbers
@@ -862,7 +863,7 @@ def test_compute_adf_test_contract(facade, model, regression, hyp_test_type, des
         # a FAILED test.
         rejected = report.stat < report.critical_vals[i]
         assert data.status is (HypothesisTestStatus.FAILED if rejected else HypothesisTestStatus.PASSED)
-        assert data.stat.test_id == data.sig.test_id == data.lower.test_id == test_report.test_id
+        assert present(data.stat).test_id == present(data.sig).test_id == present(data.lower).test_id == test_report.test_id
 
     # stationarity "passes" exactly when the ADF test rejects the unit root at 10%
     rejected_at_10pct = report.stat < report.critical_vals[2]
@@ -1012,4 +1013,4 @@ def test_statistical_test_report_from_dict_round_trip():
     restored = StatisticalTestReport.from_dict(json.loads(test_report.to_json()))
     assert restored.test_id == test_report.test_id
     assert restored.status == test_report.status
-    assert [d.lower.value for d in restored.test_data] == [d.lower.value for d in test_report.test_data]
+    assert [present(d.lower).value for d in restored.test_data] == [present(d.lower).value for d in test_report.test_data]

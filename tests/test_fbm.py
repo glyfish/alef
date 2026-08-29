@@ -27,6 +27,7 @@ from lib.data.hyp_test import (HypothesisTestStatus, HypothesisTestType, Hypothe
                                StatisticalTestData, StatisticalTestReport)
 from lib.data.param_est import OLSParamType, OLSResult
 from lib.data.reports import VarianceRatioTestReport
+from helpers import present
 
 
 # ---------------------------------------------------------------------------
@@ -449,7 +450,7 @@ class TestVarianceRatioTests:
         assert report.sig_level == pytest.approx(0.1)
         assert report.s_vals == s_vals
         assert_allclose(report.stats, fbm.vr_stat_homo_scan(x, s_vals))
-        assert_allclose(report.critical_values, [norm.ppf(0.05), norm.ppf(0.95)])
+        assert_allclose([present(v) for v in report.critical_values], [norm.ppf(0.05), norm.ppf(0.95)])
         assert_allclose(report.p_vals, 2.0 * (1.0 - norm.cdf(numpy.abs(report.stats))))
         expected_status = [bool(norm.ppf(0.05) < z < norm.ppf(0.95)) for z in report.stats]
         assert list(map(bool, report.status_vals)) == expected_status
@@ -479,7 +480,7 @@ class TestVarianceRatioTests:
         assert report.s_vals == [2, 8]
         assert len(report.stats) == 2 and len(report.p_vals) == 2
         assert report.sig_level == pytest.approx(0.05)
-        assert_allclose(report.critical_values, [-1.959963984540054, 1.959963984540054])
+        assert_allclose([present(v) for v in report.critical_values], [-1.959963984540054, 1.959963984540054])
 
     def test_hetero_test_uses_hetero_statistics(self):
         x = random_walk(1024)
@@ -832,8 +833,8 @@ class TestHurstEstimation:
         assert isinstance(report, RegressionResultsWrapper)
         assert isinstance(result, OLSResult)
         assert report.rsquared == pytest.approx(1.0)
-        H_param = result.param_transforms[0].param
-        C_param = result.const_transform.param
+        H_param = present(result.param_transforms)[0].param
+        C_param = present(result.const_transform).param
         assert H_param.est == pytest.approx(H, abs=1e-10)
         assert H_param.err == pytest.approx(0.0, abs=1e-8)
         assert C_param.est == pytest.approx(C, rel=1e-10)
@@ -841,7 +842,7 @@ class TestHurstEstimation:
         assert H_param.param_type == OLSParamType.TRANS_PARAM.value
         assert C_param.param_type == OLSParamType.TRANS_CONST.value
         assert H_param.est_id == C_param.est_id == result.est_id
-        assert "1 - 2H" in result.model
+        assert "1 - 2H" in present(result.model)
         # the transform is built from the raw OLS slope/const, which must also be exact
         assert result.params[0].est == pytest.approx(1.0 - 2.0 * H, abs=1e-10)
         assert result.const.est == pytest.approx(numpy.log10(C), abs=1e-10)
@@ -853,8 +854,8 @@ class TestHurstEstimation:
         t, noise = fbm_data.create_noise_fft_source(H=H, npts=2048)
         freq, pspec = t[1:], stats.pspec(noise)
         _, result = fbm_data.compute_H_estimate_periodogram(freq, pspec)
-        assert result.param_transforms[0].param.est == pytest.approx(H, abs=0.12)
-        assert result.param_transforms[0].param.err < 0.05
+        assert present(result.param_transforms)[0].param.est == pytest.approx(H, abs=0.12)
+        assert present(result.param_transforms)[0].param.err < 0.05
 
     def test_variance_aggregation_estimate_recovers_exact_power_law(self):
         H, sigma2 = 0.6, 2.0
@@ -863,14 +864,14 @@ class TestHurstEstimation:
         report, result = fbm_data.compute_H_estimate_variance_aggregation(m_vals, agg_var)
         assert isinstance(report, RegressionResultsWrapper)
         assert report.rsquared == pytest.approx(1.0)
-        H_param = result.param_transforms[0].param
-        s2_param = result.const_transform.param
+        H_param = present(result.param_transforms)[0].param
+        s2_param = present(result.const_transform).param
         assert H_param.est == pytest.approx(H, abs=1e-10)
         assert H_param.err == pytest.approx(0.0, abs=1e-8)
         assert s2_param.est == pytest.approx(sigma2, rel=1e-10)
         assert H_param.param_type == OLSParamType.TRANS_PARAM.value
         assert s2_param.param_type == OLSParamType.TRANS_CONST.value
-        assert "H-1" in result.model
+        assert "H-1" in present(result.model)
         assert result.params[0].est == pytest.approx(2.0 * (H - 1.0), abs=1e-10)
 
     @pytest.mark.parametrize("H", [0.3, 0.8])
@@ -881,7 +882,7 @@ class TestHurstEstimation:
         m_vals = numpy.linspace(1.0, 100.0, 100)
         agg_var = stats.agg_var(noise, m_vals)
         _, result = fbm_data.compute_H_estimate_variance_aggregation(m_vals, agg_var)
-        assert result.param_transforms[0].param.est == pytest.approx(H, abs=0.2)
+        assert present(result.param_transforms)[0].param.est == pytest.approx(H, abs=0.2)
 
 
 # ===========================================================================
@@ -913,24 +914,24 @@ class TestFacadeVarianceRatioTests:
         for i, row in enumerate(model.test_data):
             assert row.test_id == model.test_id
             assert row.status is HypothesisTestStatus.from_bool(report.status_vals[i])
-            assert row.stat.value == pytest.approx(report.stats[i])
-            assert row.pval.value == pytest.approx(report.p_vals[i])
+            assert present(row.stat).value == pytest.approx(report.stats[i])
+            assert present(row.pval).value == pytest.approx(report.p_vals[i])
             assert [p.value for p in row.params] == [report.s_vals[i]]
-            assert row.sig.label == "10%" and row.sig.value == pytest.approx(0.1)
+            assert present(row.sig).label == "10%" and present(row.sig).value == pytest.approx(0.1)
             assert (row.lower is not None) is has_lower
             assert (row.upper is not None) is has_upper
             if has_lower:
-                assert row.lower.value == pytest.approx(report.critical_values[0])
+                assert present(row.lower).value == pytest.approx(report.critical_values[0])
             if has_upper:
-                assert row.upper.value == pytest.approx(report.critical_values[1])
+                assert present(row.upper).value == pytest.approx(report.critical_values[1])
 
     def test_compute_vr_test_kwargs(self):
         x = random_walk(512)
         report, model = fbm_data.compute_vr_test(x, HypothesisTestType.BM, sig_level=0.05, s=[2, 8])
         assert report.s_vals == [2, 8]
-        assert_allclose(report.critical_values, [norm.ppf(0.025), norm.ppf(0.975)])
+        assert_allclose([present(v) for v in report.critical_values], [norm.ppf(0.025), norm.ppf(0.975)])
         assert len(model.test_data) == 2
-        assert model.test_data[0].sig.label == "5%"
+        assert present(model.test_data[0].sig).label == "5%"
         assert model.test_data[1].params[0].value == 8
 
     def test_compute_vr_test_rejects_non_list_lags_and_unknown_test(self):
@@ -991,8 +992,8 @@ class TestFacadeVarianceRatioTests:
         assert hetero.status is HypothesisTestStatus.PASSED
         # Z(s) is asymptotically standard normal under the null; max |Z| over the five
         # lags stayed below 3.33 across those same 400 seeds.
-        assert numpy.all(numpy.abs([row.stat.value for row in homo.test_data]) < 4.5)
-        assert numpy.all(numpy.abs([row.stat.value for row in hetero.test_data]) < 4.5)
+        assert numpy.all(numpy.abs([present(row.stat).value for row in homo.test_data]) < 4.5)
+        assert numpy.all(numpy.abs([present(row.stat).value for row in hetero.test_data]) < 4.5)
 
     def test_persistent_fbm_is_detected_as_positively_autocorrelated(self):
         # H = 0.8: VR(4) ~ 4^0.6 = 2.3 gives Z ~ 40 at n = 4096; the sign is never in doubt.
@@ -1038,12 +1039,12 @@ class TestReportSerialization:
         row = StatisticalTestData.from_dict(data["test_data"][2])
         assert row.test_id == model.test_id
         assert row.status == model.test_data[2].status
-        assert row.stat.value == pytest.approx(report.stats[2])
-        assert row.pval.value == pytest.approx(report.p_vals[2])
+        assert present(row.stat).value == pytest.approx(report.stats[2])
+        assert present(row.pval).value == pytest.approx(report.p_vals[2])
         assert row.params[0].value == 10
-        assert row.sig.value == pytest.approx(0.1)
-        assert row.lower.value == pytest.approx(norm.ppf(0.05))
-        assert row.upper.value == pytest.approx(norm.ppf(0.95))
+        assert present(row.sig).value == pytest.approx(0.1)
+        assert present(row.lower).value == pytest.approx(norm.ppf(0.05))
+        assert present(row.upper).value == pytest.approx(norm.ppf(0.95))
         assert "TestReport(test_id=(" in repr(model)
 
     def test_statistical_report_from_dict_round_trip(self):
@@ -1066,5 +1067,5 @@ class TestReportSerialization:
         assert (data["test_data"][0]["lower"] is None) != (data["test_data"][0]["upper"] is None)
         row = StatisticalTestData.from_dict(data["test_data"][0])
         assert row.test_id == model.test_id
-        assert row.stat.value == pytest.approx(report.stats[0])
+        assert present(row.stat).value == pytest.approx(report.stats[0])
         assert row.params[0].value == report.s_vals[0]

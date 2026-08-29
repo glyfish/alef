@@ -490,7 +490,7 @@ class TestComputeZscore:
     def test_integer_data_gives_float_zscores(self):
         n, w = 20, 4
         data = numpy.random.randint(0, 100, n)
-        _, z = compute_zscore(numpy.arange(n), data, w)
+        _, z = compute_zscore(numpy.arange(n, dtype=float), data, w)
         assert z.dtype == numpy.float64
         assert_allclose(z, _pandas_rolling_zscore(data.astype(float), w), rtol=1e-10)
 
@@ -677,7 +677,7 @@ class TestComputeStd:
     def test_integer_data_gives_float_std(self):
         n, w = 20, 4
         data = numpy.random.randint(0, 100, n)
-        _, s = compute_std(numpy.arange(n), data, w)
+        _, s = compute_std(numpy.arange(n, dtype=float), data, w)
         assert s.dtype == numpy.float64
         assert_allclose(s, _pandas_rolling_std(data.astype(float), w), rtol=1e-10)
 

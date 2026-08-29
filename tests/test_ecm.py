@@ -41,6 +41,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 from lib.data.impl import ecm as fecm
 from lib.data.param_est import EstModel, OLSParamType, OLSResult, OLSTransform, ParamEst
 from lib.models import arima, ecm
+from helpers import present
 
 # ---------------------------------------------------------------------------
 # Independent closed forms (derived by hand, not by calling the library)
@@ -1067,7 +1068,7 @@ class TestGammaLambdaEstimate:
         assert [p.column for p in result.params] == [1, 2]
         assert all(p.row == 0 and p.order == 0 for p in result.params)
         assert result.const.row == 0 and result.const.column == 0
-        transforms = [tr.param for tr in result.param_transforms] + [result.const_transform.param]
+        transforms = [tr.param for tr in present(result.param_transforms)] + [present(result.const_transform).param]
         for p in [result.const, *result.params, *transforms]:
             assert p.est_id == result.est_id
         assert all(p.order == 1 and p.row == 0 and p.column == 0 for p in transforms)
@@ -1119,7 +1120,7 @@ class TestGammaLambdaEstimate:
     def test_lambda_transform_reports_lambda_estimate(self, simulated):
         xt, yt = simulated
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
-        λ_tr = result.param_transforms[1]
+        λ_tr = present(result.param_transforms)[1]
         assert λ_tr.param.est == result.params[1].est
         assert λ_tr.param.err == result.params[1].err
 
@@ -1135,9 +1136,9 @@ class TestGammaLambdaEstimate:
     def test_const_transform_is_labelled_for_delta(self, simulated):
         xt, yt = simulated
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
-        λ_tr = result.param_transforms[1]
-        est_label = result.const_transform.param.est_label
-        err_label = result.const_transform.param.err_label
+        λ_tr = present(result.param_transforms)[1]
+        est_label = present(present(result.const_transform).param.est_label)
+        err_label = present(present(result.const_transform).param.err_label)
         assert r"\delta" in est_label
         assert r"\delta" in err_label
         assert est_label != λ_tr.param.est_label
@@ -1156,7 +1157,7 @@ class TestGammaLambdaEstimate:
         _, β_result = fecm.compute_beta_estimate(yt, xt)
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
         assert result.model != β_result.model
-        assert r"\gamma" in result.model and r"\lambda" in result.model
+        assert r"\gamma" in present(result.model) and r"\lambda" in present(result.model)
 
 
 class TestEndToEnd:

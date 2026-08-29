@@ -36,6 +36,8 @@ from lib import stats as base_stats
 from lib.data.impl import stats as dstats
 from lib.data.impl.stats import OLS
 from lib.data.param_est import EstModel, OLSParamType, ParamEst
+from typing import cast
+from pandas import DataFrame
 
 
 # ---------------------------------------------------------------------------
@@ -1060,8 +1062,8 @@ class TestCausalityMatrix:
                                         "dependent_var", "causal_var"]
         assert len(matrix) == 4
 
-        driven = matrix[(matrix["dependent_var"] == 2) & (matrix["causal_var"] == 1)]
-        not_driven = matrix[(matrix["dependent_var"] == 1) & (matrix["causal_var"] == 2)]
+        driven = cast(DataFrame, matrix[(matrix["dependent_var"] == 2) & (matrix["causal_var"] == 1)])
+        not_driven = cast(DataFrame, matrix[(matrix["dependent_var"] == 1) & (matrix["causal_var"] == 2)])
         assert bool(driven["result"].iloc[0]) is True
         assert float(driven["pvalue"].iloc[0]) < 1e-4
         assert bool(not_driven["result"].iloc[0]) is False
@@ -1125,8 +1127,8 @@ class TestCausalityMatrix:
         assert bool(strict["result"].to_numpy()[driven][0]) is True
         assert bool(loose["result"].to_numpy()[driven][0]) is True
 
-        assert int(strict["result"].sum()) == 1
-        assert int(loose["result"].sum()) == 4
+        assert int(strict["result"].to_numpy().sum()) == 1
+        assert int(loose["result"].to_numpy().sum()) == 4
 
     @pytest.mark.xfail(strict=True,
                        reason="compute_causality_matrix reads the documented add_const "
@@ -1154,9 +1156,9 @@ class TestCausalityMatrix:
             warnings.simplefilter("ignore")
             matrix, report = dstats.compute_causality_matrix(samples, nlags=2, critical_value=1e-3)
 
-        off_diagonal = matrix[matrix["dependent_var"] != matrix["causal_var"]]
+        off_diagonal = cast(DataFrame, matrix[matrix["dependent_var"] != matrix["causal_var"]])
         assert numpy.all(off_diagonal["pvalue"].to_numpy(dtype=float) > 1e-3)
-        assert not off_diagonal["result"].any()
+        assert not off_diagonal["result"].to_numpy().any()
         assert report.rank == 0
 
 

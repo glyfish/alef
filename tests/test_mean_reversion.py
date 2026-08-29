@@ -75,6 +75,7 @@ from lib.data.impl import ou as ou_impl
 from lib.data.mean_reversion import compute_mean_reversion_halflife
 from lib.data.param_est import EstModel, OLSParamType, OLSResult, ParamEst
 from lib.models import ou
+from helpers import present
 
 LN2 = math.log(2.0)
 
@@ -300,7 +301,7 @@ class TestContract:
         # raising — same degenerate path as the float ramp below.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            half_life, _, result = compute_mean_reversion_halflife(numpy.arange(50))
+            half_life, _, result = compute_mean_reversion_halflife(numpy.arange(50, dtype=float))
         assert result.params[0].est == pytest.approx(0.0, abs=1e-12)
         assert abs(half_life) > 1e12
 
@@ -323,7 +324,7 @@ class TestContract:
         df = pandas.DataFrame({"close": numpy.random.normal(0.0, 1.0, 50)})
         assert isinstance(numpy.mean(df), numpy.floating)
         with pytest.raises(ValueError, match="Unable to coerce to Series"):
-            compute_mean_reversion_halflife(df)
+            compute_mean_reversion_halflife(df)  # pyright: ignore[reportArgumentType]
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +377,7 @@ class TestDegenerateInput:
         assert result.params[0].est == pytest.approx(-1.5, rel=1e-12)
         assert half_life == pytest.approx(LN2 / 1.5, rel=1e-12)
         assert not numpy.isfinite(result.params[0].err)
-        assert not numpy.isfinite(result.param_transforms[0].param.err)
+        assert not numpy.isfinite(present(result.param_transforms)[0].param.err)
 
     @pytest.mark.parametrize("bad", [numpy.nan, numpy.inf, -numpy.inf])
     def test_non_finite_values_in_an_ndarray_raise_value_error(self, bad):
@@ -422,7 +423,7 @@ class TestNonFiniteSeries:
         assert half_life == pytest.approx(LN2 / 0.75, rel=1e-12)
         assert result.r2 == pytest.approx(0.75, rel=1e-12)
         assert abs(result.const.est) < 1e-12
-        assert numpy.isfinite(result.param_transforms[0].param.err)
+        assert numpy.isfinite(present(result.param_transforms)[0].param.err)
         # …and the *identical* data as a bare ndarray raises instead.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -485,8 +486,8 @@ class TestClosedForm:
         assert half_life == pytest.approx(LN2 / (1.0 - φ), rel=1e-9)
         assert result.params[0].est == pytest.approx(φ - 1.0, rel=1e-9)
         assert result.r2 == pytest.approx(1.0, abs=1e-9)
-        assert result.param_transforms[0].param.err == pytest.approx(0.0, abs=1e-8)
-        assert result.param_transforms[1].param.err == pytest.approx(0.0, abs=1e-8)
+        assert present(result.param_transforms)[0].param.err == pytest.approx(0.0, abs=1e-8)
+        assert present(result.param_transforms)[1].param.err == pytest.approx(0.0, abs=1e-8)
         assert report.nobs == n - 1
 
     @pytest.mark.parametrize(
@@ -605,8 +606,8 @@ class TestClosedForm:
         # variation at all), and only the t½ transform is NaN, via 0/0² · 0.
         assert result.params[0].err == 0.0
         assert result.const.err == 0.0
-        assert numpy.isnan(result.param_transforms[0].param.err)
-        assert result.param_transforms[1].param.err == 0.0
+        assert numpy.isnan(present(result.param_transforms)[0].param.err)
+        assert present(result.param_transforms)[1].param.err == 0.0
         # R² of the singular fit is NaN, not 0 or 1 — a caller screening a fit
         # on r2 gets neither a pass nor a fail out of any ordinary comparison.
         assert numpy.isnan(result.r2)
@@ -657,7 +658,7 @@ class TestDemeaning:
         half_life, _, demeaned = compute_mean_reversion_halflife(x)
         _, raw = ou_impl.compute_mean_half_life_estimate(x)
         assert raw.params[0].est == pytest.approx(demeaned.params[0].est, rel=1e-8)
-        assert raw.param_transforms[0].param.est == pytest.approx(half_life, rel=1e-8)
+        assert present(raw.param_transforms)[0].param.est == pytest.approx(half_life, rel=1e-8)
         # The informative version of the intercept check: OLS-with-intercept
         # satisfies const = mean(ΔX) - b·mean(X_{t-1}) identically, so assert
         # that at machine precision (an independent recomputation from the
@@ -771,7 +772,7 @@ class TestRoundTrip:
         x = _ou_path(λ, n)
         half_life, _, result = compute_mean_reversion_halflife(x)
         se = _slope_se(λ, n)
-        λ_hat = -result.param_transforms[1].param.est
+        λ_hat = -present(result.param_transforms)[1].param.est
         assert abs(λ_hat - λ) < 4.5 * se
         assert half_life == pytest.approx(ar1_target, rel=5.0 * se / λ)
 
@@ -837,10 +838,10 @@ class TestRoundTrip:
             ou.mean_halflife(λ) / Δt, rel=5.0 * se / (λ * Δt)
         )
         _, in_time = ou_impl.compute_mean_half_life_estimate(x - x.mean(), dt=Δt)
-        assert in_time.param_transforms[0].param.est == pytest.approx(
+        assert present(in_time.param_transforms)[0].param.est == pytest.approx(
             half_life * Δt, rel=1e-12
         )
-        assert in_time.param_transforms[1].param.est == pytest.approx(
+        assert present(in_time.param_transforms)[1].param.est == pytest.approx(
             result.params[0].est / Δt, rel=1e-12
         )
 
@@ -853,8 +854,8 @@ class TestRoundTrip:
         x = _ou_path(λ, n)
         _, _, result = compute_mean_reversion_halflife(x)
         se = _slope_se(λ, n)
-        assert result.param_transforms[1].param.err == pytest.approx(se, rel=0.15)
-        assert result.param_transforms[0].param.err == pytest.approx(
+        assert present(result.param_transforms)[1].param.err == pytest.approx(se, rel=0.15)
+        assert present(result.param_transforms)[0].param.err == pytest.approx(
             LN2 * se / λ**2, rel=0.3
         )
 
@@ -878,7 +879,7 @@ class TestRoundTrip:
         for i in range(nsim):
             half_life, _, result = compute_mean_reversion_halflife(_ou_path(λ, n))
             est[i] = half_life
-            err[i] = result.param_transforms[0].param.err
+            err[i] = present(result.param_transforms)[0].param.err
         z = (est - truth) / err
         assert abs(z.mean()) < 0.75
         assert 0.83 < z.std(ddof=1) < 1.17

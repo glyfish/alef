@@ -53,6 +53,7 @@ from lib.data.hyp_test import (
     StatisticalTestReport,
     VAROrderTestReport,
 )
+from helpers import present
 
 # ``__var_order_test_report_from_result`` is a module level function, so its
 # leading double underscore is not mangled -- but a reference to it written
@@ -253,12 +254,12 @@ class TestHypothesisTestType:
         # reaches the else branch that no real member can.
         bogus = types.SimpleNamespace(value="NOT_A_TEST")
         with pytest.raises(Exception, match="Test type is invalid"):
-            HypothesisTestType.status(bogus, [True, True, True])
+            HypothesisTestType.status(bogus, [True, True, True])  # pyright: ignore[reportArgumentType]
 
     def test_desc_rejects_unknown_test_type(self):
         bogus = types.SimpleNamespace(value="NOT_A_TEST")
         with pytest.raises(Exception, match="Test type is invalid"):
-            HypothesisTestType.desc(bogus)
+            HypothesisTestType.desc(bogus)  # pyright: ignore[reportArgumentType]
 
 
 def test_hypothesis_type_members():
@@ -321,12 +322,12 @@ class TestStatisticalTestData:
         data = a_test_data(upper=a_param(label="$t_U$", value=2.57))
         assert data.test_id == "test-id"
         assert data.status is HypothesisTestStatus.PASSED
-        assert data.stat.value == -3.5
-        assert data.pval.value == 0.02
+        assert present(data.stat).value == -3.5
+        assert present(data.pval).value == 0.02
         assert [p.label for p in data.params] == ["$s$"]
-        assert data.sig.label == "10%"
-        assert data.lower.value == -2.57
-        assert data.upper.value == 2.57
+        assert present(data.sig).label == "10%"
+        assert present(data.lower).value == -2.57
+        assert present(data.upper).value == 2.57
 
     def test_to_json_structure(self):
         raw = json.loads(a_test_data(upper=a_param(label="$t_U$", value=2.57)).to_json())
@@ -360,7 +361,7 @@ class TestStatisticalTestData:
         assert data.stat.value == -3.5
         assert isinstance(data.params[0], StatisticalTestParam)
         assert data.params[0].value == 4
-        assert data.upper.label == "$t_U$"
+        assert present(data.upper).label == "$t_U$"
         assert data.test_id == "abc"
 
     def test_from_dict_defaults_when_optional_keys_are_absent(self):
@@ -454,7 +455,7 @@ class TestStatisticalTestReport:
         assert report.desc == "Stationarity Test"
         assert report.test_id == "test-id"
         assert isinstance(report.test_data[0], StatisticalTestData)
-        assert report.test_data[0].stat.value == -3.5
+        assert present(report.test_data[0].stat).value == -3.5
 
     def test_from_dict_status_defaults_to_failed(self):
         report = StatisticalTestReport.from_dict({
@@ -782,7 +783,7 @@ class TestGrangerCausalityFromTheRealProducer:
     def test_rank_counts_distinct_dependent_variables_not_causal_pairs(self):
         matrix, report = self.matrix_and_report()
 
-        detected = sorted((int(row["dependent_var"]), int(row["causal_var"]))
+        detected = sorted((int(row["dependent_var"]), int(row["causal_var"]))  # pyright: ignore[reportArgumentType]
                           for _, row in matrix.iterrows() if bool(row["result"]))
         assert detected == [(2, 1), (2, 3)]
         # Two causal relations, both pointing at variable 2, so the rank is 1.
@@ -814,7 +815,7 @@ class TestGrangerCausalityFromTheRealProducer:
             warnings.simplefilter("ignore")
             matrix, report = stats_data.compute_causality_matrix(samples, nlags=2,
                                                                  critical_value=1.0e-5)
-        assert not matrix["result"].any()
+        assert not matrix["result"].to_numpy().any()
         assert report.rank == 0
 
 
@@ -857,7 +858,7 @@ class TestJohansenCointTestStatistic:
         # inside navi comes from statsmodels' result.cvt/result.cvm rows.
         with pytest.raises(AttributeError, match="tolist"):
             JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
-                                       critical_values=[13.4, 15.5, 19.9])
+                                       critical_values=[13.4, 15.5, 19.9])  # pyright: ignore[reportArgumentType]
 
     @pytest.mark.xfail(strict=True, reason=(
         "JohansenCointTestStatistic hard-codes three significance_levels (hyp_test.py:575) "
@@ -1145,7 +1146,7 @@ class TestStatusFromRealPipelines:
         assert [d.params[0].value for d in report.test_data] == S_VALS
         # Two tail test, so both critical values are attached to every row.
         assert all(d.lower is not None and d.upper is not None for d in report.test_data)
-        assert all(d.sig.value == 0.01 for d in report.test_data)
+        assert all(present(d.sig).value == 0.01 for d in report.test_data)
 
     def test_persistent_fbm_fails_the_bm_variance_ratio_test(self):
         # The FAILED direction of BM.status: it reports FAILED only when *every*
@@ -1236,7 +1237,7 @@ class TestStatusFromRealPipelines:
         assert report.status is expected
         assert len(report.test_data) == len(S_VALS)
         assert [d.params[0].value for d in report.test_data] == S_VALS
-        assert all(d.sig.value == sig_level for d in report.test_data)
+        assert all(present(d.sig).value == sig_level for d in report.test_data)
 
     def test_the_hetero_statistic_is_not_the_homo_statistic(self):
         # Guards the parametrisation above against silently exercising the

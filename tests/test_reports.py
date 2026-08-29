@@ -34,6 +34,8 @@ from lib.data.hyp_test import HypothesisTestType, HypothesisType
 from lib.data.reports import (ADFTestReport, JohansenTestReport, OUEstReport,
                               VarianceRatioTestReport)
 from lib.models import arima
+from typing import cast
+from statsmodels.tsa.vector_ar.vecm import JohansenTestResult
 
 # statsmodels' Johansen trace/max-eigenvalue critical values for a system of
 # three variables with no deterministic term (det_order=0), one row per null
@@ -354,7 +356,7 @@ class TestADFTestReport:
             assert report.nobs + report.lags + 1 == 400
             # the critical values are pulled out of statsmodels' unordered dict
             # by label and re-ordered 1%, 5%, 10% (increasing)
-            assert report.critical_vals == [res[4]["1%"], res[4]["5%"], res[4]["10%"]]
+            assert report.critical_vals == [res[4]["1%"], res[4]["5%"], res[4]["10%"]]  # pyright: ignore[reportIndexIssue, reportGeneralTypeIssues]
             assert report.critical_vals[0] < report.critical_vals[1] < report.critical_vals[2]
             if all(report.status_vals):
                 assert report.status_str == ["Passed"]*3
@@ -364,7 +366,7 @@ class TestADFTestReport:
         # the status of each level flips exactly at its own critical value:
         # a statistic a hair below the 5% value of the last fitted report
         # passes at 1% only
-        criticals = tuple(report.critical_vals)
+        criticals = tuple(report.critical_vals)  # pyright: ignore[reportPossiblyUnboundVariable]
         nudged = ADFTestReport(adf_result(criticals[1] - 1e-9, criticals=criticals))
         assert [bool(s) for s in nudged.status_vals] == [True, False, False]
         nudged = ADFTestReport(adf_result(criticals[1], criticals=criticals))
@@ -595,7 +597,7 @@ class TestOUEstReport:
         x = ou_path(mu, lam, sigma, dt, n)
         fit = arima.ar_offset_fit(pandas.Series(x), 1)
         assert list(fit.params.index) == ARFitStub.NAMES
-        assert list(fit.bse.index) == ARFitStub.NAMES
+        assert list(fit.bse.index) == ARFitStub.NAMES  # pyright: ignore[reportAttributeAccessIssue]
 
         report = OUEstReport(fit, dt, x[0])
         phi = numpy.exp(-lam*dt)
@@ -648,7 +650,7 @@ class TestJohansenTestReport:
         evec = numpy.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
         result = JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR, lr2=[36.0, 13.0, 1.0],
                                     cvm=CVT_3VAR - 1.0, eig=[0.3, 0.1, 0.01], evec=evec)
-        report = JohansenTestReport(result)
+        report = JohansenTestReport(cast(JohansenTestResult, result))
         assert_allclose(report.eigen_values, [0.3, 0.1, 0.01])
         assert_allclose(report.eigen_vectors, evec)
         assert_allclose(report.trace_statistic, [50.0, 14.0, 1.0])
@@ -661,7 +663,7 @@ class TestJohansenTestReport:
     def test_compute_rank_monotone_rejections(self):
         # r <= 0 rejected at every level; r <= 1 only at 90% (14 > 13.4294 but
         # 14 < 15.4943); r <= 2 nowhere. Rank per level: [2, 1, 1].
-        report = JohansenTestReport(JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR))
+        report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR)))
         assert [int(r) for r in report.compute_rank()] == [2, 1, 1]
 
     @pytest.mark.parametrize("trace_stats,expected", [
@@ -670,7 +672,7 @@ class TestJohansenTestReport:
         ([30.0, 1.0, 1.0], [1, 1, 0]),         # r <= 0 rejected at 90/95 only
     ])
     def test_compute_rank(self, trace_stats, expected):
-        report = JohansenTestReport(JohansenResultStub(trace_stats, CVT_3VAR))
+        report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub(trace_stats, CVT_3VAR)))
         assert [int(r) for r in report.compute_rank()] == expected
 
     @pytest.mark.xfail(strict=True, raises=AssertionError,
@@ -681,7 +683,7 @@ class TestJohansenTestReport:
     def test_compute_rank_non_monotone_rejections(self):
         # r <= 0 rejected everywhere, r <= 1 accepted everywhere (5 < 13.4294),
         # r <= 2 rejected everywhere (8 > 6.6349)
-        report = JohansenTestReport(JohansenResultStub([50.0, 5.0, 8.0], CVT_3VAR))
+        report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([50.0, 5.0, 8.0], CVT_3VAR)))
         assert [int(r) for r in report.compute_rank()] == [1, 1, 1]
 
     @pytest.mark.xfail(strict=True, raises=AssertionError,
@@ -692,7 +694,7 @@ class TestJohansenTestReport:
     def test_compute_rank_two_variables(self):
         # r <= 0 rejected at every level, r <= 1 only at 90%: one rank per
         # significance level is expected whatever the system size
-        report = JohansenTestReport(JohansenResultStub([236.9, 3.3], CVT_2VAR))
+        report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([236.9, 3.3], CVT_2VAR)))
         ranks = report.compute_rank()
         assert len(ranks) == 3
         assert int(ranks[2]) == 1
@@ -703,14 +705,14 @@ class TestJohansenTestReport:
                               "on column 3")
     def test_compute_rank_four_variables(self):
         cvt = numpy.vstack([CVT_3VAR[0] + 20.0, CVT_3VAR])
-        report = JohansenTestReport(JohansenResultStub([90.0, 50.0, 14.0, 1.0], cvt))
+        report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([90.0, 50.0, 14.0, 1.0], cvt)))
         assert len(report.compute_rank()) == 3
 
     def test_summary(self, capsys):
         evec = numpy.array([[1.0, 0.1, 0.01], [-2.0, 0.2, 0.02], [0.5, 0.3, 0.03]])
         result = JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR, lr2=[36.0, 13.0, 1.0],
                                     cvm=CVT_3VAR - 1.0, eig=[0.25, 0.1, 0.01], evec=evec)
-        JohansenTestReport(result).summary(tablefmt="plain")
+        JohansenTestReport(cast(JohansenTestResult, result)).summary(tablefmt="plain")
         out = capsys.readouterr().out
 
         assert "Trace Statistic" in out and "Rank" in out
@@ -728,7 +730,7 @@ class TestJohansenTestReport:
 
     def test_summary_default_tablefmt_is_fancy_grid(self, capsys):
         result = JohansenResultStub([50.0, 14.0, 1.0], CVT_3VAR)
-        JohansenTestReport(result).summary()
+        JohansenTestReport(cast(JohansenTestResult, result)).summary()
         out = capsys.readouterr().out
         # four boxed tables: trace, rank, eigenvalue statistic, eigenvectors
         assert out.count("╒") == 4 and out.count("╘") == 4
