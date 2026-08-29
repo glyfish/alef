@@ -1038,15 +1038,6 @@ class TestJohansenFacade:
             assert stat.significance_levels == ["Critical Value 90%", "Critical Value 95%", "Critical Value 99%"]
             assert stat.test_result == sorted(stat.test_result, reverse=True)
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="the façade builds the maximum eigenvalue statistics with "
-               "JohansenCointTestStatistic, whose null_hypothesis is hardcoded to "
-               "f'r<={test_rank}'. The maximum eigenvalue null is r = i tested "
-               "against r = i+1, not r <= i, so every eigen_test entry is "
-               "labelled with the trace test's null",
-    )
     def test_eigen_test_null_hypothesis_is_not_the_trace_null(self, coint_test):
         _, report, _ = coint_test
         assert ([s.null_hypothesis for s in report.eigen_test]
@@ -1074,16 +1065,6 @@ class TestJohansenFacade:
         # every level rejects the r = 0 null, so no level can report rank 0
         assert report.rank >= 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="JohansenTestReport.compute_rank iterates its output over "
-               "range(len(trace_statistic)) — the number of series — while the "
-               "columns it indexes are the three significance levels, so a two "
-               "series test reports two ranks instead of three. It is the same "
-               "defect as in the façade's counter, and both have to be fixed "
-               "together",
-    )
     def test_text_report_ranks_every_significance_level(self, coint_test):
         """The text report's rank is the index of the last rejected null plus
         one, computed here from the raw statistics for all three levels."""
@@ -1138,25 +1119,10 @@ class TestJohansenFacade:
         assert len(leading) == 2
         assert_allclose([v / leading[0] for v in leading], [1.0, -1.0], atol=0.05)
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="the rank counter in __vecm_johansen_coint_test_report_from_result "
-               "iterates its output over range(len(trace_statistic)) — the number "
-               "of series — while the columns it indexes are the three significance "
-               "levels, so a two series test reports only two of the three ranks",
-    )
     def test_rank_is_reported_for_every_significance_level(self, coint_test):
         _, report, _ = coint_test
         assert len(report.ranks.test_ranks) == len(report.ranks.significance_levels)
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=IndexError,
-        reason="the same rank counter indexes significance level columns with the "
-               "series index, so any system with more than three series walks off "
-               "the end of the 3 column critical value table",
-    )
     def test_handles_systems_with_more_series_than_significance_levels(self):
         zeros_λ = numpy.matrix(numpy.zeros((4, 1)))
         zeros_β = numpy.matrix(numpy.zeros((1, 4)))

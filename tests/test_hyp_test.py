@@ -860,13 +860,6 @@ class TestJohansenCointTestStatistic:
             JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
                                        critical_values=[13.4, 15.5, 19.9])  # pyright: ignore[reportArgumentType]
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "JohansenCointTestStatistic hard-codes three significance_levels (hyp_test.py:575) "
-        "but derives test_result by zipping over whatever critical_values it was handed "
-        "(hyp_test.py:576), with no length check. Two critical values therefore yield a two "
-        "entry test_result labelled by three levels, so 'Critical Value 99%' has no result. "
-        "Same defect class as the truncated rank list in "
-        "test_rank_has_one_entry_per_significance_level."))
     def test_a_short_critical_value_row_is_rejected_or_labelled_consistently(self):
         stat = JohansenCointTestStatistic(test_id="abc", test_rank=0, test_stat=16.0,
                                           critical_values=numpy.array([1.0, 2.0]))
@@ -1016,7 +1009,7 @@ class TestJohansenRoundTrip:
         assert raw["trace_test"][0]["test_result"] == model.trace_test[0].test_result
         assert raw["trace_test"][0]["critical_values"] == pytest.approx(
             model.trace_test[0].critical_values)
-        assert raw["eigen_test"][1]["null_hypothesis"] == "r<=1"
+        assert raw["eigen_test"][1]["null_hypothesis"] == "r=1"
         assert raw["eigen_vectors"][0]["eigen_vector"] == pytest.approx(
             model.eigen_vectors[0].eigen_vector)
         assert raw["eigen_vectors"][0]["eigen_value"] == pytest.approx(
@@ -1071,12 +1064,6 @@ class TestJohansenRoundTrip:
         assert rejected_99 / trials < 0.15
         assert rejected_90 > rejected_99
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "JohansenCointTestRank labels its ranks with three significance levels, but "
-        "lib/data/impl/vecm.py __vecm_johansen_coint_test_report_from_result builds the list "
-        "with `for i in range(n)` where n is the number of series rather than the number of "
-        "critical value columns, so a bivariate system yields only 2 ranks for 3 levels "
-        "(and JohansenCointTestReport.rank then takes the min over a truncated list)."))
     def test_rank_has_one_entry_per_significance_level(self):
         _, model, _ = vecm_data.compute_johansen_coint_test(self.cointegrated_pair(), 2)
         assert len(model.ranks.test_ranks) == len(model.ranks.significance_levels)

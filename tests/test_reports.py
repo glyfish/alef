@@ -675,22 +675,12 @@ class TestJohansenTestReport:
         report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub(trace_stats, CVT_3VAR)))
         assert [int(r) for r in report.compute_rank()] == expected
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="compute_rank takes the highest rejected null index + 1 rather than "
-                              "stopping at the first null it fails to reject; for the "
-                              "non-monotone pattern [rejected, accepted, rejected] Johansen's "
-                              "sequential procedure gives rank 1 but compute_rank returns 3")
     def test_compute_rank_non_monotone_rejections(self):
         # r <= 0 rejected everywhere, r <= 1 accepted everywhere (5 < 13.4294),
         # r <= 2 rejected everywhere (8 > 6.6349)
         report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([50.0, 5.0, 8.0], CVT_3VAR)))
         assert [int(r) for r in report.compute_rank()] == [1, 1, 1]
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="compute_rank slices the (nvars, 3) rejection matrix with "
-                              "range(len(trace_statistic)), so the number of ranks tracks the "
-                              "number of variables instead of the three significance levels: a "
-                              "two variable system silently drops the 99% column")
     def test_compute_rank_two_variables(self):
         # r <= 0 rejected at every level, r <= 1 only at 90%: one rank per
         # significance level is expected whatever the system size
@@ -699,10 +689,6 @@ class TestJohansenTestReport:
         assert len(ranks) == 3
         assert int(ranks[2]) == 1
 
-    @pytest.mark.xfail(strict=True, raises=IndexError,
-                       reason="compute_rank indexes column i of the (nvars, 3) rejection matrix "
-                              "for i in range(nvars), so a four variable system raises IndexError "
-                              "on column 3")
     def test_compute_rank_four_variables(self):
         cvt = numpy.vstack([CVT_3VAR[0] + 20.0, CVT_3VAR])
         report = JohansenTestReport(cast(JohansenTestResult, JohansenResultStub([90.0, 50.0, 14.0, 1.0], cvt)))
@@ -763,45 +749,34 @@ class TestJohansenTestReport:
         assert numpy.real(report.eigen_values[0]) > numpy.real(report.eigen_values[1])
 
     def test_real_pair_compute_rank(self):
-        # compute_rank on the shape the notebooks use. One cointegrating
-        # relation exists, so the answer should be one rank per significance
-        # level; what comes back is one entry per VARIABLE (see the xfail
-        # below). The r <= 0 null is rejected by a factor of ten at every
-        # level, so every column that is reported carries at least rank 1 - the
+        # compute_rank on the shape the notebooks use: one rank per
+        # significance level. The r <= 0 null is rejected by a factor of ten
+        # at every level, so every column carries at least rank 1 - the
         # r <= 1 null is size controlled and strays above its 90/95% critical
         # values often enough that the individual values are not pinned.
         report = real_pair_report()
         ranks = report.compute_rank()
-        assert len(ranks) == len(report.trace_statistic) == 2
+        assert len(ranks) == 3
         assert all(int(rank) >= 1 for rank in ranks)
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="compute_rank slices the (nvars, 3) rejection matrix with "
-                              "range(len(trace_statistic)), so a real two variable Johansen result "
-                              "yields two ranks instead of one per significance level - the 99% "
-                              "column is dropped entirely")
     def test_real_pair_compute_rank_covers_every_significance_level(self):
         assert len(real_pair_report().compute_rank()) == 3
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="summary prints compute_rank's truncated list under the three "
-                              "significance headers, so the rank table of a two variable result "
-                              "shows only the 90% and 95% columns")
     def test_real_pair_summary_rank_table_covers_every_significance_level(self, capsys):
         real_pair_report().summary(tablefmt="plain")
         out = capsys.readouterr().out
         rank_table = out.split("Rank\n")[1].split("Eigenvalue Statistic")[0]
         assert "Critical Value 99%" in rank_table
 
-    def test_real_pair_summary_rank_table_current_columns(self, capsys):
-        # what the truncation actually prints: two values under the first two
-        # of the three significance headers
+    def test_real_pair_summary_rank_table_all_columns(self, capsys):
+        # one value under each of the three significance headers
         real_pair_report().summary(tablefmt="plain")
         out = capsys.readouterr().out
         rank_table = out.split("Rank\n")[1].split("Eigenvalue Statistic")[0]
         header, values = [line for line in rank_table.split("\n") if line.strip()][:2]
-        assert header.split() == ["Critical", "Value", "90%", "Critical", "Value", "95%"]
-        assert len(values.split()) == 2
+        assert header.split() == ["Critical", "Value", "90%", "Critical", "Value", "95%",
+                                  "Critical", "Value", "99%"]
+        assert len(values.split()) == 3
 
     def test_real_result_stores_real_eigen_values(self):
         # numpy >= 2 linalg.eig returns complex128 even when every imaginary
