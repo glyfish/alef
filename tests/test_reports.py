@@ -803,23 +803,17 @@ class TestJohansenTestReport:
         assert header.split() == ["Critical", "Value", "90%", "Critical", "Value", "95%"]
         assert len(values.split()) == 2
 
-    def test_real_result_keeps_complex_eigen_values(self):
+    def test_real_result_stores_real_eigen_values(self):
         # numpy >= 2 linalg.eig returns complex128 even when every imaginary
-        # part is zero, and JohansenTestReport stores eig/evec verbatim.
-        # hyp_test.JohansenCointTestEigenVector takes numpy.real for exactly
-        # this reason; the report does not.
+        # part is zero. JohansenTestReport takes numpy.real of eig/evec, the
+        # same thing hyp_test.JohansenCointTestEigenVector does, so the two
+        # report layers agree and tabulate has nothing to downcast.
         report = real_pair_report()
-        assert numpy.iscomplexobj(report.eigen_values)
-        assert numpy.iscomplexobj(report.eigen_vectors)
-        assert_allclose(numpy.imag(report.eigen_values), 0.0)
-        assert_allclose(numpy.imag(report.eigen_vectors), 0.0)
+        assert not numpy.iscomplexobj(report.eigen_values)
+        assert not numpy.iscomplexobj(report.eigen_vectors)
+        assert report.eigen_values.dtype == numpy.float64
+        assert report.eigen_vectors.dtype == numpy.float64
 
-    @pytest.mark.xfail(strict=True, raises=numpy.exceptions.ComplexWarning,
-                       reason="the eigenvalue column is formatted with floatfmt='.2e', so tabulate "
-                              "casts the stored complex128 eigenvalues to float and raises "
-                              "ComplexWarning ('Casting complex values to real discards the "
-                              "imaginary part') on every printed report of a real result; the "
-                              "eigenvector cells are printed with their '+0.j' parts intact")
     def test_summary_of_real_result_does_not_discard_imaginary_parts(self):
         report = real_pair_report()
         with warnings.catch_warnings():

@@ -1165,14 +1165,6 @@ class TestJohansenFacade:
         _, report, _ = facade.compute_johansen_coint_test(xt, 1)
         assert report.rank == 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="__vecm_johansen_coint_test_report_from_result stores evec[i], a row "
-               "of the eigenvector matrix, as eigenvector i; statsmodels' "
-               "eigenvectors are the columns evec[:, i], which is what "
-               "JohansenTestReport.summary displays",
-    )
     def test_reported_eigenvector_is_the_cointegration_vector(self, coint_test):
         _, report, _ = coint_test
         leading = numpy.array(report.eigen_vectors[0].eigen_vector)

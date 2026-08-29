@@ -1024,13 +1024,6 @@ class TestJohansenRoundTrip:
         # Nothing survived as a numpy scalar or a complex number.
         assert all(type(v) is float for v in raw["eigen_vectors"][0]["eigen_vector"])
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "lib/data/impl/vecm.py __vecm_johansen_coint_test_report_from_result fills "
-        "JohansenCointTestEigenVector from result.evec[i], a ROW of the eigenvector matrix. "
-        "coint_johansen returns eigenvectors as COLUMNS (evec[:, i]), so the reported vector "
-        "is not the cointegrating vector: for y = 2x + stationary the model reports a ratio "
-        "near -0.027 whose combination of the series is still a random walk, instead of the "
-        "-0.5 column whose combination is stationary."))
     def test_dominant_eigen_vector_is_the_cointegrating_vector(self):
         samples = self.cointegrated_pair()
         _, model, _ = vecm_data.compute_johansen_coint_test(samples, 2)
