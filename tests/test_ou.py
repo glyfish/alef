@@ -143,13 +143,6 @@ class TestCov:
         assert ou.cov(LN2, 1.0, t)[0] == pytest.approx(0.375 / (2.0 * LN2))
         npt.assert_array_equal(ou.cov(LN2, 1.0, t), ou.cov(LN2, 1.0, t, 1.0))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="lib/models/ou.py:96 computes exp(-λ(t - s)) with no abs() on (t - s), so the "
-               "whole t < s half-plane blows up exponentially instead of decaying: with "
-               "λ = σ = 1 and s = 1, ou.cov returns 1.175 at t = 0 where Cov(X_0, X_1) must "
-               "be exactly 0 because Var(X_0) = 0.",
-    )
     def test_matches_closed_form_for_t_below_s(self):
         # Hand-derived OU covariance, valid for either ordering of s and t:
         #   Cov(X_s, X_t) = σ²/(2λ) (e^{-λ|t-s|} - e^{-λ(t+s)}).
@@ -159,12 +152,6 @@ class TestCov:
         expected = (σ**2 / (2.0 * λ)) * (numpy.exp(-λ * numpy.abs(t - s)) - numpy.exp(-λ * (t + s)))
         npt.assert_allclose(ou.cov(λ, s, t, σ), expected, rtol=1e-12, atol=1e-15)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="same missing abs() at lib/models/ou.py:96 — the covariance function of any "
-               "process must satisfy Cov(X_s, X_t) = Cov(X_t, X_s), but ou.cov is symmetric "
-               "only on the t >= s side.",
-    )
     def test_is_symmetric_in_s_and_t(self):
         λ, σ = 0.6, 1.3
         below = ou.cov(λ, 3.0, numpy.array([1.0]), σ)[0]
@@ -262,23 +249,11 @@ class TestDistributions:
         npt.assert_allclose(ou.pdf(x, self.μ, self.λ, t_big, self.σ, self.x0), ou.pdf_limit(x, self.μ, self.λ, self.σ), atol=1e-10)
         npt.assert_allclose(ou.cdf(x, self.μ, self.λ, t_big, self.σ, self.x0), ou.cdf_limit(x, self.μ, self.λ, self.σ), atol=1e-10)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="at t = 0 the OU variance is 0, so ou.cdf hands scale=0 to scipy's norm and "
-               "gets nan back (verified: ou.cdf(x, 0, 1, 0.0) -> [nan, nan]) instead of the "
-               "degenerate law X_0 = x0, whose CDF is the unit step at x0. Every mean/var "
-               "test covers t = 0, so the distributions should too.",
-    )
     def test_cdf_at_t0_is_the_unit_step_at_x0(self):
         x0 = 4.0
         c = ou.cdf(numpy.array([x0 - 1.0, x0 + 1.0]), self.μ, self.λ, 0.0, self.σ, x0)
         npt.assert_allclose(c, [0.0, 1.0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ou.pdf at t = 0 returns nan for the same scale=0 reason; the density of the "
-               "point mass at x0 is 0 everywhere away from x0, never nan.",
-    )
     def test_pdf_at_t0_is_zero_away_from_x0(self):
         x0 = 4.0
         p = ou.pdf(numpy.array([x0 - 1.0, x0 + 1.0]), self.μ, self.λ, 0.0, self.σ, x0)
@@ -456,20 +431,9 @@ class TestOuPath:
         assert x.shape == (1,)
         assert x[0] == 2.5
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ou.ou allocates numpy.zeros(n) then unconditionally assigns x[0] = x0, so "
-               "n = 0 raises IndexError instead of returning the empty path.",
-    )
     def test_zero_length_path_is_empty(self):
         assert ou.ou(1.0, 0.5, 1.0, 0, 1.0, 2.5).shape == (0,)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ou.ou scales the noise as σ·Δt·ε instead of σ·√Δt·ε, so for Δt ≠ 1 the "
-               "increment variance is σ²Δt² rather than the SDE's σ²Δt (paths are far too "
-               "smooth for Δt < 1); all closed forms in lib.models.ou assume σ²Δt.",
-    )
     def test_increment_variance_scales_as_sigma2_dt(self):
         # E[(dX)²] = σ² dt for dX = λ(μ - X)dt + σ dW. With Δt = 0.01 and λ = 1 the drift
         # contribution λ²Δt²Var(X) ≈ 5e-5 is negligible against σ²Δt = 0.01.
@@ -510,13 +474,6 @@ class TestSamplerConsistency:
         # two-sided critical value of the two-sample KS statistic at equal sample sizes.
         assert ks_2samp(path_end, draws).statistic < 1.95 * math.sqrt(2.0 / nsim)  # pyright: ignore[reportAttributeAccessIssue]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ou.ou scales its noise as σ·Δt·ε instead of σ·√Δt·ε (lib/models/ou.py:281), "
-               "so the Euler path's marginal variance is ≈ Δt × the exact law ou.xt draws "
-               "from. Measured at Δt = 0.5, λ = 0.05, t = 40, nsim = 600: path variance 4.32 "
-               "against 9.72 from ou.xt, a ratio of 0.44 where 1.00 ± 0.20 is expected.",
-    )
     def test_path_marginal_agrees_with_xt_law_at_non_unit_dt(self):
         nsim = 600
         path_end, draws = self._compare(Δt=0.5, npts=81, nsim=nsim)
@@ -682,24 +639,14 @@ class TestFacadeValues:
         assert c[0] == pytest.approx(1.0 - math.exp(-1.0))
         npt.assert_allclose(c, c[0] * numpy.exp(-λ * (t - s)), rtol=1e-12)
 
-    # This characterisation and the strict xfail immediately below it are a PAIR: they assert
-    # opposite things about the same call on purpose. When compute_cov is fixed the xfail
-    # XPASSes and this test must be updated in the same edit.
-    def test_compute_cov_npts_sets_the_end_time_not_the_point_count(self):
-        # compute_cov calls create_space(xmin=s, xmax=npts·Δt, Δx=Δt), so with s = 2, Δt = 1
-        # and npts = 10 requested the grid is 2, 3, …, 10 — nine points, not ten.
+    def test_compute_cov_grid_is_npts_points_from_s(self):
+        # compute_cov calls create_space(xmin=s, npts=npts, Δx=Δt), so s = 2, Δt = 1 and
+        # npts = 10 gives 2, 3, …, 11 — ten points starting at s, like every other compute_*.
         t, c = ou_facade.compute_cov(λ=0.6, σ=1.3, s=2.0, Δt=1.0, npts=10)
-        npt.assert_allclose(t, numpy.arange(2.0, 11.0))
-        assert len(t) == 9
+        npt.assert_allclose(t, numpy.arange(2.0, 12.0))
+        assert len(t) == 10
         npt.assert_array_equal(c, ou.cov(0.6, 2.0, t, 1.3))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="compute_cov's npts is the only npts in lib/data/impl/ou.py that is not the "
-               "number of returned points — lib/data/impl/ou.py:167-169 feeds it to "
-               "create_space as xmax = npts·Δt — so s = 2, Δt = 1, npts = 10 returns 9 "
-               "points. Every other compute_* in the module returns exactly npts.",
-    )
     def test_compute_cov_npts_is_the_point_count(self):
         t, _ = ou_facade.compute_cov(s=2.0, Δt=1.0, npts=10)
         assert len(t) == 10
@@ -747,8 +694,8 @@ class TestFacadeValues:
         "s, Δt",
         [
             (1.0, 1.0),  # the s = Δt = 1 coincidence the defaults sit on: here they do agree
-            pytest.param(2.0, 1.0, marks=pytest.mark.xfail(strict=True, reason=_COV_AXIS_REASON)),
-            pytest.param(3.0, 1.0, marks=pytest.mark.xfail(strict=True, reason=_COV_AXIS_REASON)),
+            (2.0, 1.0),
+            (3.0, 1.0),
             pytest.param(2.0, 0.5, marks=pytest.mark.xfail(strict=True, reason=_COV_AXIS_REASON)),
         ],
     )
@@ -831,20 +778,9 @@ class TestFacadeDocumentedKwargs:
     notebook asking for 4000 samples gets 10 and never learns about it.
     """
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="lib/data/impl/ou.py:417 documents an `n` kwarg for create_xt_source but the "
-               "body reads `npts` (line 427), so create_xt_source(t=1.0, n=4000) silently "
-               "returns 10 samples instead of 4000.",
-    )
     def test_create_xt_source_honours_the_documented_n(self):
         assert ou_facade.create_xt_source(t=1.0, n=4000).shape == (4000,)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="lib/data/impl/ou.py:448 documents an `n` kwarg for create_source but the body "
-               "reads `npts` (line 462), so create_source(n=25) silently returns 10 points.",
-    )
     def test_create_source_honours_the_documented_n(self):
         t, x = ou_facade.create_source(n=25)
         assert len(t) == 25 and len(x) == 25
@@ -857,13 +793,6 @@ class TestFacadeDocumentedKwargs:
             (ou_facade.compute_pdf_limit, {}),
             (ou_facade.compute_cdf_limit, {}),
         ],
-    )
-    @pytest.mark.xfail(
-        strict=True,
-        reason="compute_pdf/compute_cdf/compute_pdf_limit/compute_cdf_limit all document a Δx "
-               "kwarg (lib/data/impl/ou.py:209, 251, 293, 329) but each builds its grid with "
-               "create_space(xmin=…, xmax=…, npts=…) and never reads Δx, so Δx = 0.5 over "
-               "[-5, 5] still returns the default 10 points spaced 10/9 = 1.111 apart.",
     )
     def test_dx_kwarg_sets_the_grid_spacing(self, func, required):
         x, _ = func(xmin=-5.0, xmax=5.0, Δx=0.5, **required)
@@ -938,13 +867,6 @@ class TestFacadeSources:
         npt.assert_allclose(t, 0.5 * numpy.arange(41))
         npt.assert_allclose(paths.mean(axis=0), mean_curve, atol=0.35)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="façade-level consequence of ou.ou scaling its noise as σ·Δt·ε instead of "
-               "σ·√Δt·ε: an ensemble from create_source has variance ≈ Δt × the closed-form "
-               "compute_var curve. Measured at Δt = 0.5, λ = 0.2, nsim = 1000: the ensemble "
-               "variance at t = 20 is 1.306 against the closed form's 2.499 (ratio 0.522).",
-    )
     def test_ensemble_variance_tracks_compute_var_at_non_unit_dt(self):
         # λΔt = 0.1 keeps the Euler variance bias ≈ 5%; SE(var) ≈ 4.5% at nsim = 1000, so
         # rtol = 0.2 would be comfortable for a correctly scaled sampler.
@@ -1082,8 +1004,9 @@ class TestHalfLifeEstimate:
         # The const transform is labelled $\\mu$, which invites reading it as the OU long-run
         # mean. It is not. Under the transform's own model string (lib/data/impl/ou.py:483)
         #     ΔX_t = λ X_{t-1} Δt + μ Δt + √Δt ε_t
-        # the labelled μ is the DRIFT CONSTANT, whose OLS value for this data is λ·μ_OU·Δt =
-        # 0.8·5.0·0.5 = 2.0 — the long-run mean in that parameterisation is -μ/λ, which
+        # the labelled μ is the DRIFT CONSTANT. The transform divides the OLS intercept
+        # (λ·μ_OU·Δt) by Δt, so the reported value is λ·μ_OU = 0.8·5.0 = 4.0 — the long-run
+        # mean in that parameterisation is -μ/λ, which
         # test_recovers_long_run_mean_from_intercept checks as -const.est/params[0].est.
         # The file already accepts this same model-string convention for λ (see the sign
         # discussion in test_recovers_half_life_and_lambda), so accept it here too and pin
@@ -1093,19 +1016,9 @@ class TestHalfLifeEstimate:
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=Δt)
         const = present(result.const_transform).param
         assert const.est_label == r"$\mu$"
-        assert const.est == pytest.approx(self.λ * self.μ * Δt, rel=0.15)
+        assert const.est == pytest.approx(self.λ * self.μ, rel=0.15)
         assert const.est != pytest.approx(self.μ, rel=0.1)  # emphatically not the long-run mean
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="the $\\mu$ transform stores the raw OLS intercept (lib/data/impl/ou.py:505-513). "
-               "Under the transform's own model string the intercept is μ Δt, so the "
-               "transformed value should be intercept/dt — the λ transform divides by dt at "
-               "line 484, the const at 505-513 does not. Measured at Δt = 0.5: the intercept "
-               "1.9855 is stored unchanged where intercept/dt = 3.971 is what the model string "
-               "implies. Δt = 1 is not parametrized here because the two agree there, so it "
-               "carries no signal.",
-    )
     def test_const_transform_divides_the_intercept_by_dt(self):
         Δt = 0.5
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=Δt, σ=self.σ, x0=0.0, npts=4000)
@@ -1130,12 +1043,10 @@ class TestHalfLifeEstimate:
         assert lam_half.err == pytest.approx(2.0 * lam_one.err)
         assert hl_half.est == pytest.approx(hl_one.est / 2.0)
         assert hl_half.err == pytest.approx(hl_one.err / 2.0)
-        # The const transform is the one reported quantity that does not move with dt: it is
-        # the raw OLS intercept and error, carrying no /dt at all — see
-        # test_const_transform_divides_the_intercept_by_dt.
-        assert present(half.const_transform).param.est == pytest.approx(present(one.const_transform).param.est)
-        assert present(half.const_transform).param.err == pytest.approx(present(one.const_transform).param.err)
-        assert present(half.const_transform).param.err == pytest.approx(half.const.err)
+        # The const transform carries a /dt like the rate does, so halving dt doubles it.
+        assert present(half.const_transform).param.est == pytest.approx(2.0 * present(one.const_transform).param.est)
+        assert present(half.const_transform).param.err == pytest.approx(2.0 * present(one.const_transform).param.err)
+        assert present(half.const_transform).param.err == pytest.approx(half.const.err / 0.5)
         # …and the underlying regression itself is untouched by dt.
         assert half.params[0].est == pytest.approx(one.params[0].est)
         assert half.params[0].err == pytest.approx(one.params[0].err)

@@ -429,39 +429,15 @@ class TestOUEstReport:
         report = OUEstReport(ARFitStub([0.0, numpy.exp(-lam*dt), 1.0], [0.0, 0.0, 0.0]), dt, 0.0)
         assert report.lambda_est() == pytest.approx(lam)
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="mu_error propagates the AR coefficient error with d(mu)/d(phi) = "
-                              "a/(1 - phi) instead of a/(1 - phi)**2: it divides the whole sum by "
-                              "(1 - phi) once, so the phi contribution is short by a factor "
-                              "1/(1 - phi) (10.5x for a typical phi = 0.905 fit)")
     def test_mu_error_propagation(self):
         # mu = a/(1 - phi) => delta_mu = delta_a/(1 - phi) + a*delta_phi/(1 - phi)**2
         #                              = (0.01 + 0.4*0.02/0.2)/0.2 = 0.25
         assert ou_stub_report().mu_error() == pytest.approx(0.25)
 
-    def test_mu_error_current_value(self):
-        # documents what the shipped formula returns, so a change to the
-        # propagation shows up here even while test_mu_error_propagation keeps
-        # xfailing: (a*delta_phi + delta_a)/(1 - phi) = (0.008 + 0.01)/0.2
-        assert ou_stub_report().mu_error() == pytest.approx(0.09)
-
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="lambda_error returns the signed derivative "
-                              "d(lambda)/d(phi)*delta_phi = -delta_phi/(phi dt), so the error "
-                              "column of summary() reports a negative uncertainty; the magnitude "
-                              "delta_phi/(phi dt) is what the table needs")
     def test_lambda_error_is_a_magnitude(self):
         # |d(lambda)/d(phi)|*delta_phi = 0.02/(0.8*0.1) = 0.25
         assert ou_stub_report().lambda_error() == pytest.approx(0.25)
 
-    def test_lambda_error_current_value(self):
-        # documents the sign convention that test_lambda_error_is_a_magnitude xfails on
-        assert ou_stub_report().lambda_error() == pytest.approx(-0.25)
-
-    @pytest.mark.xfail(strict=True, raises=TypeError,
-                       reason="__init__ assigns self.sigma2_est = result.params.iloc[2], shadowing "
-                              "the sigma2_est method with a float, so calling it raises TypeError: "
-                              "'numpy.float64' object is not callable")
     def test_sigma2_est(self):
         # sigma^2 = 2*lambda*var(eps)/(1 - phi^2) with lambda = -ln(0.8)/0.1:
         # 2*2.2314355131420974*0.25/(1 - 0.64)
@@ -473,11 +449,6 @@ class TestOUEstReport:
         # stored AR innovation variance and rescales it correctly
         assert OUEstReport.sigma2_est(ou_stub_report()) == pytest.approx(3.0992159904751354)
 
-    @pytest.mark.xfail(strict=True, raises=TypeError,
-                       reason="__init__ assigns self.sigma2_error = result.bse.iloc[2], shadowing "
-                              "the sigma2_error method with a float, so calling it raises "
-                              "TypeError: 'numpy.float64' object is not callable before any value "
-                              "can be checked")
     def test_sigma2_error(self):
         # sigma^2 = 2 lambda s2/(1 - phi^2), so the propagated uncertainty is
         #   4 lambda phi s2 delta_phi/(1 - phi^2)^2  = 0.275486
@@ -485,31 +456,18 @@ class TestOUEstReport:
         # + 2 lambda delta_s2/(1 - phi^2)            = 0.061984
         assert ou_stub_report().sigma2_error() == pytest.approx(0.6846924078517371)
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="second, independent defect: sigma2_error adds the SIGNED "
-                              "lambda_error (-delta_phi/(phi dt)), so its middle term is negative "
-                              "and cancels the other two - the propagated error evaluates to "
-                              "-0.009752 instead of 0.684692. Called off the class to step around "
-                              "the sigma2_error attribute shadowing")
     def test_sigma2_error_sign_cancellation(self):
         assert OUEstReport.sigma2_error(ou_stub_report()) == pytest.approx(0.6846924078517371)
 
-    def test_sigma2_error_current_value(self):
-        # pins the cancelled sum the shipped expression produces, so fixing the
-        # shadowing alone (without fixing the sign) cannot pass unnoticed
-        assert OUEstReport.sigma2_error(ou_stub_report()) == pytest.approx(-0.00975203659270732)
-
-    def test_shadowing_leaves_the_raw_fit_values_on_the_instance(self):
-        # what the shadowed names actually hold: the AR innovation variance and
-        # its standard error, neither rescaled to the continuous sigma^2
+    def test_raw_fit_values_are_kept_apart_from_the_derived_ones(self):
+        # the AR innovation variance and its standard error live on their own
+        # names, leaving sigma2_est/sigma2_error free to be the derived methods
         report = ou_stub_report()
-        assert report.sigma2_est == 0.25
-        assert report.sigma2_error == 0.005
-        assert not callable(report.sigma2_est)
+        assert report.ar_var_est == 0.25
+        assert report.ar_var_error == 0.005
+        assert callable(report.sigma2_est)
+        assert callable(report.sigma2_error)
 
-    @pytest.mark.xfail(strict=True, raises=TypeError,
-                       reason="summary() calls self.sigma2_est(), which __init__ shadowed with a "
-                              "float, so printing an OU estimation report always raises TypeError")
     def test_summary(self, capsys):
         ou_stub_report().summary(tablefmt="plain")
         out = capsys.readouterr().out
@@ -527,7 +485,7 @@ class TestOUEstReport:
         with pytest.warns(RuntimeWarning, match="divide by zero"):
             assert numpy.isinf(report.mu_error())
         assert report.lambda_est() == 0.0         # -ln(1)/dt: no mean reversion
-        assert report.lambda_error() == pytest.approx(-0.2)
+        assert report.lambda_error() == pytest.approx(0.2)
 
     def test_explosive_coefficient_gives_negative_lambda(self):
         # phi > 1 is a mean averting fit: lambda = -ln(phi)/dt < 0 and mu falls
@@ -551,7 +509,7 @@ class TestOUEstReport:
         with pytest.warns(RuntimeWarning, match="divide by zero encountered in log"):
             assert numpy.isinf(report.lambda_est())
         with pytest.warns(RuntimeWarning, match="divide by zero"):
-            assert numpy.isneginf(report.lambda_error())
+            assert numpy.isposinf(report.lambda_error())
 
     def test_round_trip_recovers_ou_parameters(self):
         # Simulate an exactly discretised OU path, fit AR(1) by OLS and read the
@@ -606,28 +564,13 @@ class TestOUEstReport:
         # statsmodels' ARIMA trend='c' reports the process MEAN as 'const',
         # not the OLS intercept mu(1 - phi) that OUEstReport expects
         assert report.offset_est == pytest.approx(mu, abs=0.4)
-        assert report.sigma2_est == pytest.approx(sigma**2*(1.0 - phi**2)/(2.0*lam), rel=0.2)
+        assert report.ar_var_est == pytest.approx(sigma**2*(1.0 - phi**2)/(2.0*lam), rel=0.2)
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="mu_est assumes the OLS parameterisation params[0] = mu(1 - phi), but "
-                              "navi's only AR(1) with offset estimator (lib.models.arima."
-                              "ar_offset_fit -> statsmodels ARIMA trend='c') reports the process "
-                              "mean itself as 'const', so mu_est divides the mean by (1 - phi) a "
-                              "second time and overstates it by ~10x at dt = 0.1, lambda = 1")
     def test_mu_est_from_navi_ar_offset_fit(self):
         mu, lam, sigma, dt, n = 2.0, 1.0, 1.0, 0.1, 4000
         x = ou_path(mu, lam, sigma, dt, n)
         report = OUEstReport(arima.ar_offset_fit(pandas.Series(x), 1), dt, x[0])
         assert report.mu_est() == pytest.approx(mu, abs=0.4)
-
-    def test_mu_est_from_navi_ar_offset_fit_current_value(self):
-        # companion pin for the xfail above: the returned estimate is the mean
-        # divided by (1 - phi) ~ 0.095, i.e. inflated by roughly a factor 10
-        # (8.9x to 12.6x over 60 seeds)
-        mu, lam, sigma, dt, n = 2.0, 1.0, 1.0, 0.1, 4000
-        x = ou_path(mu, lam, sigma, dt, n)
-        report = OUEstReport(arima.ar_offset_fit(pandas.Series(x), 1), dt, x[0])
-        assert report.mu_est() > 4.0*mu
 
     def test_fit_must_be_pandas_backed(self):
         # ar_offset_fit is typed for NDArray input, and for an ndarray sample
