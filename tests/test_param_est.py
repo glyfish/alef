@@ -590,17 +590,9 @@ class TestOLSResult:
     def test_repr_closes_params_parenthesis(self):
         assert "), r2=(" in repr(_ols_result())
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="OLSResult documents 'r2: ParamEst' (param_est.py:173) and OLSParamType carries an OLS_R2 "
-               "member for exactly that row, but __init__ stores the bare float statsmodels returns "
-               "(param_est.py:179,183) so r2 has no err/est_label/est_id and OLS_R2 is dead: grep over navi "
-               "finds it only in its own definition.  The r2 row is therefore the one OLS estimate that "
-               "cannot be persisted or plotted like the others",
-    )
     def test_r2_is_the_param_est_row_its_type_is_declared_for(self):
         r = _ols_result(r2=0.87)
-        assert isinstance(r.r2.est, ParamEst)
+        assert isinstance(r.r2, ParamEst)
         assert r.r2.param_type == OLSParamType.OLS_R2.value
         assert r.r2.est == 0.87
 
