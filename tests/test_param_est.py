@@ -184,7 +184,7 @@ class TestEstModel:
     "enum_cls, expected_names",
     [
         (OLSParamType, {"OLS_CONST", "OLS_R2", "OLS_PARAM", "TRANS_CONST", "TRANS_PARAM"}),
-        (ARMAParamType, {"ARMA_CONST", "ARMA_PARAM", "ARMA_SIG2"}),
+        (ARMAParamType, {"ARMA_CONST", "ARMA_PARAM", "ARMA_SIG2", "ARMA_OFFSET"}),
         (VARParamType, {"VAR_CONST", "VAR_PARAM", "VAR_OMEGA"}),
         (ARMAEstType, {"AR", "AR_OFFSET", "MA", "MA_OFFSET"}),
     ],
@@ -641,12 +641,12 @@ class TestARMAEst:
 
     def test_const_and_sigma2_labels(self):
         # AR_OFFSET is the type whose formula actually carries a μ* term, so it
-        # is the one for which the μ* const label can be pinned exactly.  The
-        # offset-free types get the same label anyway -- that contradiction is
-        # owned by test_const_label_is_not_claimed_for_offset_free_models.
+        # The const row holds the process mean for every estimate type; μ* is a
+        # separate row, present only when the model declares an offset, and is
+        # pinned by test_offset_is_derived_from_the_mean_per_model_family.
         est = _arma_est(ARMAEstType.AR_OFFSET)
-        assert est.const.est_label == r"$\hat{\mu^*}$"
-        assert est.const.err_label == r"$\sigma_{\hat{\mu^*}}$"
+        assert est.const.est_label == r"$\hat{\mu}$"
+        assert est.const.err_label == r"$\sigma_{\hat{\mu}}$"
         assert est.sigma2.est_label == r"$\hat{\sigma^2}$"
         assert est.sigma2.err_label == r"$\sigma_{\hat{\sigma^2}}$"
 
@@ -656,14 +656,6 @@ class TestARMAEst:
         assert est.sigma2.est_label == r"$\hat{\sigma^2}$"
         assert est.sigma2.err_label == r"$\sigma_{\hat{\sigma^2}}$"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ARMAEst.__set_const_labels stamps '$\\hat{\\mu^*}$' unconditionally (param_est.py:331-333), "
-               "including for ARMAEstType.AR and MA whose own formula() carries no μ* term -- so the figure "
-               "legend advertises a constant the model does not have.  The consequence is in "
-               "lib/data/impl/arima.py:513, which takes result.params[0] as the const row for every est "
-               "type, offset or not",
-    )
     @pytest.mark.parametrize("est_type", [ARMAEstType.AR, ARMAEstType.MA], ids=lambda t: t.name)
     def test_const_label_is_not_claimed_for_offset_free_models(self, est_type):
         est = _arma_est(est_type)
@@ -718,12 +710,52 @@ class TestARMAEst:
         assert est.params[0].order == 1
         assert est.params[0].est_label == r"$\hat{\phi_{0}}$"
 
+    def test_offset_is_derived_from_the_mean_per_model_family(self):
+        # statsmodels reports the process MEAN as its constant. For an AR the mean
+        # is mu*/(1 - sum phi), so mu* = mean(1 - sum phi); for an MA the mean IS
+        # mu*, because the offset does not pass through the moving average.
+        # Applying the AR conversion to an MA would corrupt a correct value, so the
+        # branch is on the model family, not on whether a constant was fitted.
+        ar = _arma_est(ARMAEstType.AR_OFFSET, nparams=2)     # const 30.1, params 0.5 and 0.25
+        φ_sum = sum(p.est for p in ar.params)
+        assert present(ar.offset).est == pytest.approx(ar.const.est*(1.0 - φ_sum))
+        assert present(ar.offset).est != pytest.approx(ar.const.est)
+
+        ma = _arma_est(ARMAEstType.MA_OFFSET, nparams=2)
+        assert present(ma.offset).est == pytest.approx(ma.const.est)
+        assert present(ma.offset).err == pytest.approx(ma.const.err)
+
+    @pytest.mark.parametrize("est_type", [ARMAEstType.AR, ARMAEstType.MA])
+    def test_no_offset_row_for_models_that_declare_none(self, est_type):
+        # AR and MA carry no mu* term in their own formula(), so no offset row is
+        # emitted even though the estimator still fits a constant.
+        est = _arma_est(est_type)
+        assert est.offset is None
+        assert r"\mu^*" not in est_type.formula()
+
+    def test_offset_row_is_labelled_and_typed_for_mu_star(self):
+        est = _arma_est(ARMAEstType.AR_OFFSET)
+        offset = present(est.offset)
+        assert offset.est_label == r"$\hat{\mu^*}$"
+        assert offset.err_label == r"$\sigma_{\hat{\mu^*}}$"
+        assert offset.param_type == ARMAParamType.ARMA_OFFSET.value
+        assert offset.est_id == est.est_id
+
+    def test_trend_records_what_the_fit_actually_used(self):
+        # The estimate type says what was asked for; trend says what was fitted.
+        # They are not the same: statsmodels defaults to 'c' at d = 0, so the
+        # offset-free types are fitted with a constant too.
+        assert _arma_est(ARMAEstType.AR).trend is None      # not supplied by the caller
+        est = ARMAEst(EST_ID, _param(1.0), [_param(0.5)], _param(2.0),
+                      ARMAEstType.AR_OFFSET, "c")
+        assert est.trend == "c"
+
     def test_constructor_overwrites_labels_on_passed_objects(self):
         const = _param(est_label="c", err_label="c-err")
         params = [_param(est_label="p", err_label="p-err")]
         sigma2 = _param(est_label="s", err_label="s-err")
         ARMAEst(EST_ID, const, params, sigma2, ARMAEstType.MA)
-        assert const.est_label == r"$\hat{\mu^*}$"
+        assert const.est_label == r"$\hat{\mu}$"
         assert const.err_label != "c-err"
         # Structural: the subscript is owned by
         # test_param_label_index_matches_the_stored_order.
@@ -734,7 +766,8 @@ class TestARMAEst:
     def test_to_json(self):
         est = _arma_est(ARMAEstType.MA_OFFSET, nparams=2)
         loaded = json.loads(est.to_json())
-        assert set(loaded) == {"est_model", "arma_est_type", "const", "order", "params", "sigma2", "est_id"}
+        assert set(loaded) == {"est_model", "arma_est_type", "trend", "const", "offset",
+                               "order", "params", "sigma2", "est_id"}
         assert loaded["est_model"] == "ARMA"
         assert loaded["arma_est_type"] == "MA_OFFSET"
         assert ARMAEstType(loaded["arma_est_type"]) is ARMAEstType.MA_OFFSET

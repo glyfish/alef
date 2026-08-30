@@ -858,7 +858,8 @@ class TestFacadeEstimates:
         # One uuid4 tags the estimate and every parameter in it.
         assert uuid.UUID(est.est_id).version == 4
         assert {est.const.est_id, est.sigma2.est_id, *(p.est_id for p in est.params)} == {est.est_id}
-        assert est.const.est_label == r"$\hat{\mu^*}$"
+        # the fitted constant is the process mean; μ* is reported separately
+        assert est.const.est_label == r"$\hat{\mu}$"
         assert est.sigma2.est_label == r"$\hat{\sigma^2}$"
 
     def test_estimate_ids_are_unique_per_call(self):
