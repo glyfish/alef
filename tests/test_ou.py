@@ -670,15 +670,7 @@ class TestFacadeValues:
         "s, Δt",
         [
             (3.0, 1.0),
-            pytest.param(
-                2.0, 0.5,
-                marks=pytest.mark.xfail(
-                    strict=True,
-                    reason="compute_cov_limit starts its time axis at int(s/Δt) — the step index — "
-                           "rather than at the time s, so for Δt ≠ 1 (or non-integer s) it is "
-                           "misaligned with compute_cov, whose axis starts at s.",
-                ),
-            ),
+            (2.0, 0.5),
         ],
     )
     def test_compute_cov_limit_axis_starts_at_s_like_compute_cov(self, s, Δt):
@@ -696,7 +688,7 @@ class TestFacadeValues:
             (1.0, 1.0),  # the s = Δt = 1 coincidence the defaults sit on: here they do agree
             (2.0, 1.0),
             (3.0, 1.0),
-            pytest.param(2.0, 0.5, marks=pytest.mark.xfail(strict=True, reason=_COV_AXIS_REASON)),
+            (2.0, 0.5),
         ],
     )
     def test_compute_cov_limit_axis_matches_compute_cov(self, s, Δt):

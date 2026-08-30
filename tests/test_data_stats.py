@@ -871,16 +871,7 @@ class TestMultivariateNormal:
         expected = 1.0 / (2.0 * numpy.pi * numpy.sqrt(1.0 - rho ** 2))
         assert pdf.max() == pytest.approx(expected, rel=0.01)
 
-    @pytest.mark.parametrize("nvars", [
-        pytest.param(0, marks=pytest.mark.xfail(
-            strict=True,
-            reason="the guard reads 'nvars == 1 or nvars > 3', so an empty mean falls "
-                   "through it and dies in min(numpy.diag(omega)) with "
-                   "ValueError('min() iterable argument is empty') instead of raising the "
-                   "documented 'Number of variables must be between 2 or 3'")),
-        1,
-        4,
-    ])
+    @pytest.mark.parametrize("nvars", [0, 1, 4])
     def test_rejects_unsupported_dimensions(self, nvars):
         with pytest.raises(Exception, match="Number of variables"):
             dstats.compute_multivariate_normal_pdf(numpy.zeros(nvars), numpy.eye(nvars), 10)

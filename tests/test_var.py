@@ -737,14 +737,7 @@ class TestFacadeContract:
         facade.compute_cov,
         facade.compute_acov,
         facade.create_source,
-        pytest.param(facade.compute_mean, marks=pytest.mark.xfail(strict=True, reason=(
-            "lib.data.impl.var.compute_mean is the only phi-taking facade that does not "
-            "call __verify_phi: lines 34-35 do their own weaker len(φ) > 0 + "
-            "verify_type(φ[0]) check and never verify that the blocks are square or "
-            "equally sized. A (1, 2, 3) φ therefore reaches lib.models.var.mean and dies "
-            "with a raw ValueError('operands could not be broadcast together with shapes "
-            "(2,2) (2,3)'), and [eye(2), eye(3)] with an AttributeError, where every "
-            "sibling reports 'should be square' / 'should have size (2, 2)'"))),
+        facade.compute_mean,
     ])
     def test_phi_validation(self, fn):
         with pytest.raises(Exception, match="square"):
