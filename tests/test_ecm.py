@@ -423,27 +423,29 @@ class TestEcmSimulation:
         expected = [zero_init_cumsum_ar1_var(φ, σ, k) for k in range(T)]
         assert_allclose(X.var(axis=0), expected, rtol=0.25)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="TWO independent defects keep the analytic curve off the simulated ensemble, and "
-        "fixing either alone will not make this xpass. (1) Missing burn-in: xt_var(t) is the "
-        "variance of a sum of t *stationary* AR(1) terms, but ecm.ecm builds x from "
-        "arma_generate_sample with no burnin, so the driver starts at zero and x_0 = a_0 has "
-        "variance σ², not 0. (2) Off-by-one between the grids: create_source returns t = k for "
-        "k = 0..npts-1, while x[k] = Σ_{i=0}^{k} a_i is a sum of k+1 driver terms, so even a "
-        "perfectly stationary driver would need xt_var evaluated at k+1, not k. Adopting the "
-        "k+1 convention alone still leaves 96%/71%/53%/41% relative error at k=0..3 "
-        "(φ=0.7, σ=1.3), and adding burn-in alone still leaves the index shift. The failure at "
-        "index 0 is deterministic (σ² against 0) and seed-independent",
-    )
     def test_xt_var_curve_matches_simulated_ensemble(self):
-        nsim, T = 500, 6
+        # xt_var(n) is the variance of a sum of n *stationary* AR(1) draws, so
+        # the ensemble compared against it has to start from a stationary
+        # point. ecm.ecm deliberately starts x at rest — that convention is
+        # pinned by test_xt_ensemble_variance_matches_zero_initialised_closed_form
+        # — so the burn-in belongs here, in the caller, not in the simulator.
+        # Discarding the first `burn` points and re-basing on x[burn] makes
+        # x[burn+n] - x[burn] a sum of exactly n stationary increments, which
+        # is what the closed form counts; that also lines the ensemble up with
+        # the t = 0..npts-1 grid with no index shift. φ^100 ≈ 3e-16, so the
+        # transient is gone to machine precision.
+        # n = 0 is an empty sum against xt_var(0) = 0, exact on every seed,
+        # hence the atol. rtol 0.25 ≈ 7.9 SE at nsim=2000
+        # (SE ≈ sqrt(2/2000) = 0.032); observed max deviation 0.063 over 12 seeds.
+        nsim, T, burn = 2000, 6, 100
         X = numpy.empty((nsim, T))
         for i in range(nsim):
-            X[i], _ = ecm.ecm(PHI, DELTA, ALPHA, BETA, GAMMA, LAMBDA, T, SIGMA)
+            x, _ = ecm.ecm(PHI, DELTA, ALPHA, BETA, GAMMA, LAMBDA, burn + T, SIGMA)
+            X[i] = x[burn:burn + T] - x[burn]
         t, expected = fecm.compute_xt_var(φ=PHI, σ=SIGMA, npts=T)
         assert_array_equal(t, numpy.arange(T, dtype=float))
-        assert_allclose(X.var(axis=0), expected, rtol=0.25, atol=0.25)
+        assert X[:, 0].var() == 0.0
+        assert_allclose(X.var(axis=0), expected, rtol=0.25, atol=1.0e-12)
 
     @pytest.mark.parametrize("δ,α,λ", [(0.3, 1.0, -0.5), (0.0, -2.0, -0.25), (-0.4, 0.7, -1.2)])
     def test_delta_and_alpha_enter_affinely_with_noise_present(self, δ, α, λ):
