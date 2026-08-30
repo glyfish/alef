@@ -507,29 +507,12 @@ class TestMeanFacades:
             func()
 
     @pytest.mark.parametrize("func", [fecm.compute_xt_mean, fecm.compute_yt_mean])
-    @pytest.mark.xfail(
-        strict=True,
-        reason="compute_xt_mean/compute_yt_mean document Δt as the time-step width but pass "
-        "both xmax=npts-1 and npts to create_space, which then ignores Δx; the grid is "
-        "always unit-spaced and disagrees with compute_xt_var's grid for the same Δt. Unlike "
-        "the over-determined create_space calls a *caller* can make, here the façade itself "
-        "manufactures the conflicting xmax from npts and so silently voids its own documented "
-        "kwarg (lib/data/impl/ecm.py:43,66)",
-    )
     def test_delta_t_sets_time_step(self, func):
         t, _ = func(npts=5, Δt=0.5)
         assert_allclose(numpy.diff(t), 0.5)
         t_var, _ = fecm.compute_xt_var(φ=0.5, npts=5, Δt=0.5)
         assert_allclose(t, t_var)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="compute_yt_mean returns numpy.full(npts, 0.0) unconditionally and takes no "
-        "δ/α/λ kwargs, so it cannot express the ECM stationary mean E[y_t] = α - δ/λ. For "
-        "δ=0.4, α=2.0, λ=-0.5 the simulated y relaxes to 2.8 (proved exactly by "
-        "test_noise_free_fixed_point_is_alpha_minus_delta_over_lambda) while the façade still "
-        "reports 0, so every notebook overlay of the mean on a source with δ≠0 or α≠0 is wrong",
-    )
     def test_yt_mean_reflects_delta_and_alpha(self):
         _, μ = fecm.compute_yt_mean(npts=200, δ=0.4, α=2.0, λ=-0.5)
         assert μ[-1] == pytest.approx(2.0 - 0.4 / -0.5, abs=1e-3)
@@ -1112,11 +1095,6 @@ class TestGammaLambdaEstimate:
         assert result.const_transform.param.est == result.const.est
         assert result.const_transform.param.param_type == OLSParamType.TRANS_CONST.value
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="__add_gamma_lambda_transform builds the λ transform from result.params[0] "
-        "(the γ estimate) instead of result.params[1], so the reported λ̂ is the γ̂ value",
-    )
     def test_lambda_transform_reports_lambda_estimate(self, simulated):
         xt, yt = simulated
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
@@ -1124,15 +1102,6 @@ class TestGammaLambdaEstimate:
         assert λ_tr.param.est == result.params[1].est
         assert λ_tr.param.err == result.params[1].err
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="__add_gamma_lambda_transform labels the constant transform with the λ̂ labels, "
-        "duplicating the second parameter transform's. The constant of the Δy regression "
-        "estimates δ - λα (asserted numerically against the true δ, α, λ in "
-        "test_constant_estimates_delta_minus_lambda_alpha), so its label has to name δ — "
-        "anything else (including another wrong label) is still a bug, which is why this "
-        "asserts the δ form positively rather than merely differing from the λ̂ label",
-    )
     def test_const_transform_is_labelled_for_delta(self, simulated):
         xt, yt = simulated
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
@@ -1143,15 +1112,6 @@ class TestGammaLambdaEstimate:
         assert r"\delta" in err_label
         assert est_label != λ_tr.param.est_label
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="__add_gamma_lambda_transform hard-codes model = r'$\\hat{\\alpha} + "
-        "\\hat{\\beta} x_t$' — the β regression's formula copied verbatim (lib/data/impl/"
-        "ecm.py:308) — for a regression of Δy on (Δx, ε_{t-1}). "
-        "compute_gamma_lambda_estimate(...).model is byte-identical to "
-        "compute_beta_estimate(...).model, so every report of the γ/λ fit renders the wrong "
-        "formula. It should name γ̂, λ̂ and Δx",
-    )
     def test_model_formula_describes_the_delta_y_regression(self, simulated):
         xt, yt = simulated
         _, β_result = fecm.compute_beta_estimate(yt, xt)

@@ -789,15 +789,6 @@ class TestEstimateFacade:
             assert c.err == result.stderr_det_coef[i, 0]
         assert numpy.abs(result.stderr_det_coef).max() < 0.01 * numpy.abs(constant.stderr_det_coef).max()
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="with trend 'lo' det_coef holds the linear trend slope, but "
-               "__vecm_estimate_from_result files it as VECMParamType.VECM_CONST "
-               "labelled '$\\hat{M}$' — exactly the type and label it gives the "
-               "trend 'co' intercept, so a persisted estimate cannot tell a trend "
-               "slope from the model constant",
-    )
     def test_linear_trend_coefficient_is_not_labelled_as_the_constant(self, sim_vecm1):
         _, xt = sim_vecm1
         _, trend_est = facade.compute_estimate(xt, maxlags=1, rank=1, trend="lo")
@@ -856,26 +847,11 @@ class TestEstimateFacade:
         assert str(est) in text
 
     @pytest.mark.parametrize("trend", ["n", "ci", "li"])
-    @pytest.mark.xfail(
-        strict=True,
-        raises=IndexError,
-        reason="compute_estimate documents trends 'n', 'ci' and 'li', but "
-               "__vecm_estimate_from_result reads det_coef[i, 0] unconditionally; "
-               "those trends leave det_coef with shape (neqs, 0) because the "
-               "deterministic term is absent or lives in det_coef_coint",
-    )
     def test_supports_trends_without_a_constant_outside_the_relation(self, sim_vecm1, trend):
         _, xt = sim_vecm1
         _, est = facade.compute_estimate(xt[:, :600], maxlags=1, rank=1, trend=trend)
         assert est.rank == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason="__vecm_estimate_from_result reads a_est[i, j] inside the lag loop, "
-               "ignoring k, so every lag order repeats the first neqs columns of "
-               "result.gamma instead of gamma[:, (k-1)*neqs:k*neqs]",
-    )
     def test_reports_a_distinct_coefficient_block_per_lag(self, sim_vecm1):
         _, xt = sim_vecm1
         result, est = facade.compute_estimate(xt, maxlags=2, rank=1, trend="co")
