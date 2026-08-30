@@ -1095,6 +1095,33 @@ class TestCausalityMatrix:
         assert not off_diagonal["result"].to_numpy().any()
         assert report.rank == 0
 
+    def test_degenerate_series_does_not_cause_itself(self):
+        # The diagonal regresses a series on its own lags twice over, so the
+        # design matrix is rank deficient and the F test is degenerate. For a
+        # well conditioned series that lands on p = 1.0, but a near constant
+        # series underflows SSR and the ratio becomes floating point noise:
+        # before the diagonal was short circuited this returned p = 0.0 at
+        # nlags >= 2, reading as a series causing itself and inflating rank
+        # from 1 to 2. Series 3 here is constant to within 1e-9.
+        numpy.random.seed(11)
+        samples = numpy.array([numpy.random.normal(size=400),
+                               numpy.random.normal(size=400),
+                               numpy.full(400, 3.0) + numpy.random.normal(scale=1e-9, size=400)])
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")          # the fit is skipped, so no warning may escape
+            matrix, report = dstats.compute_causality_matrix(samples, nlags=2)
+
+        diagonal = cast(DataFrame, matrix[matrix["dependent_var"] == matrix["causal_var"]])
+        assert numpy.all(diagonal["pvalue"].to_numpy(dtype=float) == 1.0)
+        assert not diagonal["result"].to_numpy().any()
+        # rank counts dependent variables with an incoming True; the diagonal
+        # must contribute none of them
+        off_diagonal = cast(DataFrame, matrix[matrix["dependent_var"] != matrix["causal_var"]])
+        expected = len(numpy.unique(off_diagonal[off_diagonal["result"]]["dependent_var"]))
+        assert report.rank == expected
+
+
 
 # ---------------------------------------------------------------------------
 # OLS regression enum
