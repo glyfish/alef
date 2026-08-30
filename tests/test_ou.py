@@ -909,7 +909,7 @@ class TestHalfLifeEstimate:
         assert bse[0] == pytest.approx(result.const.err)
         assert params[1] == pytest.approx(result.params[0].est)
         assert bse[1] == pytest.approx(result.params[0].err)
-        assert report.rsquared == pytest.approx(result.r2)
+        assert report.rsquared == pytest.approx(result.r2.est)
         assert report.nobs == 3999  # 4000 samples -> 3999 first differences
 
     def test_transforms_are_populated(self, fit):
@@ -991,14 +991,14 @@ class TestHalfLifeEstimate:
         # measured 0.381-0.421 over 80 seeds, so abs = 0.03 is comfortable and — unlike
         # "> 0.3", which admits 25% more residual variance than the model allows — it would
         # catch a mis-specified design matrix or a wrongly differenced series.
-        assert result.r2 == pytest.approx(self.λ * 1.0 / 2.0, abs=0.03)
+        assert result.r2.est == pytest.approx(self.λ * 1.0 / 2.0, abs=0.03)
 
     def test_r2_is_half_lambda_dt_at_non_unit_dt(self):
         # Same λΔt/2 identity, now with λΔt = 0.4 → R² = 0.20, which exercises the identity's
         # Δt dependence. Measured 0.190-0.221 over 60 seeds.
         _, x = ou_facade.create_source(μ=self.μ, λ=self.λ, Δt=0.5, σ=self.σ, x0=0.0, npts=4000)
         _, result = ou_facade.compute_mean_half_life_estimate(x, dt=0.5)
-        assert result.r2 == pytest.approx(self.λ * 0.5 / 2.0, abs=0.03)
+        assert result.r2.est == pytest.approx(self.λ * 0.5 / 2.0, abs=0.03)
 
     def test_const_transform_labels_the_drift_constant_not_the_long_run_mean(self):
         # The const transform is labelled $\\mu$, which invites reading it as the OU long-run
@@ -1050,7 +1050,7 @@ class TestHalfLifeEstimate:
         # …and the underlying regression itself is untouched by dt.
         assert half.params[0].est == pytest.approx(one.params[0].est)
         assert half.params[0].err == pytest.approx(one.params[0].err)
-        assert half.r2 == pytest.approx(one.r2)
+        assert half.r2.est == pytest.approx(one.r2.est)
 
     def test_dt_is_applied_to_rate_and_half_life(self):
         # The slope is -λΔt whatever the noise scaling, so with dt passed the half-life
@@ -1127,7 +1127,7 @@ class TestHalfLifeEstimateDegenerateInput:
         # half-life comes back — nothing marks the result as meaningless.
         _, result = ou_facade.compute_mean_half_life_estimate(numpy.array([1.0, 2.0, 0.5]), dt=1.0)
         half_life, lam = (tr.param for tr in present(result.param_transforms))
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
         assert math.isinf(result.params[0].err)
         assert math.isinf(half_life.err) and math.isinf(lam.err)
         assert numpy.isfinite(half_life.est)
@@ -1141,6 +1141,6 @@ class TestHalfLifeEstimateDegenerateInput:
         _, result = ou_facade.compute_mean_half_life_estimate(rw, dt=1.0)
         half_life, lam = (tr.param for tr in present(result.param_transforms))
         assert abs(lam.est) < 0.05           # no mean reversion to find
-        assert result.r2 < 0.02              # …and the regression knows it
+        assert result.r2.est < 0.02              # …and the regression knows it
         assert abs(half_life.est) > 20.0     # a half-life ~30x the sample's own λ scale
         assert half_life.err / abs(half_life.est) > 0.15  # the only usable signal: it is noise

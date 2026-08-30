@@ -489,7 +489,7 @@ class TestOLSResult:
         # r2 is stored as the raw float, not as the ParamEst its docstring and
         # the OLS_R2 enum member promise -- see
         # test_r2_is_the_param_est_row_its_type_is_declared_for.
-        assert r.r2 == 0.9
+        assert r.r2.est == 0.9
         assert len(r.params) == 2
         assert r.const.param_type == "OLS_CONST"
         assert r.param_transforms is None
@@ -538,7 +538,8 @@ class TestOLSResult:
         assert set(loaded) == {"est_model", "const", "params", "r2", "param_transforms", "const_transform",
                                "est_id", "model"}
         assert loaded["est_model"] == "OLS"
-        assert loaded["r2"] == 0.87
+        assert loaded["r2"]["est"] == 0.87
+        assert loaded["r2"]["param_type"] == OLSParamType.OLS_R2.value
         assert loaded["est_id"] == EST_ID
         assert loaded["param_transforms"] is None
         assert loaded["const_transform"] is None
@@ -561,7 +562,7 @@ class TestOLSResult:
     def test_repr_reflects_transform_state(self):
         r = _ols_result(nparams=1, r2=0.9)
         before = repr(r)
-        assert "r2=(0.9)" in before
+        assert "r2=(est=(0.9)" in before
         assert "model=(None)" in before
         assert f"est_id={EST_ID}" in before
         # est_model must be asserted explicitly: the "OLS" in the repr prefix
@@ -583,7 +584,7 @@ class TestOLSResult:
         # __props() that produced s, and so could not fail for any defect in it.
         assert s.startswith(f"est_id={EST_ID}, est_model=(EstModel.OLS), const=(")
         assert s.endswith("model=(None), const_transform=(None), param_transforms=(None)")
-        assert "r2=(0.9)" in s
+        assert "r2=(est=(0.9)" in s
         assert s.index("const=(") < s.index("params=(") < s.index("r2=(") < s.index("model=(None)")
 
     def test_repr_closes_params_parenthesis(self):
@@ -599,7 +600,7 @@ class TestOLSResult:
     )
     def test_r2_is_the_param_est_row_its_type_is_declared_for(self):
         r = _ols_result(r2=0.87)
-        assert isinstance(r.r2, ParamEst)
+        assert isinstance(r.r2.est, ParamEst)
         assert r.r2.param_type == OLSParamType.OLS_R2.value
         assert r.r2.est == 0.87
 
@@ -1171,13 +1172,6 @@ def test_module_level_imports_are_used(name):
         assert source.count(name) > 1, f"{name} is imported but never used"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="param_est.py:6 `from statsmodels.tsa.vector_ar.var_model import LagOrderResults` is unused "
-           "(the name appears nowhere else in the module) yet forces every consumer of this pure "
-           "data-container module -- plots, database layer, notebooks -- to import the whole of "
-           "statsmodels before it can hold a ParamEst",
-)
 def test_importing_param_est_does_not_pull_in_statsmodels():
     code = (
         "import sys; import lib.data.param_est; "

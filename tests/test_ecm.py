@@ -792,7 +792,7 @@ class TestDegenerateEstimatorInput:
         slope, intercept = ols_line(xt, yt)
         assert result.params[0].est == pytest.approx(slope, rel=1e-8)
         assert result.const.est == pytest.approx(intercept, rel=1e-8, abs=1e-8)
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
         # zero residual degrees of freedom: s² = ssr/0 is inf when the residual
         # is a nonzero rounding artefact and nan when it is exactly 0, so the
         # invariant is that no standard error is a usable number.
@@ -810,7 +810,7 @@ class TestDegenerateEstimatorInput:
         assert len(result.params) == 1
         # a single observation makes the centred total sum of squares exactly 0,
         # so r² is 0/0 or ssr/0 — never a usable number.
-        assert not numpy.isfinite(result.r2)
+        assert not numpy.isfinite(result.r2.est)
 
     def test_gamma_lambda_estimate_with_three_samples_returns_two_parameters(self):
         # n=3 → 2 differenced rows against 3 columns: still rank deficient, but
@@ -820,7 +820,7 @@ class TestDegenerateEstimatorInput:
         _, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
         assert len(result.params) == 2
         assert numpy.all(numpy.isfinite([p.est for p in result.params]))
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
 
 
 class TestBetaEstimate:
@@ -847,10 +847,10 @@ class TestBetaEstimate:
         # variance to the *realized* sample variance of a random walk, so it
         # does not concentrate near 1 and any fixed cutoff is seed-tuned.
         sst = ((yt - ȳ) ** 2).sum()
-        assert result.r2 == pytest.approx(1.0 - resid @ resid / sst, rel=1e-8)
+        assert result.r2.est == pytest.approx(1.0 - resid @ resid / sst, rel=1e-8)
         # loose magnitude net: a cointegrating fit is always high-r², but the
         # lower tail crosses 0.99 regularly, so the bound is 0.95.
-        assert result.r2 > 0.95
+        assert result.r2.est > 0.95
 
     def test_matches_independent_least_squares(self, simulated):
         xt, yt = simulated
@@ -863,7 +863,7 @@ class TestBetaEstimate:
         bse = numpy.asarray(report.bse)
         assert result.const.est == params[0] and result.params[0].est == params[1]
         assert result.const.err == bse[0] and result.params[0].err == bse[1]
-        assert result.r2 == report.rsquared
+        assert result.r2.est == report.rsquared
 
     def test_beta_recovery_survives_a_non_zero_intercept(self):
         # Every other estimator test runs at δ = α = 0. β̂ must be unaffected by
@@ -1040,8 +1040,8 @@ class TestGammaLambdaEstimate:
         report, result = fecm.compute_gamma_lambda_estimate(yt, xt, BETA)
         assert isinstance(result, OLSResult)
         assert result.est_model == EstModel.OLS
-        assert result.r2 == report.rsquared
-        assert 0.0 < result.r2 < 1.0
+        assert result.r2.est == report.rsquared
+        assert 0.0 < result.r2.est < 1.0
 
         # Index bookkeeping: both regressors are OLS_PARAM and keep the column
         # they occupied in the design matrix; every parameter carries the
@@ -1059,7 +1059,7 @@ class TestGammaLambdaEstimate:
         data = json.loads(result.to_json())
         assert data["est_id"] == result.est_id
         assert data["est_model"] == EstModel.OLS.value
-        assert data["r2"] == result.r2
+        assert data["r2"]["est"] == result.r2.est
         assert data["model"] == result.model
         assert [p["est"] for p in data["params"]] == [p.est for p in result.params]
         assert [p["err"] for p in data["params"]] == [p.err for p in result.params]

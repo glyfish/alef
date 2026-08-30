@@ -165,7 +165,7 @@ class TestContract:
         assert len(result.params) == 1
         assert result.params[0].param_type == OLSParamType.OLS_PARAM.value
         assert result.const.param_type == OLSParamType.OLS_CONST.value
-        assert result.r2 == pytest.approx(report.rsquared, rel=1e-12)
+        assert result.r2.est == pytest.approx(report.rsquared, rel=1e-12)
 
     def test_half_life_derives_from_the_raw_report_slope(self, fit):
         # Independent of the OLSResult bookkeeping: read the slope straight out
@@ -421,7 +421,7 @@ class TestNonFiniteSeries:
         assert report.nobs == 3.0
         assert result.params[0].est == pytest.approx(-0.75, rel=1e-12)
         assert half_life == pytest.approx(LN2 / 0.75, rel=1e-12)
-        assert result.r2 == pytest.approx(0.75, rel=1e-12)
+        assert result.r2.est == pytest.approx(0.75, rel=1e-12)
         assert abs(result.const.est) < 1e-12
         assert numpy.isfinite(present(result.param_transforms)[0].param.err)
         # …and the *identical* data as a bare ndarray raises instead.
@@ -485,7 +485,7 @@ class TestClosedForm:
         half_life, report, result = compute_mean_reversion_halflife(x)
         assert half_life == pytest.approx(LN2 / (1.0 - φ), rel=1e-9)
         assert result.params[0].est == pytest.approx(φ - 1.0, rel=1e-9)
-        assert result.r2 == pytest.approx(1.0, abs=1e-9)
+        assert result.r2.est == pytest.approx(1.0, abs=1e-9)
         assert present(result.param_transforms)[0].param.err == pytest.approx(0.0, abs=1e-8)
         assert present(result.param_transforms)[1].param.err == pytest.approx(0.0, abs=1e-8)
         assert report.nobs == n - 1
@@ -562,7 +562,7 @@ class TestClosedForm:
         half_life, report, result = compute_mean_reversion_halflife(x)
         assert result.params[0].est == pytest.approx(φ - 1.0, rel=1e-9)
         assert half_life == pytest.approx(LN2 / (1.0 - φ), rel=1e-9)
-        assert result.r2 == pytest.approx(1.0, abs=1e-9)
+        assert result.r2.est == pytest.approx(1.0, abs=1e-9)
         assert report.nobs == n - 1
 
     def test_an_explosive_oscillation_reports_a_short_positive_half_life(self):
@@ -610,7 +610,7 @@ class TestClosedForm:
         assert present(result.param_transforms)[1].param.err == 0.0
         # R² of the singular fit is NaN, not 0 or 1 — a caller screening a fit
         # on r2 gets neither a pass nor a fail out of any ordinary comparison.
-        assert numpy.isnan(result.r2)
+        assert numpy.isnan(result.r2.est)
 
     @pytest.mark.parametrize("n", [20, 50, 101, 200])
     def test_constant_drift_yields_no_reversion(self, n):
@@ -647,7 +647,7 @@ class TestDemeaning:
             assert shifted.params[0].est == pytest.approx(base.params[0].est, rel=1e-8)
             assert shifted.params[0].err == pytest.approx(base.params[0].err, rel=1e-8)
             assert shifted.const.est == pytest.approx(base.const.est, abs=1e-8)
-            assert shifted.r2 == pytest.approx(base.r2, rel=1e-8)
+            assert shifted.r2.est == pytest.approx(base.r2.est, rel=1e-8)
 
     def test_demeaning_removes_the_intercept_the_raw_fit_keeps(self):
         # Fitted on the raw series the intercept is -slope·μ = λμ ≈ 25; the
@@ -729,7 +729,7 @@ class TestTrendSensitivity:
         assert abs(drifted.params[0].est) < 0.1 * abs(clean.params[0].est)
         assert numpy.isfinite(half_life) and half_life > 0.0
         assert numpy.isfinite(drifted.params[0].err)
-        assert 0.0 < drifted.r2 < 1.0
+        assert 0.0 < drifted.r2.est < 1.0
         assert report.nobs == self.n - 1
 
     def test_removing_the_trend_restores_the_estimate(self, path):

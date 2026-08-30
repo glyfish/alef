@@ -473,7 +473,7 @@ class TestAggregation:
         assert ols.params[0].est == pytest.approx(-1.0, abs=0.15)
         # intercept is log10(sigma^2) = log10(4) = 0.602
         assert ols.const.est == pytest.approx(numpy.log10(4.0), abs=0.12)
-        assert ols.r2 > 0.98
+        assert ols.r2.est > 0.98
 
 
 # ---------------------------------------------------------------------------
@@ -1120,7 +1120,7 @@ class TestOLS:
 
         assert result.const.est == pytest.approx(2.0, abs=0.01)
         assert result.params[0].est == pytest.approx(3.0, abs=0.01)
-        assert result.r2 > 0.999
+        assert result.r2.est > 0.999
         # the report is the raw statsmodels fit the model object was built from
         assert report.params[1] == pytest.approx(result.params[0].est)
         assert report.bse[0] == pytest.approx(result.const.err)
@@ -1155,7 +1155,7 @@ class TestOLS:
 
         assert result.params[0].est == pytest.approx(a, abs=1e-9)
         assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
 
     def test_linear_and_log_dispatch_differ(self):
         a, b = 1.5, 2.0
@@ -1166,8 +1166,8 @@ class TestOLS:
         _, log = OLS.LOG.single_variable_estimate(y, x)
 
         # the untransformed fit of a power law is not exact
-        assert linear.r2 < 0.99
-        assert log.r2 > linear.r2
+        assert linear.r2.est < 0.99
+        assert log.r2.est > linear.r2.est
 
     def test_two_variable_estimate(self):
         n = 500
@@ -1182,7 +1182,7 @@ class TestOLS:
         assert result.params[0].est == pytest.approx(2.0, abs=0.01)
         assert result.params[1].est == pytest.approx(-3.0, abs=0.01)
         assert [p.column for p in result.params] == [1, 2]
-        assert result.r2 > 0.999
+        assert result.r2.est > 0.999
         assert len(report.params) == 3
 
     def test_multi_variable_estimate(self):
@@ -1210,7 +1210,7 @@ class TestOLS:
         fitted = result.const.est + result.params[0].est * x
         ssr = numpy.sum((y - fitted) ** 2)
         sst = numpy.sum((y - y.mean()) ** 2)
-        assert result.r2 == pytest.approx(1.0 - ssr / sst, rel=1e-9)
+        assert result.r2.est == pytest.approx(1.0 - ssr / sst, rel=1e-9)
 
     def test_result_serialises_to_json(self):
         x = numpy.linspace(1.0, 10.0, 50)
@@ -1225,7 +1225,8 @@ class TestOLS:
         assert payload["const"]["param_type"] == OLSParamType.OLS_CONST.value
         assert len(payload["params"]) == 1
         assert payload["params"][0]["est"] == pytest.approx(result.params[0].est)
-        assert payload["r2"] == pytest.approx(result.r2)
+        assert payload["r2"]["est"] == pytest.approx(result.r2.est)
+        assert payload["r2"]["param_type"] == OLSParamType.OLS_R2.value
         assert json.loads(result.to_json(pretty=True)) == payload
 
     @pytest.mark.parametrize("member", list(OLS))
@@ -1238,7 +1239,7 @@ class TestOLS:
         _, result = member.single_variable_estimate(y, x)
 
         assert len(result.params) == 1
-        assert 0.0 <= result.r2 <= 1.0
+        assert 0.0 <= result.r2.est <= 1.0
         assert numpy.isfinite(result.const.est)
         assert numpy.isfinite(result.params[0].est)
         assert result.const.err > 0.0
@@ -1263,8 +1264,8 @@ class TestOLS:
         assert len(multi.params) == 3
         assert [p.column for p in multi.params] == [1, 2, 3]
         assert list(report.params.index) == ["Intercept", "x1", "x2", "x3"]
-        assert 0.0 <= two.r2 <= 1.0
-        assert 0.0 <= multi.r2 <= 1.0
+        assert 0.0 <= two.r2.est <= 1.0
+        assert 0.0 <= multi.r2.est <= 1.0
         assert all(p.err > 0.0 for p in two.params)
         assert all(p.err > 0.0 for p in multi.params)
         assert all(numpy.isfinite(p.est) for p in multi.params)
@@ -1281,7 +1282,7 @@ class TestOLS:
 
         _, result = OLS.LOG.two_variable_estimate(y, x1, x2)
 
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
         assert result.params[0].est == pytest.approx(a1, abs=1e-9)
         assert result.params[1].est == pytest.approx(a2, abs=1e-9)
         assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
@@ -1294,7 +1295,7 @@ class TestOLS:
 
         _, result = OLS.LOG.multi_variable_estimate(y, numpy.array([x1, x2]))
 
-        assert result.r2 == pytest.approx(1.0)
+        assert result.r2.est == pytest.approx(1.0)
         assert result.params[0].est == pytest.approx(a1, abs=1e-9)
         assert result.params[1].est == pytest.approx(a2, abs=1e-9)
         assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
@@ -1307,7 +1308,7 @@ class TestOLS:
 
         _, result = OLS.XLOG.single_variable_estimate(y, x)
 
-        assert result.r2 == pytest.approx(1.0, abs=1e-6)
+        assert result.r2.est == pytest.approx(1.0, abs=1e-6)
 
     def test_ylog_linearises_a_logarithmic_relation(self):
         # YLOG documents y = b*ln(a*x), which is exactly linear once x is
@@ -1317,7 +1318,7 @@ class TestOLS:
 
         _, result = OLS.YLOG.single_variable_estimate(y, x)
 
-        assert result.r2 == pytest.approx(1.0, abs=1e-6)
+        assert result.r2.est == pytest.approx(1.0, abs=1e-6)
 
 
 # ---------------------------------------------------------------------------
