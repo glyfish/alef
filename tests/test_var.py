@@ -35,9 +35,9 @@ from lib.data.hyp_test import __var_order_test_report_from_result as build_order
 
 SEED = 20260820
 
-# The library returns numpy.matrix from the companion-form helpers and vec/unvec
-# only accept numpy.matrix input, so numpy's matrix deprecation notice fires on
-# nearly every call; it is not something these tests are about.
+# The companion-form helpers and vec/unvec return numpy.matrix, so numpy's
+# matrix deprecation notice fires on their results even though no test
+# constructs a matrix as input; it is not something these tests are about.
 pytestmark = pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
 
 # VAR(1): two independent AR(1) processes with coefficients 0.5 and 0.2.
@@ -224,18 +224,18 @@ class TestCompanionForms:
         assert numpy.count_nonzero(Ω) == 4  # nothing outside the top-left block
 
     def test_vec_stacks_columns(self):
-        A = numpy.matrix([[1.0, 4.0, 7.0],
-                          [2.0, 5.0, 8.0],
-                          [3.0, 6.0, 9.0]])
+        A = numpy.array([[1.0, 4.0, 7.0],
+                         [2.0, 5.0, 8.0],
+                         [3.0, 6.0, 9.0]])
         v = model.vec(A)
         assert v.shape == (9, 1)
         assert_array_equal(numpy.asarray(v)[:, 0], numpy.arange(1.0, 10.0))
         assert_array_equal(numpy.asarray(v), numpy.asarray(A).reshape(-1, 1, order="F"))
 
     def test_unvec_inverts_vec(self):
-        A = numpy.matrix(numpy.arange(16.0).reshape(4, 4) ** 2)
+        A = numpy.arange(16.0).reshape(4, 4) ** 2
         assert_array_equal(numpy.asarray(model.unvec(model.vec(A))), numpy.asarray(A))
-        col = numpy.matrix(numpy.array([1.0, 2.0, 3.0, 4.0])).T
+        col = numpy.array([[1.0], [2.0], [3.0], [4.0]])
         assert_array_equal(numpy.asarray(model.unvec(col)), [[1.0, 3.0], [2.0, 4.0]])
 
 
@@ -704,17 +704,17 @@ class TestFacadeContract:
                            numpy.asarray(model.omega_comp(ω, 3)))
 
     def test_vec_facades_round_trip(self):
-        A = numpy.matrix([[1.0, 4.0, 7.0], [2.0, 5.0, 8.0], [3.0, 6.0, 9.0]])
+        A = numpy.array([[1.0, 4.0, 7.0], [2.0, 5.0, 8.0], [3.0, 6.0, 9.0]])
         v = facade.compute_vec(A)
         assert_array_equal(numpy.asarray(v)[:, 0], numpy.arange(1.0, 10.0))
         assert_array_equal(numpy.asarray(facade.compute_unvec(v)), numpy.asarray(A))
 
     def test_compute_unvec_rejects_non_column(self):
         with pytest.raises(Exception, match="column vector"):
-            facade.compute_unvec(numpy.matrix([[1.0, 2.0, 3.0, 4.0]]))
+            facade.compute_unvec(numpy.array([[1.0, 2.0, 3.0, 4.0]]))
 
     def test_compute_unvec_rejects_length_that_is_not_a_perfect_square(self):
-        col = numpy.matrix(numpy.arange(1.0, 7.0)).T
+        col = numpy.arange(1.0, 7.0).reshape(-1, 1)
         with pytest.raises(Exception):
             facade.compute_unvec(col)
 
@@ -727,7 +727,7 @@ class TestFacadeContract:
         the library's own Exception("... should satisfy ...") messages.
         """
         with pytest.raises(Exception) as exc_info:
-            facade.compute_vec(numpy.matrix(numpy.zeros((3, 2))))
+            facade.compute_vec(numpy.zeros((3, 2)))
         assert type(exc_info.value) is ValueError
 
     @pytest.mark.parametrize("fn", [

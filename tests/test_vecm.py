@@ -39,7 +39,7 @@ from contextlib import redirect_stdout
 
 import numpy
 import pytest
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_equal
 from scipy.stats import norm
 from statsmodels.tsa.vector_ar.var_model import LagOrderResults
 from statsmodels.tsa.vector_ar.vecm import JohansenTestResult, VECMResults
@@ -57,8 +57,9 @@ from lib.data.reports import JohansenTestReport
 from lib.models import vecm as model
 from lib.utils import create_ensemble
 
-# numpy.matrix is what the simulators build internally (and what the notebooks
-# feed them); coint_johansen drops the zero imaginary parts of its eigenvalues.
+# The simulators build numpy.matrix internally and return one, so the notice
+# still fires on the results even though no test constructs a matrix as input;
+# coint_johansen drops the zero imaginary parts of its eigenvalues.
 pytestmark = [
     pytest.mark.filterwarnings("ignore::PendingDeprecationWarning"),
     pytest.mark.filterwarnings("ignore::numpy.exceptions.ComplexWarning"),
@@ -70,18 +71,18 @@ pytestmark = [
 
 KAPPA = 0.3                      # error correction speed, φ = 1 - κ = 0.7
 PHI = 0.4                        # lagged difference coefficient
-BETA = numpy.matrix([[1.0, -1.0]])
-LAMBDA = numpy.matrix([[-KAPPA], [0.0]])
-A_ZERO = numpy.matrix(numpy.zeros((2, 2)))
-A_ONE = numpy.matrix([[PHI, 0.0], [0.0, PHI]])
-OMEGA_I = numpy.matrix(numpy.eye(2))
+BETA = numpy.array([[1.0, -1.0]])
+LAMBDA = numpy.array([[-KAPPA], [0.0]])
+A_ZERO = numpy.zeros((2, 2))
+A_ONE = numpy.array([[PHI, 0.0], [0.0, PHI]])
+OMEGA_I = numpy.eye(2)
 # deliberately neither identity nor diagonal
-OMEGA = numpy.matrix([[2.0, 0.6], [0.6, 1.5]])
+OMEGA = numpy.array([[2.0, 0.6], [0.6, 1.5]])
 
 # rank 2 system: three series, one common stochastic trend
-BETA2 = numpy.matrix([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]])
-LAMBDA2 = numpy.matrix([[-KAPPA, 0.0], [0.0, -KAPPA], [0.0, 0.0]])
-A2_ZERO = numpy.matrix(numpy.zeros((3, 3)))
+BETA2 = numpy.array([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]])
+LAMBDA2 = numpy.array([[-KAPPA, 0.0], [0.0, -KAPPA], [0.0, 0.0]])
+A2_ZERO = numpy.zeros((3, 3))
 
 
 def redraw_noise(seed: int, Ω, nsamp: int) -> numpy.ndarray:
@@ -146,8 +147,8 @@ def sim_rank_two():
 @pytest.fixture(scope="module")
 def sim_random_walks():
     """Two independent random walks: Π = 0, so nothing is cointegrated."""
-    zeros_λ = numpy.matrix(numpy.zeros((2, 1)))
-    zeros_β = numpy.matrix(numpy.zeros((1, 2)))
+    zeros_λ = numpy.zeros((2, 1))
+    zeros_β = numpy.zeros((1, 2))
     numpy.random.seed(8123)
     return facade.create_vecm1_source(zeros_λ, zeros_β, A_ZERO, npts=1000)
 
@@ -279,14 +280,16 @@ class TestVecm1Simulator:
         # up numpy.matrix: xt, εt and a_matrix are still matrices.
         # This is rank 2, where the earlier elementwise `*` could not broadcast
         # (3,2) against (2,3); rank 1 had survived by accident, column*row
-        # broadcasting to the outer product. Results are bit-identical, hence
-        # assert_allclose at default tolerance on a shared seed.
+        # broadcasting to the outer product. On a shared seed the two paths are
+        # bit-identical, so this is an exact comparison rather than a tolerance.
+        # the shared fixtures are plain arrays; this is the one place that still
+        # builds numpy.matrix, because comparing the two input types is the point
         numpy.random.seed(31)
-        as_matrix = numpy.array(model.vecm1(LAMBDA2, BETA2, A2_ZERO, numpy.matrix(numpy.eye(3)), 50))
+        as_matrix = numpy.array(model.vecm1(numpy.matrix(LAMBDA2), numpy.matrix(BETA2),
+                                            numpy.matrix(A2_ZERO), numpy.matrix(numpy.eye(3)), 50))
         numpy.random.seed(31)
-        as_array = numpy.array(model.vecm1(numpy.array(LAMBDA2), numpy.array(BETA2),
-                                           numpy.array(A2_ZERO), numpy.eye(3), 50))
-        assert_allclose(as_array, as_matrix)
+        as_array = numpy.array(model.vecm1(LAMBDA2, BETA2, A2_ZERO, numpy.eye(3), 50))
+        assert_array_equal(as_array, as_matrix)
 
 
 class TestVecmSimulator:
@@ -619,7 +622,7 @@ class TestSourceFacade:
         """Scaling Ω by 4 scales the random walk's increment variance by 4;
         n = 3000 gives ~2.6% relative spread, so 15% is comfortably ~5σ."""
         numpy.random.seed(303)
-        _, xt = facade.create_vecm1_source(LAMBDA, BETA, A_ZERO, npts=3000, Ω=numpy.matrix(4.0 * numpy.eye(2)))
+        _, xt = facade.create_vecm1_source(LAMBDA, BETA, A_ZERO, npts=3000, Ω=4.0 * numpy.eye(2))
         assert numpy.diff(xt, axis=1)[1, 2:].var() == pytest.approx(4.0, rel=0.15)
 
     def test_vecm_source_returns_time_and_values(self):
@@ -1106,10 +1109,10 @@ class TestJohansenFacade:
         assert len(report.ranks.test_ranks) == len(report.ranks.significance_levels)
 
     def test_handles_systems_with_more_series_than_significance_levels(self):
-        zeros_λ = numpy.matrix(numpy.zeros((4, 1)))
-        zeros_β = numpy.matrix(numpy.zeros((1, 4)))
+        zeros_λ = numpy.zeros((4, 1))
+        zeros_β = numpy.zeros((1, 4))
         numpy.random.seed(2024)
-        _, xt = facade.create_vecm1_source(zeros_λ, zeros_β, numpy.matrix(numpy.zeros((4, 4))), npts=400)
+        _, xt = facade.create_vecm1_source(zeros_λ, zeros_β, numpy.zeros((4, 4)), npts=400)
         _, report, _ = facade.compute_johansen_coint_test(xt, 1)
         assert report.rank == 0
 
