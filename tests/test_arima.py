@@ -821,8 +821,8 @@ class TestFacadeKwargs:
 # ---------------------------------------------------------------------------
 
 ESTIMATE_CASES = [
-    pytest.param(facade.compute_ar_estimate, ARMAEstType.AR, "phi", id="ar"),
-    pytest.param(facade.compute_ar_offset_estimate, ARMAEstType.AR_OFFSET, "phi", id="ar_offset"),
+    pytest.param(facade.compute_ar_estimate, ARMAEstType.AR, "varphi", id="ar"),
+    pytest.param(facade.compute_ar_offset_estimate, ARMAEstType.AR_OFFSET, "varphi", id="ar_offset"),
     pytest.param(facade.compute_ma_estimate, ARMAEstType.MA, "theta", id="ma"),
     pytest.param(facade.compute_ma_offset_estimate, ARMAEstType.MA_OFFSET, "theta", id="ma_offset"),
 ]
@@ -844,13 +844,11 @@ class TestFacadeEstimates:
         for i, p in enumerate(est.params):
             assert p.est == result.params[i + 1] and p.err == result.bse[i + 1]
             assert p.param_type == ARMAParamType.ARMA_PARAM.value
-            # The two indexes disagree: __arma_estimate_from_result numbers `order`
-            # from statsmodels' 1-based params slot, while ARMAEst.__set_params_labels
-            # subscripts the label with the 0-based list position. So params[0] is
-            # order 1 but reads $\hat{\phi_{0}}$. Both halves asserted exactly.
+            # The label subscript is the stored order, so params[0] is order 1 and
+            # reads $\hat{\varphi_{1}}$ -- the two indexes agree.
             assert p.order == i + 1
-            assert p.est_label == rf"$\hat{{\{label_symbol}_{{{i}}}}}$"
-            assert p.err_label == rf"$\sigma_{{\hat{{\{label_symbol}_{{{i}}}}}}}$"
+            assert p.est_label == rf"$\hat{{\{label_symbol}_{{{p.order}}}}}$"
+            assert p.err_label == rf"$\sigma_{{\hat{{\{label_symbol}_{{{p.order}}}}}}}$"
         assert est.sigma2.est == result.params[-1] and est.sigma2.err == result.bse[-1]
         assert est.const.param_type == ARMAParamType.ARMA_CONST.value
         assert est.sigma2.param_type == ARMAParamType.ARMA_SIG2.value

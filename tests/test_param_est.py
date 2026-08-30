@@ -264,8 +264,8 @@ class TestARMAEstTypeSetParamLabels:
     @pytest.mark.parametrize(
         "est_type, expected_est_label",
         [
-            (ARMAEstType.AR, r"$\hat{\phi_{3}}$"),
-            (ARMAEstType.AR_OFFSET, r"$\hat{\phi_{3}}$"),
+            (ARMAEstType.AR, r"$\hat{\varphi_{3}}$"),
+            (ARMAEstType.AR_OFFSET, r"$\hat{\varphi_{3}}$"),
             (ARMAEstType.MA, r"$\hat{\theta_{3}}$"),
             (ARMAEstType.MA_OFFSET, r"$\hat{\theta_{3}}$"),
         ],
@@ -280,7 +280,7 @@ class TestARMAEstTypeSetParamLabels:
     def test_err_label_is_sigma_of_est_symbol(self, est_type):
         p = _param()
         est_type.set_param_labels(p, 2)
-        symbol = r"\phi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
+        symbol = r"\varphi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
         assert present(p.err_label).startswith(r"$\sigma_{")
         assert rf"\hat{{{symbol}_{{2}}}}" in present(p.err_label)
         assert p.err_label != p.est_label
@@ -299,18 +299,12 @@ class TestARMAEstTypeSetParamLabels:
         # sigma prefix) because its exact spelling is the malformed
         # three-delimiter form owned by test_err_label_is_well_formed_mathtext
         # -- fixing that defect must produce exactly one red test, not two.
-        assert p.est_label == r"$\hat{\phi_{0}}$"
+        assert p.est_label == r"$\hat{\varphi_{0}}$"
         assert present(p.err_label).startswith(r"$\sigma_{")
         assert present(p.err_label).endswith("$")
-        assert r"\hat{\phi_{0}}" in present(p.err_label)
+        assert r"\hat{\varphi_{0}}" in present(p.err_label)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="the two ARMAEstType dispatchers disagree on the AR coefficient's glyph: formula() writes "
-           r"'\varphi' while set_param_labels() writes '\phi', so a figure whose title is the formula "
-           "and whose table rows are the labels renders one parameter as two different symbols",
-)
 @pytest.mark.parametrize(
     "est_type", [ARMAEstType.AR, ARMAEstType.AR_OFFSET], ids=lambda t: t.name
 )
@@ -666,8 +660,8 @@ class TestARMAEst:
     @pytest.mark.parametrize(
         "est_type, symbol",
         [
-            (ARMAEstType.AR, r"\phi"),
-            (ARMAEstType.AR_OFFSET, r"\phi"),
+            (ARMAEstType.AR, r"\varphi"),
+            (ARMAEstType.AR_OFFSET, r"\varphi"),
             (ARMAEstType.MA, r"\theta"),
             (ARMAEstType.MA_OFFSET, r"\theta"),
         ],
@@ -683,32 +677,23 @@ class TestARMAEst:
         labels = [present(p.est_label) for p in est.params]
         assert len(set(labels)) == len(labels) == 3
         assert all(label.startswith(rf"$\hat{{{symbol}_{{") and label.endswith("}}$") for label in labels)
-        other = r"\theta" if symbol == r"\phi" else r"\phi"
+        other = r"\theta" if symbol == r"\varphi" else r"\varphi"
         assert all(other not in label for label in labels)
         assert all(present(p.err_label).startswith(r"$\sigma_{") and symbol in present(p.err_label) for p in est.params)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="ARMAEst.__set_params_labels (param_est.py:335-337) passes the 0-based position in "
-               "``params`` as the subscript, so the lag-1 coefficient is labelled φ̂_0 even though "
-               "lib/data/impl/arima.py:507-511 stores it with order=1 and ARMAEstType.formula() writes "
-               r"'\sum_{i=1}^p \varphi_i X_{t-i}'.  An AR(p) has no φ_0, and the label disagrees with the "
-               "order column it is displayed next to",
-    )
     @pytest.mark.parametrize("est_type", list(ARMAEstType), ids=lambda t: t.name)
     def test_param_label_index_matches_the_stored_order(self, est_type):
-        symbol = r"\phi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
+        symbol = r"\varphi" if est_type in (ARMAEstType.AR, ARMAEstType.AR_OFFSET) else r"\theta"
         est = _arma_est(est_type, nparams=2)
         assert [p.order for p in est.params] == [1, 2]          # as the estimators store them
         assert [p.est_label for p in est.params] == [rf"$\hat{{{symbol}_{{{p.order}}}}}$" for p in est.params]
 
-    def test_param_labels_are_currently_zero_based(self):
-        # Characterisation of the defect above, kept as the single green record
-        # of today's behaviour: the first parameter is labelled with 0 while its
-        # stored order is 1.
+    def test_param_labels_are_one_based_like_the_stored_order(self):
+        # The subscript is the stored order, so the first parameter -- the lag-1
+        # coefficient -- is labelled 1, matching formula()'s sum from i = 1.
         est = _arma_est(ARMAEstType.AR, nparams=2)
         assert est.params[0].order == 1
-        assert est.params[0].est_label == r"$\hat{\phi_{0}}$"
+        assert est.params[0].est_label == r"$\hat{\varphi_{1}}$"
 
     def test_offset_is_derived_from_the_mean_per_model_family(self):
         # statsmodels reports the process MEAN as its constant. For an AR the mean
@@ -1162,7 +1147,7 @@ def test_arma_est_defaults_to_ar():
     assert est.arma_est_type is ARMAEstType.AR
     # φ (not θ) is the point; the subscripts are owned by
     # test_param_label_index_matches_the_stored_order.
-    assert all(present(p.est_label).startswith(r"$\hat{\phi_{") for p in est.params)
+    assert all(present(p.est_label).startswith(r"$\hat{\varphi_{") for p in est.params)
     assert est.params[0].est_label != est.params[1].est_label
     assert json.loads(est.to_json())["arma_est_type"] == "AR"
 
