@@ -385,14 +385,6 @@ class TestVarianceRatio:
         assert hetero.shape == (5,)
         assert_allclose(hetero / homo, 1.0, atol=0.06)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="vr_stat_hetero_scan's theta deviates from Lo & MacKinlay (1988) "
-                              "eq. (18) in two ways: __delta_factor's summation is "
-                              "range(j+1, t) (models/fbm.py:558) so it omits the k = t term the "
-                              "paper includes, and it divides by stats.lag_var(samples, 1)**2 "
-                              "before __theta_factor divides by t**2, leaving a spurious "
-                              "(t-1)^2/t^2 factor; together they move the statistic ~5% at "
-                              "n = 32, s = 8")
     @pytest.mark.parametrize("n, s", [(32, 8), (129, 6)])
     def test_hetero_stat_matches_lo_mackinlay_closed_form(self, n, s):
         x = random_walk(n)
@@ -401,15 +393,16 @@ class TestVarianceRatio:
         assert fbm.vr_stat_hetero_scan(x, [s])[0] == pytest.approx(expected, rel=1e-9)
 
     @pytest.mark.parametrize("n, s", [(32, 8), (129, 6), (513, 24)])
-    def test_hetero_theta_is_the_closed_form_up_to_two_known_deviations(self, n, s):
+    def test_hetero_theta_is_the_closed_form(self, n, s):
         # Deterministic anchor for __theta_factor/__delta_factor: the closed form of
-        # Lo & MacKinlay eq. (18) computed in the test, corrected only by the two
-        # deviations named above, must reproduce the shipped statistic exactly.
-        # Anything else in the summation (the [2(s-j)/s]^2 weights, the mean
-        # adjustment, the squared-sum denominator) is pinned by this equality.
+        # Lo & MacKinlay eq. (18) computed in the test must reproduce the shipped
+        # statistic exactly. Anything in the summation (the [2(s-j)/s]^2 weights, the
+        # mean adjustment, the squared-sum denominator, the k = t term) is pinned by
+        # this equality. The drop_last/small_sample_norm switches on the helper are
+        # the two deviations the library used to carry; it no longer needs them.
         x = random_walk(n)
         vr = fbm.vr_scan(x, [s])[0]
-        theta = lo_mackinlay_theta_hetero(x, s, drop_last=True, small_sample_norm=True)
+        theta = lo_mackinlay_theta_hetero(x, s)
         assert theta > 0.0
         assert fbm.vr_stat_hetero_scan(x, [s])[0] == pytest.approx((vr - 1.0) / numpy.sqrt(theta), rel=1e-12)
 
@@ -735,7 +728,7 @@ class TestFacadeSources:
         dB = numpy.random.normal(size=64)
         t, noise = fbm_data.create_noise_fft_source(H=0.3, npts=32, Δt=0.25, dB=dB)
         assert_allclose(t, 0.25 * numpy.arange(32))
-        assert_allclose(noise, fbm.fft_noise(0.3, 32, dB))
+        assert_allclose(noise, 0.25**0.3 * fbm.fft_noise(0.3, 32, dB))
         with pytest.raises(Exception, match="dB should have length 64"):
             fbm_data.create_noise_fft_source(H=0.3, npts=32, dB=dB[:10])
 
@@ -745,7 +738,7 @@ class TestFacadeSources:
         assert len(t) == len(Z) == 32
         assert_allclose(t, 2.0 * numpy.arange(32))
         assert Z[0] == 0.0
-        assert_allclose(Z, fbm.generate_fft(0.8, 32, dB))
+        assert_allclose(Z, 2.0**0.8 * fbm.generate_fft(0.8, 32, dB))
 
     def test_noise_cholesky_source_agrees_with_model_layer(self):
         npts = 16
@@ -753,10 +746,11 @@ class TestFacadeSources:
         L = fbm.cholesky_decompose(0.7, npts)
         t, noise = fbm_data.create_noise_cholesky_source(H=0.7, npts=npts, Δt=0.5, dB=dB, L=L)
         assert t[0] == 0.0 and t[1] - t[0] == pytest.approx(0.5)
-        assert_allclose(noise, fbm.cholesky_noise(0.7, npts, dB, L))
+        assert_allclose(noise, 0.5**0.7 * fbm.cholesky_noise(0.7, npts, dB, L))
         # Without L the facade must fall back to the numpy Cholesky of the ACF matrix.
+        # It also defaults to Δt = 1, so the Δt**H factor above has to be divided out.
         _, noise_default = fbm_data.create_noise_cholesky_source(H=0.7, npts=npts, dB=dB)
-        assert_allclose(noise_default, noise, atol=1e-12)
+        assert_allclose(noise_default, noise / 0.5**0.7, atol=1e-12)
 
     def test_cholesky_source_agrees_with_model_layer(self):
         npts = 16
@@ -764,7 +758,7 @@ class TestFacadeSources:
         t, Z = fbm_data.create_cholesky_source(H=0.3, npts=npts, Δt=0.5, dB=dB)
         assert t[0] == 0.0 and t[1] - t[0] == pytest.approx(0.5)
         assert Z[0] == 0.0
-        assert_allclose(Z, fbm.generate_cholesky(0.3, npts, dB))
+        assert_allclose(Z, 0.5**0.3 * fbm.generate_cholesky(0.3, npts, dB))
 
     @pytest.mark.parametrize("H", [0.3, 0.8])
     def test_motion_sources_are_self_consistent_on_the_unit_grid(self, H):
@@ -776,12 +770,6 @@ class TestFacadeSources:
         ensemble = numpy.array([fbm_data.create_fft_source(H=H, npts=npts)[1] for _ in range(nsim)])
         assert_allclose(ensemble.var(axis=0)[1:], fbm.var(H, t[1:]), rtol=0.3)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="create_fft_source/create_cholesky_source scale the returned time "
-                              "grid by Δt but generate the process on unit time steps, so the "
-                              "values are not Δt**H scaled: the (t, values) pair is not an fBm "
-                              "on the grid it is paired with. Var(Z_k) comes back as k**(2H) "
-                              "instead of (Δt k)**(2H), short by Δt**(2H)")
     @pytest.mark.parametrize("source", [fbm_data.create_fft_source, fbm_data.create_cholesky_source])
     def test_motion_sources_are_self_consistent_on_a_non_unit_grid(self, source):
         H, npts, Δt, nsim = 0.5, 16, 4.0, 400
@@ -790,15 +778,12 @@ class TestFacadeSources:
         if source is fbm_data.create_cholesky_source:
             kwargs["L"] = L
         t, _ = source(**kwargs)
-        assert_allclose(t, Δt * numpy.arange(npts, dtype=float))
+        # the two sources differ in length by one (fft returns npts, cholesky
+        # npts + 1); what is pinned here is the spacing, not that convention
+        assert_allclose(t, Δt * numpy.arange(len(t), dtype=float))
         ensemble = numpy.array([source(**kwargs)[1] for _ in range(nsim)])
-        assert_allclose(ensemble.var(axis=0)[1:npts], fbm.var(H, t[1:]), rtol=0.3)
+        assert_allclose(ensemble.var(axis=0)[1:], fbm.var(H, t[1:]), rtol=0.3)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="create_noise_fft_source scales the returned time grid by Δt but "
-                              "fft_noise generates unit-step fractional Gaussian noise, so the "
-                              "increment variance stays 1 instead of the Δt**(2H) an increment "
-                              "over a step of width Δt must have")
     def test_noise_source_variance_scales_with_the_time_step(self):
         H, npts, Δt, nsim = 0.7, 16, 4.0, 400
         ensemble = numpy.array([fbm_data.create_noise_fft_source(H=H, npts=npts, Δt=Δt)[1]
