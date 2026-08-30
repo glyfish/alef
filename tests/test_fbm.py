@@ -656,11 +656,6 @@ class TestFacadeScans:
         assert s_vals[0] == 2
         assert_allclose(vals, model_fn(x, s_vals))
 
-    @pytest.mark.xfail(strict=True,
-                       reason="lib/utils.py:187 create_logspace builds "
-                              "logspace(log10(xmin), log10(xmax/xmin), npts), so with smin != 1 "
-                              "the lags top out at smax/smin instead of smax: smin=2, smax=100, "
-                              "npts=3 yields [2, 10, 49] rather than [2, 14, 100]")
     @pytest.mark.parametrize("scan", [
         fbm_data.compute_vr_scan,
         fbm_data.compute_homo_vr_stat_scan,

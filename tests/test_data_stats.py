@@ -403,17 +403,11 @@ class TestAggregation:
         # bin k holds 3k..3k+2 whose mean is 3k+1
         assert_allclose(a, numpy.array([1.0, 4.0, 7.0, 10.0]))
         # the times are asserted by their semantics rather than by restating the
-        # library's linspace: one time per bin, the first at the original start
+        # library's expression: one time per bin, each at the centre of the
+        # values that bin averages
         assert len(tv) == n // m
-        assert tv[0] == t[0]
+        assert tv[0] == t[0:m].mean()
 
-    @pytest.mark.xfail(strict=True,
-                       reason="lib.stats.agg_time returns "
-                              "numpy.linspace(t[0], t[n-1], n//m), which spreads the "
-                              "aggregated times over the full original range instead of "
-                              "placing each one inside the bin it labels: for n=12, m=3 it "
-                              "returns 0, 3.67, 7.33, 11 where the bin centres are "
-                              "1, 4, 7, 10")
     def test_agg_times_label_the_bins_they_summarise(self):
         n, m = 12, 3
         t = numpy.arange(n, dtype=float)
@@ -455,12 +449,6 @@ class TestAggregation:
         assert m_default[0] == 1.0
         assert_allclose(m_default, m_explicit)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_agg_var returns the fractional bin sizes produced "
-                              "by create_space (npts=10, m_max=64, m_min=2 gives 2, "
-                              "8.889, 15.778, ...) while lib.stats.agg_var truncates each "
-                              "one with int(m) before aggregating, so the returned bin "
-                              "sizes are not the bin sizes the variances were computed at")
     def test_agg_var_returns_the_bin_sizes_it_actually_used(self):
         x = numpy.random.normal(size=1024)
 
@@ -550,12 +538,6 @@ class TestLagVariance:
         # is far above the s=4 one (expected ratio 16)
         assert var[-1] > 4.0 * var[0]
 
-    @pytest.mark.xfail(strict=True,
-                       reason="lib.utils.create_logspace builds "
-                              "numpy.logspace(log10(xmin), log10(xmax/xmin), npts), so a "
-                              "logarithmic scan stops at smax/smin instead of smax; with "
-                              "smin=4 and smax=64 the largest lag returned is 16. The "
-                              "default smin=1 hides it because xmax/xmin == xmax there")
     def test_lag_var_logarithmic_scan_honours_smin_and_smax(self):
         x = _bm(2000)
 
@@ -614,13 +596,6 @@ class TestEnsembleStatistics:
 
     @pytest.mark.parametrize("func", [dstats.compute_ensemble_cov,
                                       dstats.compute_ensemble_correlation_coefficient])
-    @pytest.mark.xfail(strict=True,
-                       reason="lib.stats.ensemble_cov unpacks 'x_nsim, x_npts = x.shape' "
-                              "without checking the rank first, so a one dimensional "
-                              "sample raises ValueError('not enough values to unpack "
-                              "(expected 2, got 1)') instead of the "
-                              "Exception('Samples are not a two dimensional array') both "
-                              "docstrings promise")
     def test_one_dimensional_input_is_rejected_by_the_two_sample_functions(self, func):
         t = numpy.arange(5.0)
         with pytest.raises(Exception, match="two dimensional"):
@@ -685,13 +660,6 @@ class TestEnsembleStatistics:
         assert ac[0] == pytest.approx(1.0)
         assert_allclose(ac[:4], phi ** numpy.arange(4), atol=0.06)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="lib.stats.ensemble_acf compares nlags with len(samples) "
-                              "(the number of realizations) instead of len(samples[0]) "
-                              "(the number of points), so any nlags larger than nsim is "
-                              "silently replaced by the sample length and "
-                              "compute_ensemble_acf returns lags and values of different "
-                              "lengths")
     def test_ensemble_acf_honours_the_requested_number_of_lags(self):
         nsim, npts, nlags = 5, 200, 20
         ensemble = [numpy.random.normal(size=npts) for _ in range(nsim)]
@@ -783,13 +751,6 @@ class TestHistograms:
         assert x[0] == pytest.approx(data.min() + width / 2.0)
         assert x[-1] == pytest.approx(data.max() - width / 2.0)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_pdf_hist discards a one-sided bound: hist_range is "
-                              "None unless BOTH xmin and xmax are supplied, so xmin=-1.0 "
-                              "is silently ignored and the histogram falls back to the "
-                              "data range, contradicting the docstring that documents "
-                              "xmin as required. A supplied bound should be honoured (or "
-                              "the call rejected), never dropped")
     def test_pdf_hist_honours_a_half_specified_range(self):
         data = numpy.random.normal(size=500)
 
@@ -889,15 +850,6 @@ class TestMultivariateNormal:
         # a +/-3 sigma square holds 0.9973^2 = 0.9946 of the mass
         assert pdf.sum() * delta ** 2 == pytest.approx(0.9946, abs=0.01)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_multivariate_normal_pdf takes "
-                              "'sigma = min(numpy.diag(omega))', i.e. it uses a VARIANCE "
-                              "as a standard deviation when sizing the grid. For "
-                              "omega = 0.25*I the grid spans +/-0.75 = +/-1.5 true sigma "
-                              "and captures only 0.762 of the distribution instead of the "
-                              "+/-3 sigma and 0.9946 it intends; omega = 4*I spans "
-                              "+/-6 sigma. Every unit variance test hides this because "
-                              "variance == sd there")
     def test_grid_covers_three_standard_deviations_for_a_non_unit_variance(self):
         n, variance = 60, 0.25
         mu = numpy.zeros(2)
@@ -933,10 +885,6 @@ class TestMultivariateNormal:
         with pytest.raises(Exception, match="Number of variables"):
             dstats.compute_multivariate_normal_pdf(numpy.zeros(nvars), numpy.eye(nvars), 10)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="the three variable branch of "
-                              "compute_multivariate_normal_pdf indexes mu[3] for a three "
-                              "element mean, raising IndexError; it should use mu[2]")
     def test_trivariate_pdf(self):
         n = 10
         mu = numpy.zeros(3)
@@ -947,12 +895,6 @@ class TestMultivariateNormal:
         assert vals.shape[0] == 3
         assert pdf.max() > 0.0
 
-    @pytest.mark.xfail(strict=True,
-                       reason="compute_multivariate_normal_pdf reverses the coordinate "
-                              "pairs (numpy.transpose(vals)[:,:,::-1]) so the density is "
-                              "evaluated at (y, x) against the mean (mu_x, mu_y); with "
-                              "distinct means the grid no longer covers the distribution "
-                              "and the integrated mass collapses to zero")
     def test_bivariate_pdf_with_distinct_means_still_carries_the_mass(self):
         n = 60
         mu = numpy.array([5.0, -5.0])
@@ -1131,11 +1073,13 @@ class TestCausalityMatrix:
         assert int(loose["result"].to_numpy().sum()) == 4
 
     @pytest.mark.xfail(strict=True,
-                       reason="compute_causality_matrix reads the documented add_const "
-                              "kwarg and forwards it to lib.stats.causality_matrix, whose "
-                              "body never references it — grangercausalitytests is always "
-                              "called with its own addconst default — so the parameter is "
-                              "dead and cannot change the model a caller gets")
+                       reason="statsmodels' grangercausalitytests raises a bare "
+                              "NotImplementedError for addconst=False, so True is the only "
+                              "model it can build and no value of add_const can change the "
+                              "result. causality_matrix now forwards the kwarg and rejects "
+                              "False with a clear message rather than silently ignoring it, "
+                              "but the parameter cannot become meaningful without upstream "
+                              "support")
     def test_add_const_changes_the_model(self):
         samples = _causal_pair()
 
@@ -1342,12 +1286,6 @@ class TestOLS:
         assert result.params[1].est == pytest.approx(a2, abs=1e-9)
         assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="multi_variable_estimate dispatches to __OLS_formula_fit, "
-                              "which applies no transform for any enum member, so "
-                              "OLS.LOG.multi_variable_estimate silently returns the "
-                              "LINEAR model (byte identical r2, params and const) instead "
-                              "of the log-log fit its enum value documents")
     def test_log_multi_variable_estimate_recovers_a_multiplicative_power_law(self):
         a1, a2, b, n = 1.5, 0.5, 2.0, 200
         x1 = numpy.exp(numpy.random.uniform(0.1, 2.0, n))
@@ -1361,11 +1299,6 @@ class TestOLS:
         assert result.params[1].est == pytest.approx(a2, abs=1e-9)
         assert result.const.est == pytest.approx(numpy.log10(b), abs=1e-9)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="OLS.__OLS_fit only transforms the LOG member, so XLOG "
-                              "fits y against x untransformed instead of log(y) against "
-                              "x; an exact exponential relation therefore does not "
-                              "produce a perfect fit")
     def test_xlog_linearises_an_exponential_relation(self):
         # XLOG documents y = b*exp(a*x), which is exactly linear once y is
         # log transformed, so the fit of noiseless data must have r2 == 1.
@@ -1376,11 +1309,6 @@ class TestOLS:
 
         assert result.r2 == pytest.approx(1.0, abs=1e-6)
 
-    @pytest.mark.xfail(strict=True,
-                       reason="OLS.__OLS_fit only transforms the LOG member, so YLOG "
-                              "fits y against x untransformed instead of y against "
-                              "log(x); an exact logarithmic relation therefore does not "
-                              "produce a perfect fit")
     def test_ylog_linearises_a_logarithmic_relation(self):
         # YLOG documents y = b*ln(a*x), which is exactly linear once x is
         # log transformed, so the fit of noiseless data must have r2 == 1.
