@@ -1063,24 +1063,23 @@ class TestCausalityMatrix:
         assert int(strict["result"].to_numpy().sum()) == 1
         assert int(loose["result"].to_numpy().sum()) == 4
 
-    @pytest.mark.xfail(strict=True,
-                       reason="statsmodels' grangercausalitytests raises a bare "
-                              "NotImplementedError for addconst=False, so True is the only "
-                              "model it can build and no value of add_const can change the "
-                              "result. causality_matrix now forwards the kwarg and rejects "
-                              "False with a clear message rather than silently ignoring it, "
-                              "but the parameter cannot become meaningful without upstream "
-                              "support")
-    def test_add_const_changes_the_model(self):
+    def test_add_const_false_is_rejected(self):
+        # add_const cannot be a toggle: statsmodels' grangercausalitytests raises
+        # a bare NotImplementedError for addconst=False, so True is the only model
+        # it can build. navi rejects False up front with a message naming the
+        # cause rather than silently computing the add_const=True answer. This
+        # pins the documented contract, not a defect -- if statsmodels ever
+        # implements addconst=False, this test is the one to revisit.
         samples = _causal_pair()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            without, _ = dstats.compute_causality_matrix(samples, nlags=2, add_const=False)
-            with_const, _ = dstats.compute_causality_matrix(samples, nlags=2, add_const=True)
+            with pytest.raises(Exception, match="add_const=False is not implemented"):
+                dstats.compute_causality_matrix(samples, nlags=2, add_const=False)
 
-        assert not numpy.allclose(without["pvalue"].to_numpy(dtype=float),
-                                  with_const["pvalue"].to_numpy(dtype=float))
+            matrix, _ = dstats.compute_causality_matrix(samples, nlags=2, add_const=True)
+
+        assert not matrix["pvalue"].isna().any()
 
     def test_independent_series_show_no_causality(self):
         # decided at 1e-3, see test_detects_the_known_driver for why

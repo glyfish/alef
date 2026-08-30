@@ -272,15 +272,13 @@ class TestVecm1Simulator:
         assert_allclose(numpy.diag(sample), numpy.diag(expected), rtol=0.20)
         assert_allclose(sample[0, 1], expected[0, 1], atol=0.32)
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=ValueError,
-        reason="vecm1 annotates λ and β as NDArray but evaluates λ*β, which is "
-               "elementwise for plain ndarrays; only numpy.matrix inputs give the "
-               "matrix product. Rank 1 survives by accident (column*row broadcasts "
-               "to the outer product), rank>1 raises on the broadcast.",
-    )
     def test_accepts_plain_ndarray_parameters(self):
+        # vecm1 documents λ and β as NDArray and spells the products with @, so
+        # plain arrays and numpy.matrix follow the same path. This is rank 2,
+        # where the old elementwise `*` could not broadcast (3,2) against (2,3);
+        # rank 1 had survived by accident, column*row broadcasting to the outer
+        # product. Results are bit-identical, hence assert_allclose at default
+        # tolerance on a shared seed.
         numpy.random.seed(31)
         as_matrix = numpy.array(model.vecm1(LAMBDA2, BETA2, A2_ZERO, numpy.matrix(numpy.eye(3)), 50))
         numpy.random.seed(31)
