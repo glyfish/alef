@@ -407,7 +407,7 @@ def test_statistic_matches_statsmodels_dickey_fuller_regression():
     # i.e. statistic(x) / sigma_hat where sigma_hat is the residual std of the
     # regression dx_t = beta x_{t-1} + e_t with nobs - 1 degrees of freedom.
     w = random_walk(500)
-    sm_stat = sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0]  # pyright: ignore[reportArgumentType]
+    sm_stat = sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None, result_object=False)[0]  # pyright: ignore[reportArgumentType]
 
     dx, x = numpy.diff(w), w[:-1]
     beta = (x @ dx) / (x @ x)
@@ -520,7 +520,7 @@ ADF_VARIANTS = [
 def test_adf_test_dispatches_regression_type(func, regression):
     w = random_walk(1000)
     report = func(w)
-    expected = sm.tsa.stattools.adfuller(w, regression=regression, maxlag=12)
+    expected = sm.tsa.stattools.adfuller(w, regression=regression, maxlag=12, result_object=False)
 
     assert isinstance(report, ADFTestReport)
     assert report.stat == pytest.approx(expected[0])
@@ -626,7 +626,7 @@ def test_adf_test_max_lag_zero_gives_plain_dickey_fuller():
     assert report.lags == 0
     assert report.nobs == n - 1
     # with no augmentation the statistic is the plain DF t-statistic
-    assert report.stat == pytest.approx(sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None)[0])  # pyright: ignore[reportArgumentType]
+    assert report.stat == pytest.approx(sm.tsa.stattools.adfuller(w, regression="n", maxlag=0, autolag=None, result_object=False)[0])  # pyright: ignore[reportArgumentType]
 
 
 def test_adf_test_max_lag_bounds_selected_lags():

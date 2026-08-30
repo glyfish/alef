@@ -754,17 +754,21 @@ class TestEstimateFacade:
         assert len(est.const) == 3
         assert {(p.row, p.column) for p in est.lambda_est} == {(i, j) for i in range(3) for j in range(2)}
 
+        # cache_readonly descriptors since statsmodels 0.15, so read them as arrays
+        alpha, s_alpha = numpy.asarray(result.alpha), numpy.asarray(result.stderr_alpha)
+        beta, s_beta = numpy.asarray(result.beta), numpy.asarray(result.stderr_beta)
+        sigma_u, gamma = numpy.asarray(result.sigma_u), numpy.asarray(result.gamma)
         for i in range(3):
             for j in range(2):
                 λ = find_param(est.lambda_est, i, j)
-                assert λ.est == result.alpha[i, j] and λ.err == result.stderr_alpha[i, j]
+                assert λ.est == alpha[i, j] and λ.err == s_alpha[i, j]
                 β = find_param(est.beta_est, i, j)
-                assert β.est == result.beta[i, j] and β.err == result.stderr_beta[i, j]
+                assert β.est == beta[i, j] and β.err == s_beta[i, j]
             for j in range(3):
                 ω = find_param(est.omega, i, j)
-                assert ω.est == result.sigma_u[i, j]
+                assert ω.est == sigma_u[i, j]
                 a = find_param(est.a_est, i, j, order=1)
-                assert a.est == result.gamma[i, j]
+                assert a.est == gamma[i, j]
 
         # the second cointegration vector is not a copy of the first, so the
         # column index really is being read
@@ -783,11 +787,13 @@ class TestEstimateFacade:
         assert result.det_coef.shape == (2, 1)
         assert result.det_coef_coint.shape == (0, 1)
         assert est.rank == 1 and est.order == 1 and len(est.const) == 2
+        det_coef = numpy.asarray(result.det_coef)
+        s_det = numpy.asarray(result.stderr_det_coef)
         for i in range(2):
             c = find_param(est.const, i, 0)
-            assert c.est == result.det_coef[i, 0]
-            assert c.err == result.stderr_det_coef[i, 0]
-        assert numpy.abs(result.stderr_det_coef).max() < 0.01 * numpy.abs(constant.stderr_det_coef).max()
+            assert c.est == det_coef[i, 0]
+            assert c.err == s_det[i, 0]
+        assert numpy.abs(s_det).max() < 0.01 * numpy.abs(numpy.asarray(constant.stderr_det_coef)).max()
 
     def test_linear_trend_coefficient_is_not_labelled_as_the_constant(self, sim_vecm1):
         _, xt = sim_vecm1

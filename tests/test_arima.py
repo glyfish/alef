@@ -840,16 +840,18 @@ class TestFacadeEstimates:
         assert est.order == order and len(est.params) == order
 
         # Values mirror statsmodels' params/bse in the documented slots.
-        assert est.const.est == result.params[0] and est.const.err == result.bse[0]
+        # cache_readonly descriptors since 0.15, so read them as arrays.
+        res_params, res_errs = numpy.asarray(result.params), numpy.asarray(result.bse)
+        assert est.const.est == res_params[0] and est.const.err == res_errs[0]
         for i, p in enumerate(est.params):
-            assert p.est == result.params[i + 1] and p.err == result.bse[i + 1]
+            assert p.est == res_params[i + 1] and p.err == res_errs[i + 1]
             assert p.param_type == ARMAParamType.ARMA_PARAM.value
             # The label subscript is the stored order, so params[0] is order 1 and
             # reads $\hat{\varphi_{1}}$ -- the two indexes agree.
             assert p.order == i + 1
             assert p.est_label == rf"$\hat{{\{label_symbol}_{{{p.order}}}}}$"
             assert p.err_label == rf"$\sigma_{{\hat{{\{label_symbol}_{{{p.order}}}}}}}$"
-        assert est.sigma2.est == result.params[-1] and est.sigma2.err == result.bse[-1]
+        assert est.sigma2.est == res_params[-1] and est.sigma2.err == res_errs[-1]
         assert est.const.param_type == ARMAParamType.ARMA_CONST.value
         assert est.sigma2.param_type == ARMAParamType.ARMA_SIG2.value
 

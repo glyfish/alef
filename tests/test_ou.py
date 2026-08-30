@@ -1098,6 +1098,7 @@ class TestHalfLifeEstimateDegenerateInput:
     all. None of these produce a diagnosable error today.
     """
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
     def test_constant_series_raises_an_index_error(self):
         # A constant series differences to all-zeros against a constant regressor, so
         # sm.add_constant sees an already-constant column and skips it. The design matrix ends
@@ -1107,12 +1108,14 @@ class TestHalfLifeEstimateDegenerateInput:
         with pytest.raises(IndexError):
             ou_facade.compute_mean_half_life_estimate(numpy.full(50, 3.0), dt=1.0)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
     def test_two_point_series_raises(self):
         # 2 samples -> 1 difference and a one-row regressor, which is trivially constant: the
         # same collapse. Anything shorter than 3 points cannot be fitted.
         with pytest.raises(IndexError):
             ou_facade.compute_mean_half_life_estimate(numpy.array([1.0, 2.0]), dt=1.0)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
     def test_three_points_is_the_shortest_accepted_input_and_is_degenerate(self):
         # 3 samples -> 2 observations for 2 parameters: an exact fit with zero residual
         # degrees of freedom. R² is 1 and every reported error is infinite, yet a finite

@@ -351,12 +351,12 @@ class TestADFTestReport:
         npass = 0
         for _ in range(20):
             x = numpy.cumsum(numpy.random.normal(0.0, 1.0, 400))
-            res = sm.tsa.stattools.adfuller(x, regression="c", maxlag=6)
+            res = sm.tsa.stattools.adfuller(x, regression="c", maxlag=6, result_object=False)
             report = ADFTestReport(res)
             assert report.nobs + report.lags + 1 == 400
             # the critical values are pulled out of statsmodels' unordered dict
             # by label and re-ordered 1%, 5%, 10% (increasing)
-            assert report.critical_vals == [res[4]["1%"], res[4]["5%"], res[4]["10%"]]  # pyright: ignore[reportIndexIssue, reportGeneralTypeIssues]
+            assert report.critical_vals == [res[4]["1%"], res[4]["5%"], res[4]["10%"]]  # pyright: ignore[reportIndexIssue, reportGeneralTypeIssues, reportOptionalSubscript]
             assert report.critical_vals[0] < report.critical_vals[1] < report.critical_vals[2]
             if all(report.status_vals):
                 assert report.status_str == ["Passed"]*3
@@ -380,7 +380,7 @@ class TestADFTestReport:
         x = numpy.zeros(1000)
         for i in range(1, 1000):
             x[i] = 0.5*x[i-1] + eps[i]
-        report = ADFTestReport(sm.tsa.stattools.adfuller(x, regression="c", maxlag=12))
+        report = ADFTestReport(sm.tsa.stattools.adfuller(x, regression="c", maxlag=12, result_object=False))
         assert not any(report.status_vals)
         assert report.status_str == ["Failed"]*3
         assert report.pval < 0.01

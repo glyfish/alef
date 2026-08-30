@@ -1,16 +1,15 @@
+# navi declares the analysis and plot stack it imports (numpy, pandas, scipy,
+# statsmodels, matplotlib, matplotlib-label-lines, cycler, tabulate, shortuuid,
+# httpx, pydantic, python-dotenv, curl_cffi), so they are not repeated here --
+# hand-listing them is what let the three consumers drift onto different
+# statsmodels and pandas versions.
 -e ../navi
+-e ../navi[mcp]
+
+# alef's own tooling: notebooks, debugging and the test suite
 jupyterlab
 jupyter
-matplotlib
-matplotlib-label-lines
-pandas
-statsmodels
 ipython
 ipykernel
-cycler
 debugpy
-shortuuid
-tabulate
-httpx
-mcp
 pytest

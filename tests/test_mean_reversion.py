@@ -585,6 +585,8 @@ class TestClosedForm:
         )
         assert half_life < reverting
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
+    @pytest.mark.filterwarnings("ignore:The design matrix is rank-deficient")  # and says so since 0.15
     def test_no_variation_yields_an_infinite_half_life_and_nan_errors(self):
         # Degenerate contract: with X_{t-1} constant the design is singular,
         # pinv returns slope 0 and t½ = -ln2/0 = -∞ (with numpy warnings)

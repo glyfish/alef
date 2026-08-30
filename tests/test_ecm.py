@@ -763,6 +763,7 @@ class TestDegenerateEstimatorInput:
         xt, yt = ecm.ecm(PHI, DELTA, ALPHA, BETA, GAMMA, LAMBDA, n, SIGMA)
         return xt, yt
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
     def test_single_sample_raises_in_both_facades(self):
         xt, yt = self._short(1)
         # β fit: sm.add_constant sees a one-row design whose only column is
@@ -783,6 +784,7 @@ class TestDegenerateEstimatorInput:
         with pytest.raises(ValueError):
             fecm.compute_gamma_lambda_estimate(yt, xt[:40], BETA)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
     def test_beta_estimate_with_two_samples_is_an_exact_but_error_free_fit(self):
         # Two points, two parameters: zero residual degrees of freedom. The fit
         # succeeds and interpolates (r² = 1) but every standard error is inf,
@@ -799,6 +801,8 @@ class TestDegenerateEstimatorInput:
         assert not numpy.isfinite(result.params[0].err)
         assert not numpy.isfinite(result.const.err)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
+    @pytest.mark.filterwarnings("ignore:The design matrix is rank-deficient")  # and says so since 0.15
     def test_gamma_lambda_estimate_with_two_samples_silently_loses_a_parameter(self):
         # n=2 leaves a single differenced observation, so every column of the
         # 1x2 design is trivially constant and sm.add_constant skips adding an
@@ -812,6 +816,8 @@ class TestDegenerateEstimatorInput:
         # so r² is 0/0 or ssr/0 — never a usable number.
         assert not numpy.isfinite(result.r2.est)
 
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")  # degenerate input by design: statsmodels divides by zero d.o.f.
+    @pytest.mark.filterwarnings("ignore:The design matrix is rank-deficient")  # and says so since 0.15
     def test_gamma_lambda_estimate_with_three_samples_returns_two_parameters(self):
         # n=3 → 2 differenced rows against 3 columns: still rank deficient, but
         # add_constant now does add the intercept, so the (const, γ̂, λ̂)
