@@ -2,9 +2,9 @@
 # statsmodels, matplotlib, matplotlib-label-lines, cycler, tabulate, shortuuid,
 # httpx, pydantic, python-dotenv, curl_cffi), so they are not repeated here --
 # hand-listing them is what let the three consumers drift onto different
-# statsmodels and pandas versions.
+# statsmodels and pandas versions. navi's [mcp] extra is deliberately not taken:
+# nothing in alef imports lib.mcp_client, which navi already treats as optional.
 -e ../navi
--e ../navi[mcp]
 
 # alef's own tooling: notebooks, debugging and the test suite
 jupyterlab
